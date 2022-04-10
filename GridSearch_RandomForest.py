@@ -211,7 +211,7 @@ for imp in range(impNumber):
             y_test = test[target_column].values
             x_test = test.drop([target_column], axis=1).values
             # Number of trees in random forest
-            n_estimators = [int(x) for x in np.linspace(start=200, stop=2000, num=10)]
+            n_estimators = [int(x) for x in np.linspace(start=200, stop=1000, num=10)]
             # Number of features to consider at every split
             max_features = ['auto', 'sqrt']
             # Maximum number of levels in tree

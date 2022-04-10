@@ -6,6 +6,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from warfit_learn import datasets, preprocessing
 from sklearn.linear_model import LinearRegression, Ridge
+from sklearn.metrics import mean_absolute_error
 from sklearn.svm import LinearSVR, SVR
 from sklearn.neural_network import MLPRegressor
 from sklearn.ensemble import GradientBoostingRegressor, AdaBoostRegressor
@@ -50,7 +51,7 @@ from sklearn.tree import DecisionTreeRegressor
 from sklearn.svm import LinearSVR
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import GradientBoostingRegressor, ExtraTreesRegressor
-from sklearn.ensemble import BaggingClassifier
+from sklearn.ensemble import BaggingClassifier,  VotingRegressor
 from sklearn.decomposition import PCA
 from sklearn.pipeline import make_pipeline, make_union
 from sklearn.neighbors import KNeighborsRegressor
@@ -264,6 +265,19 @@ def INRThree(targetINR):
     else:
         return 0
 
+def evaluate_models(models, x_train, x_test, y_train, y_test):
+    # fit and evaluate the models
+    scores = list()
+    for _, model in models:
+        # fit the model
+        model.fit(x_train, y_train)
+        # evaluate the model
+        yhat = model.predict(x_test)
+        mae = mean_absolute_error(y_test, yhat)
+        # store the performance
+        scores.append(-mae)
+    # report model performance
+    return scores
 
 def main():
     # Assume that the number of cores per socket in the machine is denoted as NUM_PARALLEL_EXEC_UNITS
@@ -300,12 +314,14 @@ def main():
             if file.endswith('.csv'):
                 filesImp.append(file)
 
+
+
     for file in filesImp:
         dfnew = pd.read_csv(root + '\\' + file, ";")
         dfnew.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\DataAccessed\\" + file,";")
         fileindex = filesImp.index(file)
-        #rootIWPC = root.replace("WarImputations","MICESTATSMODELHIV\\")
-        rootIWPC = root.replace("WarImputations","MICESTATS125\\")
+        rootIWPC = root.replace("WarImputations","MICESTATSMODELHIV\\")
+        #rootIWPC = root.replace("WarImputations","MICESTATS125\\")
         IWPC_csv = rootIWPC + filesIWPC[fileindex]
         dfIWPC = pd.read_csv(IWPC_csv,';')
         df = fileindex + 1
@@ -355,6 +371,16 @@ def main():
             print(data.shape)
             data['Dose_mg_week'] = data['Dose_mg_week'].apply(np.sqrt)
             estimates = []
+            target_column = 'Dose_mg_week'
+            train, test = train_test_split(data, test_size=test_size)
+
+            y_train = train[target_column].values
+            x_train = train.drop([target_column], axis=1).values
+            y_test = test[target_column].values
+            x_test = test.drop([target_column], axis=1).values
+
+
+
             #LR = LinearRegression(fit_intercept=True, normalize='deprecated', copy_X=True, n_jobs=None, positive=False)
             LR = LinearRegression()
             ab_LR = AdaBoostRegressor(LR,n_estimators=400, random_state=7)
@@ -370,7 +396,9 @@ def main():
             NN = MLPRegressor(hidden_layer_sizes=(100,), activation="relu", random_state=1, max_iter=2000)
             #NN = MLPRegressor(hidden_layer_sizes=(100,), activation='logistic', solver='lbfgs', max_iter=1000)
             #SV = SVR(kernel='linear', cache_size=1000)
-            SVReg = SVR(epsilon=1.5, kernel='sigmoid',C=2.0)
+            #SVReg = SVR(epsilon=1.5, kernel='sigmoid',C=2.0)
+
+            SVR=LinearSVR(C=9.59, epsilon=0.42, fit_intercept=True)
             #DTR = DecisionTreeRegressor(criterion="friedman_mse",max_depth=11, max_features='sqrt', max_leaf_nodes=40, min_impurity_decrease=0.8,min_samples_leaf=7,min_weight_fraction_leaf=0.1,splitter='best')
             DTR = DecisionTreeRegressor(max_depth=4)
             ab_regressor = AdaBoostRegressor(DecisionTreeRegressor(max_depth=4), n_estimators=400, random_state=7)
@@ -422,9 +450,15 @@ def main():
             estimates.append(Estimator(RR, 'RR'))
             #estimates.append(Estimator(SV, 'SV'))
             estimates.append(Estimator(EL,'EL'))
+            #models = list()
+            #models.append(('KNN', KNeighborsRegressor(weights="uniform", p=1, n_neighbors= 14,algorithm = "brute")))
+            #models.append(('DTR', DecisionTreeRegressor(max_depth=4)))
+            #models.append(('SVR', SVR(epsilon=1.5, kernel='sigmoid',C=2.0)))
+            #scores = evaluate_models(models, x_train, x_test, y_train, y_test)
+            #ensemble1 = VotingRegressor(estimators = models,weights = scores)
             estimates.append(Estimator(LinearSVR(epsilon=0.0, tol=0.0001, C=1.0, loss='epsilon_insensitive'), 'SVR'))
             estimates.append(
-                Estimator(StackingCVRegressor(regressors=[XGB, RR, NN], meta_regressor=RR, cv=5, ), 'Stacked_RR'))
+                Estimator(StackingCVRegressor(regressors=[SVR, KNN, BRT], meta_regressor=SVR, cv=5, ), 'Stacked_SVR'))
             estimates.append(
                 Estimator(StackingCVRegressor(regressors=[XGB, SVR, NN], meta_regressor=SVR, cv=5, ), 'Stacked_SV'))
             #estimates.append(Estimator(BAG, 'Bag'))
@@ -477,20 +511,22 @@ def main():
             #
             #estimates.append(Estimator(DTR,'DTR'))
             #estimates.append(Estimator(ab_regressor,'ABDTR'))
-            #estimates.append(Estimator(LR,'LR'))
+            estimates.append(Estimator(LR,'LR'))
             #estimates.append(Estimator(ab_RR,'ABRR'))
             #estimates.append(Estimator(ab_RF, 'ABRF'))
             #estimates.append(Estimator(ab_EL, 'ABEL'))
             #estimates.append(Estimator(ab_LAS, 'ABLasso'))
             #estimates.append(Estimator(XGBR, 'XGBR'))
-            #estimates.append(Estimator(RR, 'RR'))
+            estimates.append(Estimator(RR, 'RR'))
             #estimates.append(Estimator(RF, 'RF'))
             #estimates.append(Estimator(EL, 'EL'))
             #estimates.append(Estimator(LAS, 'Lasso'))
             #estimates.append(Estimator(SGD, 'SGD'))
             #estimates.append(Estimator(SVReg, 'SVR'))
-            estimates.append(Estimator(NN, 'NN'))
+            #estimates.append(Estimator(NN, 'NN'))
             #estimates.append(Estimator(KNN,"KNN"))
+            #estimates.append(Estimator(ensemble1,'Ensemble1')) #KNN,DTR,SVR
+
             warpath_results = evaluate_estimators(estimates,
                                                   data,
                                                   target_column='Dose_mg_week'

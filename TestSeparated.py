@@ -4,6 +4,7 @@ import csv
 import os
 import pandas as pd
 import numpy as np
+from xgboost import XGBRegressor
 from matplotlib import pyplot as plt
 from warfit_learn import datasets, preprocessing
 from sklearn.linear_model import LinearRegression, Ridge
@@ -164,13 +165,15 @@ def main():
 
     #session = tf.Session(config=config)
 
-
-    dftemplate = pd.DataFrame()
+    dftemplatetrain = pd.DataFrame()
+    dftemplatetest = pd.DataFrame()
     impNumber = 100
     pd.set_option("display.max_rows", None, "display.max_columns", None)
     pd.set_option('expand_frame_repr', False)
     pd.set_option("display.max_rows", False)
+    dfmax = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\MiceRWarPATHData.csv", ";")
     df = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\MiceRWarPATHData.csv", ";")
+
     filesIWPC = []
     for root, dirs, files in os.walk(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\MICESTATSMODEL"):
         for file in files:
@@ -185,20 +188,20 @@ def main():
     filesImp = []
     for root, dirs, files in os.walk(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations"):
         for file in files:
-            if file.endswith('.csv'):
+            if file.endswith('.csv') and "TEST" not in file and "TRAIN" not in file:
                 filesImp.append(file)
 
     for file in filesImp:
         dfnew = pd.read_csv(root + '\\' + file, ";")
-        dfnew.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\DataAccessed\\" + file,";")
+
         fileindex = filesImp.index(file)
         rootIWPC = root.replace("WarImputations","MICESTATSMODEL\\")
-        #rootnewIWPC = root.replace("WarImputations","MICESTATSMODELHIV\\")
+        rootnewIWPC = root.replace("WarImputations","MICESTATSMODELHIV\\")
         #rootnewIWPC = root.replace("WarImputations","MICESTATS25\\")
         #rootnewIWPC = root.replace("WarImputations", "MICESTATS50\\")
         #rootnewIWPC = root.replace("WarImputations", "MICESTATS75\\")
         #rootnewIWPC = root.replace("WarImputations", "MICESTATS150\\")
-        rootnewIWPC = root.replace("WarImputations", "MICESTATS125\\")
+        #rootnewIWPC = root.replace("WarImputations", "MICESTATS125\\")
         IWPC_csv = rootIWPC + filesIWPC[fileindex]
         dfIWPC = pd.read_csv(IWPC_csv,';')
         df = fileindex + 1
@@ -210,11 +213,6 @@ def main():
         dfmodcount75percent = int(dfmodcount25percent*3)
         dfmodcount125percent = int(len(dfmod.index)*5/4)
         dfmodcount150percent = int(len(dfmod.index)*3/2)
-        dfIWPCcount = len(dfIWPC.index)
-        if dfIWPCcount > dfmodcount125percent:
-            dfdropnumber = dfIWPCcount - dfmodcount125percent
-            dfIWPC.drop(dfIWPC.tail(dfdropnumber).index, inplace=True)
-            dfIWPCcount = len(dfIWPC.index)
         dfmod.drop(['Gender', 'Country_recruitment'], axis=1, inplace=True)
         dfIWPC.drop(['AgeDecades'], axis=1, inplace=True)
         dfIWPC.drop(['INR_Three'], axis=1, inplace=True)
@@ -233,27 +231,104 @@ def main():
 
         dfmod["HIVPositive"] = np.where(dfmod["HIV_status"] == "Positive", 1, 0)
         dfmod_countHIVPositive = np.sum(dfmod["HIVPositive"])
-        dfIWPCcountHIVPositive = int(dfmod_countHIVPositive * dfIWPCcount / dfmodcount)
-        IWPC_HIVPositive = random.sample(range(dfIWPCcount - 1), dfIWPCcountHIVPositive)
-        IWPC_HIVPositive.sort()
-        dfIWPC["HIVPositive"] = dfIWPC.apply(lambda x: ConvertHIV(x["Unnamed: 0"], IWPC_HIVPositive), axis=1)
+        #fIWPCcountHIVPositive = int(dfmod_countHIVPositive * dfIWPCcount / dfmodcount)
+        #IWPC_HIVPositive = random.sample(range(dfIWPCcount - 1), dfIWPCcountHIVPositive)
+        #IWPC_HIVPositive.sort()
+        #dfIWPC["HIVPositive"] = dfIWPC.apply(lambda x: ConvertHIV(x["Unnamed: 0"], IWPC_HIVPositive), axis=1)
         dfmod["HIVUnknown"] = np.where(dfmod["HIV_status"] == "Unknown", 1, 0)
         dfmod_countHIVUnknown = np.sum(dfmod["HIVUnknown"])
-        dfIWPCcountHIVUnknown = int(dfmod_countHIVUnknown * dfIWPCcount / dfmodcount)
-        IWPC_HIVUnknown = random.sample(range(dfIWPCcount - 1), dfIWPCcountHIVUnknown)
-        IWPC_HIVUnknown.sort()
-        dfIWPC["HIVUnknown"] = dfIWPC.apply(lambda x: ConvertHIV(x["Unnamed: 0"], IWPC_HIVUnknown), axis=1)
-        dfIWPC.drop(["Unnamed: 0"], axis=1, inplace=True)
-        dfIWPC.to_csv(rootnewIWPC + filesIWPC[fileindex], ";")
+        #dfIWPCcountHIVUnknown = int(dfmod_countHIVUnknown * dfIWPCcount / dfmodcount)
+        #IWPC_HIVUnknown = random.sample(range(dfIWPCcount - 1), dfIWPCcountHIVUnknown)
+        #IWPC_HIVUnknown.sort()
+        #dfIWPC["HIVUnknown"] = dfIWPC.apply(lambda x: ConvertHIV(x["Unnamed: 0"], IWPC_HIVUnknown), axis=1)
+        #dfIWPC.drop(["Unnamed: 0"], axis=1, inplace=True)
+        #dfIWPC.to_csv(rootnewIWPC + filesIWPC[fileindex], ";")
         dfmod.drop(["HIV_status"], axis=1, inplace=True)
         # dfmod['BSA'] = dfmod.apply(lambda x: BSA(x["Height_cm"], x["Weight_kg"]), axis=1)
         # dfmod.drop(["Height_cm"], axis = 1, inplace = True)
         # dfmod.drop(["Weight_kg"], axis=1, inplace=True)
         dfmod.drop(["Unnamed: 0"], axis=1, inplace=True)
-        dfmod.drop(["Unnamed: 0.1"], axis=1, inplace=True)
+        #dfmod.drop(["Unnamed: 0.1"], axis=1, inplace=True)
         dfmod.drop(["Age_years"], axis=1, inplace=True)
         dfmod.drop([".imp"], axis=1, inplace=True)
         dfmod.drop([".id"], axis=1, inplace=True)
+        data = dfmod
+        test_size = 0.2
+        target_column = 'Dose_mg_week'
+        train, test = train_test_split(data, test_size=test_size)
+        traindf = pd.DataFrame(train)
+        testdf = pd.DataFrame(test)
+        y_train = train[target_column].values
+        y_train = pd.DataFrame(y_train)
+        x_train = train.drop([target_column], axis=1).values
+        x_train = pd.DataFrame(x_train)
+        y_test = test[target_column].values  # must isolate this and x_test to prevent data leakage.
+        y_test = pd.DataFrame(y_test)
+        x_test = test.drop([target_column], axis=1).values
+        x_test = pd.DataFrame(x_test)
+        suffix = str(df).zfill(3)
+        testdf.drop(["Unnamed: 0.1"], axis=1, inplace=True)
+        traindf.drop(["Unnamed: 0.1"], axis=1, inplace=True)
+
+        dftemplatetest = dftemplatetest.append(testdf)
+        #dftemplatetrain = dftemplatetrain.append(traindf)
+        #dftemplatetest.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\ImpWarPATH_TEST20_" + suffix + ".csv",
+        #              ";")
+
+        traindf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\ImpWarPATH_TRAIN80_" + suffix + ".csv",
+                   ";")
+        testdf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\ImpWarPATH_TEST20_" + suffix + ".csv",
+                       ";")
+        #frames = [dftemplatetest, traindf]
+        #dftemplatetest.compare(traindf, align_axis=0)
+        #dfcompare = pd.concat(frames)
+        #print(dfcompare.duplicated())
+        #duplicate = dfcompare[dfcompare.duplicated()]
+        #duplicate = dftemplatetest[dftemplatetest.duplicated()]
+        #print(duplicate)
+
+        #if len(duplicate) >= 1:
+        #    print("problem")
+
+    if False:
+        data = dfmod
+        data['Dose_mg_week'] = data['Dose_mg_week'].apply(np.sqrt)
+        LR = LinearRegression()
+        RR = Ridge(alpha=0.02, solver="lsqr", fit_intercept=True)
+        LAS = Lasso(alpha=0.002)
+        KNN = KNeighborsRegressor(weights="uniform", p=1, n_neighbors=14, algorithm="brute")
+        RF = RandomForestRegressor(max_features='sqrt', bootstrap=True, n_estimators=500, max_depth=10,
+                                   min_samples_split=2, min_samples_leaf=5)
+        XGBR = XGBRegressor(learning_rate=0.01, colsample_bytree=0.3, max_depth=3, n_estimators=500,
+                            objective='reg:squarederror')
+        estimates = []
+        estimates.append(Estimator(LR, 'LR'))
+        estimates.append(Estimator(RR, 'RR'))
+        estimates.append(Estimator(LAS, 'LASSO'))
+        estimates.append(Estimator(XGBR, 'XGBR'))
+        estimates.append(Estimator(RF, 'RF'))
+        estimates.append(Estimator(KNN, 'KNN'))
+
+        warpath_results = evaluate_estimators(estimates,
+                                              data,
+                                              target_column='Dose_mg_week'
+                                              , scale=True
+                                              , test_size=0.2
+                                              , squaring=True
+                                              , technique='mccv'
+                                              , parallelism=0.8
+                                              )
+        print(warpath_results)
+        summary = warpath_results.groupby('Estimator').apply(np.mean)
+        print(summary)
+        dftemplate = dftemplate.append(summary)
+        warpath_formatted = format_summary(warpath_results)
+        df_final = pd.concat([warpath_formatted], axis=1, keys=['WARPATH'])
+        print(df_final)
+
+
+
+
 
 
 if __name__ == "__main__":
