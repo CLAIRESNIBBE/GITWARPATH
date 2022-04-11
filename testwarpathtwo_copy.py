@@ -77,6 +77,15 @@ from numpy import loadtxt
 # from keras.layers import Dense
 from copy import copy
 
+def ExitSquareBracket(variable):
+    stringvar = str(variable)
+    if stringvar.find('[') >= 0 and stringvar.find(']') >=0:
+        var1 = stringvar.replace('[','')
+        var2 = var1.replace(']','')
+        return var2
+    else:
+        return stringvar
+
 def collect_Metrics(metrics, model, metric):
     container = []
     for i in range(len(metrics)):
@@ -646,6 +655,11 @@ def main():
         print('the end')
 
     dfResults = pd.DataFrame(results)
+    dfResults["PW20"] = dfResults.apply(lambda x: ExitSquareBracket(x["PW20"]), axis=1).astype(float)
+    dfResults["MAE"] = dfResults.apply(lambda x: ExitSquareBracket(x["MAE"]), axis=1).astype(float)
+    dfResults["R2"] = dfResults.apply(lambda x: ExitSquareBracket(x["R2"]), axis=1).astype(float)
+    dfResults["Estimator"] = dfResults.apply(lambda x: ExitSquareBracket(x["Estimator"]), axis=1)
+
   #  dfResults['MAE'] = dfResults['MAE'].str.strip('[]').astype(float)
   #  dfResults['PW20'] = dfResults['PW20'].str.strip('[]').astype(float)
   #  dfResults['R2'] = dfResults['R2'].str.strip('[]').astype(float)
