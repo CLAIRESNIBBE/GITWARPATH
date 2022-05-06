@@ -235,7 +235,6 @@ def traineval(est: Estimator,  xtrain, ytrain, xtest, ytest, squaring):
     resultsdict['MAE'] = [MAE]
     resultsdict['R2'] = [R2]
     return resultsdict
-
 def main():
     combinedata = False
     scaler = MinMaxScaler()
@@ -247,7 +246,7 @@ def main():
     pd.set_option("display.max_rows", False)
     df = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\MiceRWarPATHData.csv", ";")
     filesIWPC = []
-    if  True:
+    if combinedata == True:
         for root, dirs, files in os.walk(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\MICESTATSMODEL"):
             for file in files:
                 if file.endswith('.csv'):
@@ -263,8 +262,6 @@ def main():
         if os.path.exists(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TESTSPLIT" + ".csv"):
             trainID = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TRAINSPLIT" + ".csv", ";")
             testID = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TESTSPLIT" + ".csv", ";")
-            trainDF = pd.DataFrame(trainID)
-            trainSize = len(trainDF)
     else:
         fixedtraintest = False
         while fixedtraintest == False:
@@ -275,7 +272,6 @@ def main():
                         if not fixedtraintest:
                             filedf = pd.read_csv(root + '\\' + file, ";")
                             trainID, testID = train_test_split(filedf, test_size=0.2)
-                            trainSize = len(trainID)
                             trainID.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TRAINSPLIT" + ".csv",
                                            ";")
                             testID.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TESTSPLIT" + ".csv",
@@ -332,15 +328,12 @@ def main():
     for file in filesImp:
         dfnew = pd.read_csv(file, ";")
         fileindex = filesImp.index(file)
-        rootIWPC = root.replace("WarImputations\\Training", "MICESTATSMODELHIV\\")
+        rootIWPC = root.replace("WarImputations", "MICESTATSMODELHIV\\")
         # rootIWPC = root.replace("WarImputations","MICESTATS125\\")
-        #if combinedata == True:
-        IWPC_csv = rootIWPC + filesIWPC[fileindex]
-        IWPCDF = pd.read_csv(IWPC_csv,';')
-        sampleSize = int(round(trainSize)*0.0)
-        dfIWPC = IWPCDF.sample(n=sampleSize)
-        dfIWPC["Status"]= "train"
-        dfIWPC.drop(["Unnamed: 0"], axis=1, inplace=True)
+        if combinedata == True:
+            IWPC_csv = rootIWPC + filesIWPC[fileindex]
+            dfIWPC = pd.read_csv(IWPC_csv, ';')
+            dfIWPC.drop(["Unnamed: 0"], axis=1, inplace=True)
         df = fileindex + 1
         dfmod = dfnew
         dfmod.drop(['Gender', 'Country_recruitment'], axis=1, inplace=True)
@@ -351,8 +344,8 @@ def main():
                                        np.where(dfmod["Target_INR"] == "aTwo_point_five", 2.5, 2.0))
         dfmod["Target_INR"] = dfmod.apply(lambda x: INRThree(x["Target_INR"]), axis=1)
         dfmod["Target_INR"] = dfmod['Target_INR'].astype("float")
-        dfIWPC["Target_INR"] = dfIWPC.apply(lambda x: INRThree(x["Target_INR"]), axis=1)
-        dfIWPC["Target_INR"] = dfIWPC['Target_INR'].astype("float")
+        dfIWPC["Target_INR"] = dfmod.apply(lambda x: INRThree(x["Target_INR"]), axis=1)
+        dfIWPC["Target_INR"] = dfmod['Target_INR'].astype("float")
         dfmod["Inducer"] = dfmod.apply(lambda x: ConvertYesNo(x["Inducer_status"]), axis=1)
         dfmod["Amiodarone"] = dfmod.apply(lambda x: ConvertYesNo(x["Amiodarone_status"]), axis=1)
         dfmod["Smoker"] = dfmod.apply(lambda x: ConvertYesNo(x["Smoking_status"]), axis=1)
@@ -373,9 +366,8 @@ def main():
         dfmod.drop(["Unnamed: 0.1"], axis=1, inplace=True)
         dfmod.drop(["Age_years"], axis=1, inplace=True)
         dfmod.drop([".imp"], axis=1, inplace=True)
-        dfmod.drop([".id"], axis=1, inplace=True)
-        dfmod.drop(["Unnamed: 0.1.1"], axis=1, inplace=True)
-        combinedata = False
+        # dfmod.drop([".id"], axis=1, inplace=True)
+        # combinedata = True
         suffix = str(df).zfill(3)
         if combinedata == True:
             dfmod = dfmod.sample(frac=1)
@@ -383,11 +375,11 @@ def main():
             frames = [dfmod, dfIWPC]
             dfmod = pd.concat(frames)
             dfmod = dfmod.sample(frac=1)
-
             combfilename = "comb" + suffix
             dfmod.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\combinedata\\" + combfilename + ".csv", ";")
         else:
             filename = "dfWarfarin" + suffix
+            dfmod.drop(["Unnamed: 0.1.1"], axis=1, inplace=True)
             dfmod.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\PreProcessed\\" + filename + ".csv", ";")
         if True:
             print("On imputation ", df)
@@ -417,11 +409,13 @@ def main():
             x_train = train.drop([target_column], axis=1)
             y_test = test[target_column].values
             x_test = test.drop([target_column], axis=1)
+
             RF = RandomForestRegressor(max_depth=80, max_features='sqrt', min_samples_leaf=5,
-                                       min_samples_split=12, n_estimators=5000)
+                                       min_samples_split=12, n_estimators=2000)
             ADB = AdaBoostRegressor(RF, n_estimators=6, random_state=42)
             estimates.append(Estimator(RF, 'RF'))
             estimates.append(Estimator(ADB, 'AdaBoostRF'))
+
             LR = LinearRegression()
             # estimates.append(Estimator(LR, 'LR'))
 
