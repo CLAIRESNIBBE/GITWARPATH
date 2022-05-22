@@ -182,10 +182,6 @@ def regmodel_param_test(
     else:
         test_score_at_chosen_alpha = None
 
-    if draw_plot:
-        regmodel_param_plot(
-            validation_scores, train_scores, alphas_to_try, chosen_alpha,
-            scoring, model_name, test_scores, filename)
 
     return chosen_alpha, chosen_solver, max_validation_score, test_score_at_chosen_alpha
 
@@ -200,11 +196,12 @@ for imp in range(impNumber):
     suffix = str(counter).zfill(3)
     dfcurrent.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\ImpWarPATH_" + suffix + ".csv", ";")
     filesImp = []
-    for root, dirs, files in os.walk(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations"):
+    for root, dirs, files in os.walk(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Split"):
         for file in files:
-            if file.endswith('.csv'):
+            if file.endswith('.csv') :
                 filesImp.append(file)
-    for file in filesImp:
+     for file in filesImp:
+
         dfnew = pd.read_csv(root + '\\' + file, ";")
         dfnew.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\DataAccessed\\" + file,";")
         df = filesImp.index(file) + 1
@@ -241,11 +238,24 @@ for imp in range(impNumber):
             test_size = 0.2
             target_column = 'Dose_mg_week'
             my_random_state = 6
-            train, test = train_test_split(data, test_size=test_size,random_state=my_random_state)
+            train = dfmod.loc[dfmod["Status"] == "train"]
+            test = dfmod.loc[dfmod["Status"] == "test"]
             y_train = train[target_column].values
             x_train = train.drop([target_column], axis=1).values
             y_test = test[target_column].values
             x_test = test.drop([target_column], axis=1).values
+            alphas = np.array([5, 0.5, 0.05, 0.005, 0.0005, 1, 0.1, 0.01, 0.001, 0.0001, 0])
+            model = Lasso()
+            > grid = GridSearchCV(estimator=model, param_grid=dict(alpha=alphas))
+            >
+            > grid.fit(data.data, data.target)
+            >
+            > print(grid.best_estimator_.alpha)
+            > print(grid.best_score_)
+
+            sc = StandardScaler()
+            X_scaled = sc.fit_transform(X)
+
             poly = PolynomialFeatures(degree=2, include_bias=False, interaction_only=False)
             x_train_poly = poly.fit_transform(x_train)
             sc = StandardScaler()

@@ -13,7 +13,7 @@ from sklearn.metrics import make_scorer
 from sklearn.svm import LinearSVR, SVR
 from sklearn.neural_network import MLPRegressor
 from sklearn.ensemble import GradientBoostingRegressor, AdaBoostRegressor
-from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import GridSearchCV, RepeatedKFold, KFold
 from sklearn.model_selection import cross_val_score, cross_validate
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.pipeline import Pipeline
@@ -210,6 +210,18 @@ def evaluate_models(models, x_train, x_test, y_train, y_test):
     # report model performance
     return scores
 
+def evaluate(model, test_features, test_labels):
+    predictions = model.predict(test_features)
+    errors = abs(predictions - test_labels)
+    mape = 100 * np.mean(errors / test_labels)
+    accuracy = 100 - mape
+    print('Model Performance')
+    print('Average Error: {:0.4f} degrees.'.format(np.mean(errors)))
+    print('Accuracy = {:0.2f}%.'.format(accuracy))
+
+    return accuracy
+
+
 def traineval(est: Estimator,  xtrain, ytrain, xtest, ytest, squaring):
     resultsdict = {'PW20': 0, 'MAE': 0, 'R2': 0}
     print(f'\n{est.identifier}...')
@@ -332,9 +344,8 @@ def main():
         rootIWPC = root.replace("WarImputations\\Training", "MICESTATSMODELHIV\\")
         IWPC_csv = rootIWPC + filesIWPC[fileindex]
         IWPCDF = pd.read_csv(IWPC_csv,';')
-        sampleSize = int(round(trainSize*0.25))
+        sampleSize = int(round(trainSize) * 0.25)
         dfIWPC = IWPCDF.sample(n=sampleSize)
-
         dfIWPC["Status"] = "train"
         dfIWPC.drop(["Unnamed: 0"], axis=1, inplace=True)
         df = fileindex + 1
@@ -371,7 +382,7 @@ def main():
         dfmod.drop([".imp"], axis=1, inplace=True)
         dfmod.drop([".id"], axis=1, inplace=True)
         dfmod.drop(["Unnamed: 0.1.1"], axis=1, inplace=True)
-        combinedata = True
+        combinedata = False
         suffix = str(df).zfill(3)
         if combinedata == True:
             dfmod = dfmod.sample(frac=1)
@@ -384,303 +395,48 @@ def main():
         else:
             filename = "dfWarfarin" + suffix
             dfmod.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\PreProcessed\\" + filename + ".csv", ";")
-        if True:
+        if df==1:
             print("On imputation ", df)
             data = dfmod
             print(data.shape)
             data['Dose_mg_week'] = data['Dose_mg_week'].apply(np.sqrt)
-            estimates = []
+            sc = StandardScaler()
             target_column = 'Dose_mg_week'
             status_column = "Status"
-            # unnamed_column = "Unnamed: 0.1.1"
             train = dfmod.loc[dfmod["Status"] == "train"]
             test = dfmod.loc[dfmod["Status"] == "test"]
-            # train, test = train_test_split(data, test_size=test_size)
             squaring = True
             train = train.drop([status_column], axis=1)
             test = test.drop([status_column], axis=1)
-            x_cols = list(train.columns)
-            # _cols_notarg = x_cols.remove(target_column)
-            targ_col = list(target_column)
-            # train = scaler.fit_transform(train)
-            # test = scaler.transform(test)
-            # train = pd.DataFrame(train, columns = x_cols)
-            # test = pd.DataFrame(test, columns = x_cols)
-            targetindex = x_cols.index(target_column)
             y_train = train[target_column].values
             x_train = train.drop([target_column], axis=1)
+            x_train = sc.fit_transform(x_train)
             y_test = test[target_column].values
             x_test = test.drop([target_column], axis=1)
-            LAS = Lasso(alpha=0.009)
-            #RF = RandomForestRegressor(max_depth=80, max_features='sqrt', min_samples_leaf=5,
-            #                           min_samples_split=12, n_estimators=2000)
-            #ADB = AdaBoostRegressor(RF, n_estimators=6, random_state=42)
-            #estimates.append(Estimator(RF, 'RF'))
-            #estimates.append(Estimator(ADB, 'AdaBoostRF'))
-            LR = LinearRegression()
-            #estimates.append(Estimator(LR, 'LR'))
-            #estimates.append(Estimator(LAS, 'LAS'))
-            # XGB
-            modelX = XGBRegressor(max_depth=1,
-                                 min_child_weight=5,
-                                 subsample=0.6,
-                                 colsample_bytree=0.9,
-                                 colsample_bylevel=0.9,
-                                 colsample_bynode=0.8,
-                                 n_estimators=50)
+            x_test = sc.fit_transform(x_test)
+            alphas = np.linspace(0, 0.09, 21)
+            #alphas = np.array([5, 0.5, 0.05, 0.005, 0.0005, 1, 0.1, 0.01,  0.001, 0.0001, 0])
+            model = XGBRegressor()
+            model.fit(x_train, y_train)
+            predictedfirst = np.square(model.predict(x_test))
+            maefirst = mean_absolute_error(y_test,predictedfirst)
+            print(maefirst)
+            cv = RepeatedKFold(n_splits=10, n_repeats=3, random_state=1)
+            params = {'max_depth': [1, 2, 3, 4, 6, 7, 8],
+                      'n_estimators': [31],
+                      }
 
-            # RIDGE
-            grid = dict()
-            ridge_alphas = np.linspace(0, 0.02, 11)
-            ridge_solvers = []
-            ridge_solvers.append('svd')
-            ridge_solvers.append('cholesky')
-            ridge_solvers.append('lsqr')
-            ridge_solvers.append('sag')
-            RR = Ridge(alpha=0.02, solver="lsqr")
-            # estimates.append(Estimator(RR, 'RR'))
-            estimates.append(Estimator(modelX,'XGBR'))
-            # LASSO
-            lasso_alphas = np.linspace(0, 0.02, 11)
-            LAS = Lasso(alpha=0.002)
-            # estimates.append(Estimator(LAS, 'LAS'))
+            grid = GridSearchCV(estimator=model, param_grid=params, scoring='neg_mean_squared_error',cv = cv )
+            grid.fit(x_train, y_train)
+            print('best_estimator_',grid.best_estimator_)
+            print('best_params_', grid.best_params_)
+            predicted = np.square(grid.predict(x_test))
+            meanabsoluterror = mean_absolute_error(y_test,predicted)
+            print(meanabsoluterror)
 
-            # EL
-            EL = ElasticNet(alpha=0.01, l1_ratio=0.01)
-            ratios = np.arange(0, 1, 0.01)
-            alphas = [1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 0.0, 1.0, 10.0, 100.0]
-            # estimates.append(Estimator(EL, 'EL'))
 
-            KNN = KNeighborsRegressor()
-            k_values = np.array([1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21])
-            param_grid = dict(n_neighbors=k_values)
-            # estimates.append(Estimator(KNN, 'KNN'))
 
-            # n_estimators = [int(x) for x in np.linspace(start=200, stop=1000, num=10)]
-            # max_features = ['auto', 'sqrt']
-            # max_depth = [int(x) for x in np.linspace(10, 110, num=11)]
-            # min_samples_split = [2, 5, 10]
-            # min_samples_leaf = [1, 2, 4]
-            # bootstrap = [True, False]
-            # random_grid = {'n_estimators': n_estimators}
 
-            # grid = {'RR': {'alpha': ridge_alphas, 'solver': ridge_solvers},
-            #        'RF': {'n_estimators':1000},
-            #        'LAS': {'alpha': lasso_alphas},
-            #        'EL': {'alpha': alphas, 'l1_ratio': ratios},
-            #        'LR': {},
-            #        'KNN': param_grid
-            #        }
-
-            results2 = []
-            for _, est in enumerate(estimates):
-                resultsdict = traineval(est, x_train, y_train, x_test, y_test, squaring=squaring)
-                # print("Accuracy: %.3f%% (%.3f%%)" % (results2.mean() * 100.0, results2.std() * 100.0))
-                res_dict = {
-                    'Estimator': [est.identifier for x in range(len(resultsdict['PW20']))],
-                    'PW20': resultsdict['PW20'],
-                    'MAE': resultsdict['MAE'],
-                    'R2': resultsdict['R2']}
-                results.append(res_dict)
-
-                # rog = {k: [np.mean(res_dict[k])]
-                #         for k in list(res_dict.keys())[1:]}
-                # print(tabulate(prog, headers=prog.keys()))
-                # results.append(res_dict)
-
-            df_res = pd.DataFrame()
-            for res in results:
-                df_res = df_res.append(pd.DataFrame.from_dict(res))
-            print(f"\n\n{df_res.groupby(['Estimator']).agg(np.mean)}\n")
-            if False:
-                ab_EL = AdaBoostRegressor(EL, n_estimators=400, random_state=7)
-                SGD = SGDRegressor(penalty="l2")
-                KNN = KNeighborsRegressor(weights="uniform", p=1, n_neighbors=14, algorithm="brute")
-                NN = MLPRegressor(hidden_layer_sizes=(100,), activation="relu", random_state=1, max_iter=2000)
-                # NN = MLPRegressor(hidden_layer_sizes=(100,), activation='logistic', solver='lbfgs', max_iter=1000)
-                # SV = SVR(kernel='linear', cache_size=1000)
-                # SVReg = SVR(epsilon=1.5, kernel='sigmoid',C=2.0)
-
-                # SVR = LinearSVR(C=9.59, epsilon=0.42, fit_intercept=True)
-                # DTR = DecisionTreeRegressor(criterion="friedman_mse",max_depth=11, max_features='sqrt', max_leaf_nodes=40, min_impurity_decrease=0.8,min_samples_leaf=7,min_weight_fraction_leaf=0.1,splitter='best')
-                # DTR = DecisionTreeRegressor(max_depth=4)
-                # ab_regressor = AdaBoostRegressor(DecisionTreeRegressor(max_depth=4), n_estimators=400, random_state=7)
-                # BRT = GradientBoostingRegressor(loss='ls', learning_rate=0.1, n_estimators=100)
-                # XGBR = XGBRegressor(learning_rate=0.01, colsample_bytree=0.3, max_depth=3, n_estimators=500,
-                #                   objective='reg:squarederror')
-                # RandomForestRegressor(max_depth=40, max_features=2, min_samples_leaf=4, min_samples_split=12)
-
-                # RF = RandomForestRegressor(max_features='sqrt', bootstrap=True, n_estimators=500, max_depth=10,
-                #                       min_samples_split=2, min_samples_leaf=5)
-                # ab_RF = AdaBoostRegressor(RF, n_estimators=400, random_state=7)
-                # CUBE = Cubist()
-                # XGB = XGBRegressor(max_depth=10, n_estimators=1000, min_child_weight=5, subsample=0.6,
-                #               alpha=0.1, eta=0.1, seed=42)
-                # n_trees = 100
-                # mdepth = 6
-                # gamma = 1
-                # lam = 1
-                # XG = XGBClassifier(
-                # learning_rate=0.1,
-                # n_estimators=1000,
-                # max_depth=5,
-                # min_child_weight=1,
-                # gamma=0,
-                # subsample=0.8,
-                # colsample_bytree=0.8,
-                # objective='multi:softmax',
-                # nthread=4,
-                # scale_pos_weight=1,
-                # seed=27,
-                # num_class=3,
-                # )
-                # BAG = BaggingClassifier(KNeighborsClassifier(),max_samples=0.5, max_features=0.5)
-                # XG = XGBClassifier(use_label_encoder=False,
-                #                      booster='gbtree',  # boosting algorithm to use, default gbtree, othera: gblinear, dart
-                #                      n_estimators=n_trees,  # number of trees, default = 100
-                #                      eta=0.3,  # this is learning rate, default = 0.3
-                #                      max_depth=mdepth,  # maximum depth of the tree, default = 6
-                #                      gamma=gamma,
-                #                      # used for pruning, if gain < gamma the branch will be pruned, default = 0
-                #                      reg_lambda=lam,  # regularization parameter, defautl = 1
-                #                      # min_child_weight=0 # this refers to Cover which is also responsible for pruning if not set to 0
-                #                      )
-                estimates.append(Estimator(LR, 'LR'))
-                estimates.append(Estimator(BRT, 'BRT'))
-                # estimates.append(Estimator(GBT, 'GBT'))
-                estimates.append(Estimator(RF, 'RF'))
-                estimates.append(Estimator(CUBE, 'Cubist'))
-                estimates.append(Estimator(XG, 'XGB'))
-                estimates.append(Estimator(NN, 'NN'))
-                estimates.append(Estimator(RR, 'RR'))
-                # estimates.append(Estimator(SV, 'SV'))
-                estimates.append(Estimator(EL, 'EL'))
-                # models = list()
-                # models.append(('KNN', KNeighborsRegressor(weights="uniform", p=1, n_neighbors= 14,algorithm = "brute")))
-                # models.append(('DTR', DecisionTreeRegressor(max_depth=4)))
-                # models.append(('SVR', SVR(epsilon=1.5, kernel='sigmoid',C=2.0)))
-                # scores = evaluate_models(models, x_train, x_test, y_train, y_test)
-                # ensemble1 = VotingRegressor(estimators = models,weights = scores)
-                estimates.append(
-                    Estimator(LinearSVR(epsilon=0.0, tol=0.0001, C=1.0, loss='epsilon_insensitive'), 'SVR'))
-                estimates.append(
-                    Estimator(StackingCVRegressor(regressors=[SVR, KNN, BRT], meta_regressor=SVR, cv=5, ),
-                              'Stacked_SVR'))
-                estimates.append(
-                    Estimator(StackingCVRegressor(regressors=[XGB, SVR, NN], meta_regressor=SVR, cv=5, ), 'Stacked_SV'))
-                # estimates.append(Estimator(BAG, 'Bag'))
-                estimates.append(Estimator(LAS, 'Lasso'))
-                tpot2 = make_pipeline(
-                    StackingEstimator(
-                        estimator=LinearSVR(
-                            C=1.0,
-                            dual=True,
-                            epsilon=0.01,
-                            loss="epsilon_insensitive",
-                            tol=0.001, )),
-                    StackingEstimator(
-                        estimator=ElasticNetCV(l1_ratio=0.6000000000000001, tol=0.01, cv=5)),
-                    RobustScaler(),
-                    StackingEstimator(estimator=RidgeCV()),
-                    ExtraTreesRegressor(
-                        bootstrap=True,
-                        max_features=1.0,
-                        min_samples_leaf=20,
-                        min_samples_split=2,
-                        n_estimators=100, )
-                )
-                tpot10 = make_pipeline(
-                    StackingEstimator(estimator=ExtraTreesRegressor(
-                        bootstrap=True, max_features=0.05,
-                        min_samples_leaf=18, min_samples_split=10,
-                        n_estimators=100)),
-                    MaxAbsScaler(),
-                    StackingEstimator(estimator=ExtraTreesRegressor(
-                        bootstrap=True, max_features=0.05,
-                        min_samples_leaf=18, min_samples_split=10, n_estimators=100)),
-                    LassoLarsCV(normalize=True, cv=3)
-                )
-                tpot17 = make_pipeline(
-                    make_union(
-                        FunctionTransformer(copy, validate=True),
-                        MaxAbsScaler()
-                    ),
-                    StackingEstimator(estimator=RidgeCV()),
-                    ZeroCount(),
-                    GradientBoostingRegressor(alpha=0.9, learning_rate=0.1, loss="lad",
-                                              max_depth=3, max_features=0.9000000000000001,
-                                              n_estimators=100, subsample=0.55)
-                )
-                estimates.append(Estimator(tpot2, 'TPOT2'))
-                estimates.append(Estimator(tpot10, 'TPOT10'))
-                estimates.append(Estimator(tpot17, 'TPOT17'))
-                estimates = []
-                #
-                # estimates.append(Estimator(DTR,'DTR'))
-                # estimates.append(Estimator(ab_regressor,'ABDTR'))
-                # estimates.append(Estimator(LR, 'LR'))
-                # estimates.append(Estimator(ab_RR,'ABRR'))
-                # estimates.append(Estimator(ab_RF, 'ABRF'))
-                # estimates.append(Estimator(ab_EL, 'ABEL'))
-                # estimates.append(Estimator(ab_LAS, 'ABLasso'))
-                # estimates.append(Estimator(XGBR, 'XGBR'))
-                # estimates.append(Estimator(RR, 'RR'))
-                # estimates.append(Estimator(RF, 'RF'))
-                # estimates.append(Estimator(EL, 'EL'))
-                # estimates.append(Estimator(LAS, 'Lasso'))
-                # estimates.append(Estimator(SGD, 'SGD'))
-                # estimates.append(Estimator(SVReg, 'SVR'))
-                # estimates.append(Estimator(NN, 'NN'))
-                # estimates.append(Estimator(KNN,"KNN"))
-                # estimates.append(Estimator(ensemble1,'Ensemble1')) #KNN,DTR,SVR
-                warpath_results = evaluate_estimators(estimates,
-                                                      data,
-                                                      target_column='Dose_mg_week'
-                                                      , scale=True
-                                                      , test_size=0.1
-                                                      , squaring=True
-                                                      , technique='mccv'
-                                                      , parallelism=0.8
-                                                      )
-                print(warpath_results)
-                summary = warpath_results.groupby('Estimator').apply(np.mean)
-                print(summary)
-                dftemplate = dftemplate.append(summary)
-                warpath_formatted = format_summary(warpath_results)
-                dfWarPath = dfWarPath.append(warpath_results)
-                df_final = pd.concat([warpath_formatted], axis=1, keys=['WARPATH'])
-                print(df_final)
-                suffix = str(df).zfill(3)
-                df_final.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_" + suffix + ".csv", ";")
-                if False:
-                    model.fit(X, y, epochs=150, batch_size=10, verbose=0)
-                    # make class predictions with the model
-                    predictions = (model.predict(X) > 0.5).astype(int)
-                    # summarize the first 50 cases
-                    for i in range(50):
-                        print('%s => %d (expected %d)' % (X[i].tolist(), predictions[i], y[i]))
-    if False:
-        dftemplate.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dftemplate" + ".csv", ";")
-        dfSummary = dftemplate.groupby('Estimator').apply(np.mean)
-        dfSummary.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfSummary" + ".csv", ";")
-        dfWarPath_formatted = format_summary(dfWarPath)
-        dfWarPath_formatted.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfWarPath" + ".csv", ";")
-        print('the end')
-
-    dfResults = pd.DataFrame(results)
-    dfResults["PW20"] = dfResults.apply(lambda x: ExitSquareBracket(x["PW20"]), axis=1).astype(float)
-    dfResults["MAE"] = dfResults.apply(lambda x: ExitSquareBracket(x["MAE"]), axis=1).astype(float)
-    dfResults["R2"] = dfResults.apply(lambda x: ExitSquareBracket(x["R2"]), axis=1).astype(float)
-    dfResults["Estimator"] = dfResults.apply(lambda x: ExitSquareBracket(x["Estimator"]), axis=1)
-    dfSummary = dfResults.groupby('Estimator').apply(np.mean)
-
-    #  dfResults['MAE'] = dfResults['MAE'].str.strip('[]').astype(float)
-    #  dfResults['PW20'] = dfResults['PW20'].str.strip('[]').astype(float)
-    #  dfResults['R2'] = dfResults['R2'].str.strip('[]').astype(float)
-
-    dfResults.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfResults" + ".csv", ";")
-    dfSummary.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfSummary" + ".csv", ";")
-    print("STOP HERE")
 
 
 if __name__ == "__main__":
