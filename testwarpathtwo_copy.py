@@ -70,11 +70,7 @@ from sklearn.feature_selection import chi2, f_classif
 from sklearn.feature_selection import SelectPercentile
 from sklearn.kernel_approximation import RBFSampler, Nystroem
 from tpot.builtins import StackingEstimator, ZeroCount
-# import tensorflow as tf
-# from tensorflow import keras
 from numpy import loadtxt
-# from keras.models import Sequential
-# from keras.layers import Dense
 from copy import copy
 
 def ExitSquareBracket(variable):
@@ -116,7 +112,7 @@ def SList(series):
     return np.array(series.values.tolist())
 
 def confintlimit95(metric):
-    return 1.96 * np.sqrt(variance(metric) / len(metric))
+    return 1.96 * np.sqrt(variance(metric ) / len(metric))
 
 def format_summary(df_res):
     df_summary = df_res.groupby(['Estimator']).mean()
@@ -168,11 +164,7 @@ def RSquared(trueval, predval):
 def BSA(height, weight):
     return 0.007184 * height ** 0.725 * weight ** 0.425
 
-    if False:
-        df_WARPATH[current_metric] = np.array(collect_Metrics(metrics, 'WarPATH', current_metric))
-        std = np.square(std_deviation(df_WARPATH[current_metric]))
-        var = variance(df_WARPATH[current_metric])
-        std_Dev.append({'model': 'WarPATH', 'metric': current_metric, 'SD': std, 'VAR': var})
+
 
 def ConvertYesNo(variable):
     if variable == "Yes":
@@ -304,6 +296,7 @@ def main():
         dftestimp.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Testing\test_" + suffix + ".csv", ";")
 
     counter = 0
+    metric_columns = ['MAE', 'PW20', 'R2']
     for root, dirs, files in os.walk(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations"):
         for file in files:
             if file.endswith('.csv') and (
@@ -421,13 +414,17 @@ def main():
             #estimates.append(Estimator(LR, 'LR'))
             #estimates.append(Estimator(LAS, 'LAS'))
             # XGB
-            modelX = XGBRegressor(max_depth=1,
+            modelX = XGBRegressor(booster='gblinear',
+                                 max_depth=2,
                                  min_child_weight=5,
-                                 subsample=0.6,
-                                 colsample_bytree=0.9,
+                                 subsample=0.8,
+                                 colsample_bytree=0.7,
                                  colsample_bylevel=0.9,
                                  colsample_bynode=0.8,
-                                 n_estimators=50)
+                                 n_estimators=100,
+                                 learning_rate= 0.05,
+                                 gamma= 0.5
+                                 )
 
             # RIDGE
             grid = dict()
@@ -667,19 +664,28 @@ def main():
         dfWarPath_formatted.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfWarPath" + ".csv", ";")
         print('the end')
 
+
     dfResults = pd.DataFrame(results)
     dfResults["PW20"] = dfResults.apply(lambda x: ExitSquareBracket(x["PW20"]), axis=1).astype(float)
     dfResults["MAE"] = dfResults.apply(lambda x: ExitSquareBracket(x["MAE"]), axis=1).astype(float)
     dfResults["R2"] = dfResults.apply(lambda x: ExitSquareBracket(x["R2"]), axis=1).astype(float)
     dfResults["Estimator"] = dfResults.apply(lambda x: ExitSquareBracket(x["Estimator"]), axis=1)
     dfSummary = dfResults.groupby('Estimator').apply(np.mean)
-
-    #  dfResults['MAE'] = dfResults['MAE'].str.strip('[]').astype(float)
-    #  dfResults['PW20'] = dfResults['PW20'].str.strip('[]').astype(float)
-    #  dfResults['R2'] = dfResults['R2'].str.strip('[]').astype(float)
-
+    stddev = []
+    confinterval = []
+    for i in range(len(metric_columns)):
+        for _, est in enumerate(estimates):
+            current_estimator = est.identifier
+            current_metric = metric_columns[i]
+            current_mean = dfSummary.iloc[0][current_metric]
+            metric_values = dfResults[current_metric]
+            current_stddev = confintlimit95(metric_values)
+            confinterval.append({'estimator':current_estimator, 'metric':current_metric,'mean':current_mean,'95% CI lower bound':current_mean-current_stddev,'95% CI upper bound':current_mean+current_stddev})
+        #stddev.append({'metric':current_metric,'standarddev':current_stddev,'mean':current_mean})
+    dfConfidence = pd.DataFrame(confinterval, columns= ['estimator','metric','mean','95% CI lower bound','95% CI upper bound'])
+    dfConfidence.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfConfidence" + ".csv", ";")
     dfResults.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfResults" + ".csv", ";")
-    dfSummary.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfSummary" + ".csv", ";")
+    #dfSummary.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfSummary" + ".csv", ";")
     print("STOP HERE")
 
 
