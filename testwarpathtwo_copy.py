@@ -78,6 +78,7 @@ def ExitSquareBracket(variable):
     if stringvar.find('[') >= 0 and stringvar.find(']') >=0:
         var1 = stringvar.replace('[','')
         var2 = var1.replace(']','')
+        var2 = var2.replace("'","")
         return var2
     else:
         return stringvar
@@ -89,11 +90,10 @@ def collect_Metrics(metrics, model, metric):
             container.append(metrics[metric][metrics['Estimator'] == model].values)
     return container
 
-def collect_Results(metrics, model, metric):
+def collect_Results(model, metric):
     container = []
-    for i in range(len(metrics)):
-        if (metrics[i]['model'] == model):
-            container.append(metrics[i][metric])
+    if Estimator == model:
+        container.append(metric)
     return container
 
 def variance(metric):
@@ -163,8 +163,6 @@ def RSquared(trueval, predval):
 
 def BSA(height, weight):
     return 0.007184 * height ** 0.725 * weight ** 0.425
-
-
 
 def ConvertYesNo(variable):
     if variable == "Yes":
@@ -436,17 +434,17 @@ def main():
             ridge_solvers.append('sag')
             RR = Ridge(alpha=0.02, solver="lsqr")
             # estimates.append(Estimator(RR, 'RR'))
-            estimates.append(Estimator(modelX,'XGBR'))
+            #estimates.append(Estimator(modelX,'XGBR'))
             # LASSO
             lasso_alphas = np.linspace(0, 0.02, 11)
             LAS = Lasso(alpha=0.002)
-            # estimates.append(Estimator(LAS, 'LAS'))
+            estimates.append(Estimator(LAS, 'LAS'))
 
             # EL
             EL = ElasticNet(alpha=0.01, l1_ratio=0.01)
             ratios = np.arange(0, 1, 0.01)
             alphas = [1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 0.0, 1.0, 10.0, 100.0]
-            # estimates.append(Estimator(EL, 'EL'))
+            estimates.append(Estimator(EL, 'EL'))
 
             KNN = KNeighborsRegressor()
             k_values = np.array([1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21])
@@ -677,9 +675,12 @@ def main():
         for _, est in enumerate(estimates):
             current_estimator = est.identifier
             current_metric = metric_columns[i]
-            current_mean = dfSummary.iloc[0][current_metric]
-            metric_values = dfResults[current_metric]
-            current_stddev = confintlimit95(metric_values)
+            current_mean = dfSummary.loc[current_estimator][current_metric]
+            #metric_values = dfResults.apply(lambda x:collect_Results(x['Estimator'],current_metric,axis=1))
+            metric_values = np.where(dfResults['Estimator'] == current_estimator, dfResults[current_metric],9999)
+            metriclist = np.array(metric_values)
+            metriclist = [j for j in metriclist if j != 9999]
+            current_stddev = confintlimit95(metriclist)
             confinterval.append({'estimator':current_estimator, 'metric':current_metric,'mean':current_mean,'95% CI lower bound':current_mean-current_stddev,'95% CI upper bound':current_mean+current_stddev})
         #stddev.append({'metric':current_metric,'standarddev':current_stddev,'mean':current_mean})
     dfConfidence = pd.DataFrame(confinterval, columns= ['estimator','metric','mean','95% CI lower bound','95% CI upper bound'])
