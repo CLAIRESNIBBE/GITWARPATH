@@ -323,7 +323,7 @@ def main():
         rootIWPC = root.replace("WarImputations\\Training", "MICESTATSMODELHIV\\")
         IWPC_csv = rootIWPC + filesIWPC[fileindex]
         IWPCDF = pd.read_csv(IWPC_csv,';')
-        sampleSize = int(round(trainSize*0.25))
+        sampleSize = int(round(trainSize*0.5))
         dfIWPC = IWPCDF.sample(n=sampleSize)
 
         dfIWPC["Status"] = "train"
@@ -413,16 +413,17 @@ def main():
             #estimates.append(Estimator(LAS, 'LAS'))
             # XGB
             modelX = XGBRegressor(booster='gblinear',
-                                 max_depth=2,
-                                 min_child_weight=5,
+                                 max_depth=1,
+                                 min_child_weight=13,
                                  subsample=0.8,
-                                 colsample_bytree=0.7,
-                                 colsample_bylevel=0.9,
-                                 colsample_bynode=0.8,
-                                 n_estimators=100,
-                                 learning_rate= 0.05,
-                                 gamma= 0.5
+                                 colsample_bytree=1,
+                                 colsample_bylevel=0.6,
+                                 colsample_bynode=0.9,
+                                 n_estimators=50,
+                                 learning_rate= 1,
+
                                  )
+
 
             # RIDGE
             grid = dict()
@@ -434,17 +435,17 @@ def main():
             ridge_solvers.append('sag')
             RR = Ridge(alpha=0.02, solver="lsqr")
             # estimates.append(Estimator(RR, 'RR'))
-            #estimates.append(Estimator(modelX,'XGBR'))
+            estimates.append(Estimator(modelX,'XGBR'))
             # LASSO
             lasso_alphas = np.linspace(0, 0.02, 11)
             LAS = Lasso(alpha=0.002)
-            estimates.append(Estimator(LAS, 'LAS'))
+            #estimates.append(Estimator(LAS, 'LAS'))
 
             # EL
             EL = ElasticNet(alpha=0.01, l1_ratio=0.01)
             ratios = np.arange(0, 1, 0.01)
             alphas = [1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 0.0, 1.0, 10.0, 100.0]
-            estimates.append(Estimator(EL, 'EL'))
+            #estimates.append(Estimator(EL, 'EL'))
 
             KNN = KNeighborsRegressor()
             k_values = np.array([1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21])

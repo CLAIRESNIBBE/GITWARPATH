@@ -247,6 +247,18 @@ def traineval(est: Estimator,  xtrain, ytrain, xtest, ytest, squaring):
     resultsdict['MAE'] = [MAE]
     resultsdict['R2'] = [R2]
     return resultsdict
+def grid_search(params, reg, x_train, y_train, x_test, y_test):
+    kfold = KFold(n_splits=5, shuffle=True, random_state=2)
+    grid_reg = GridSearchCV(reg, params, scoring='neg_mean_squared_error', cv=kfold)
+    grid_reg.fit(x_train, y_train)
+    best_params = grid_reg.best_params_
+    print("Best params:", best_params)
+    best_score = np.sqrt(-grid_reg.best_score_)
+    print("Best score:", best_score)
+    predicted = grid_reg.predict(x_test)
+    predicted = np.square(predicted)
+    mae = mean_absolute_error(y_test, predicted)
+    print("MAE:", mae)
 
 def main():
     combinedata = False
@@ -414,10 +426,61 @@ def main():
             y_test = test[target_column].values
             x_test = test.drop([target_column], axis=1)
             x_test = sc.fit_transform(x_test)
-            alphas = np.linspace(0, 0.09, 21)
-            #alphas = np.array([5, 0.5, 0.05, 0.005, 0.0005, 1, 0.1, 0.01,  0.001, 0.0001, 0])
-            model = XGBRegressor()
-            model.fit(x_train, y_train)
+            model = XGBRegressor(n_estimators=5000, missing=-999.0)
+            model.fit(x_train, y_train, eval_set=[(x_train, y_train), (x_test, y_test)],early_stopping_rounds = 100)
+            #ypred = model.predict(x_test)
+            #ypred = np.square(ypred)
+            #meanabsoluterror = mean_absolute_error(y_test, ypred)
+            #print(meanabsoluterror)
+            if True:
+                results = model.evals_result()
+                plt.figure(figsize=(10, 7))
+                plt.plot(results["validation_0"]["rmse"], label="Training loss")
+                plt.plot(results["validation_1"]["rmse"], label="Validation loss")
+                plt.axvline(21, color="gray", label="Optimal tree number")
+                plt.xlabel("Number of trees")
+                plt.ylabel("Loss")
+                plt.legend()
+
+
+
+
+
+
+            print('end of part 1')
+            #params = {'max_depth': [1, 2, 3, 4, 6, 7, 8],'n_estimators': [10]}
+            #params = {'max_depth': [1, 2, 3],
+            #          'min_child_weight': [1, 2, 3, 4, 5],
+            #          'n_estimators': [10]}
+            #params = {'max_depth': [2],
+            #          'min_child_weight': [2, 3],
+            #          'subsample': [0.5, 0.6, 0.7, 0.8,0.9],
+            #         'n_estimators': [10, 50]}
+            #params = {'max_depth': [1],
+            #          'min_child_weight': [1, 2, 3],
+            #          'subsample': [0.6, 0.7, 0.8],
+            #          'colsample_bytree': [0.5, 0.6, 0.7, 0.8, 0.9, 1],
+            #          'n_estimators': [50]}
+            params={'max_depth': [1],
+                                'min_child_weight': [13],
+                                'subsample': [.8],
+                                'colsample_bytree': [1],
+                                'colsample_bylevel': [0.6, 0.7, 0.8,
+                                                      0.9, 1],
+                                'colsample_bynode': [0.6, 0.7, 0.8,
+                                                     0.9, 1],
+                                'n_estimators': [50]}
+
+
+            grid_search(params,XGBRegressor(missing=-999.0),x_train,y_train,x_test,y_test)
+
+
+
+
+
+
+            #model = XGBRegressor()
+            #model.fit(x_train, y_train)
             predictedfirst = np.square(model.predict(x_test))
             maefirst = mean_absolute_error(y_test,predictedfirst)
             print(maefirst)
