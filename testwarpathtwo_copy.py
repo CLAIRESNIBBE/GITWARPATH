@@ -403,15 +403,17 @@ def main():
             y_test = test[target_column].values
             x_test = test.drop([target_column], axis=1)
             LAS = Lasso(alpha=0.009)
+            LAS2 = Lasso()
             #RF = RandomForestRegressor(max_depth=80, max_features='sqrt', min_samples_leaf=5,
             #                           min_samples_split=12, n_estimators=2000)
             #ADB = AdaBoostRegressor(RF, n_estimators=6, random_state=42)
             #estimates.append(Estimator(RF, 'RF'))
             #estimates.append(Estimator(ADB, 'AdaBoostRF'))
             LR = LinearRegression()
-            #estimates.append(Estimator(LR, 'LR'))
-            #estimates.append(Estimator(LAS, 'LAS'))
+            estimates.append(Estimator(LR, 'LR'))
+            estimates.append(Estimator(LAS2, 'LAS2'))
             # XGB
+            modelX2 = XGBRegressor()
             modelX = XGBRegressor(booster='gblinear',
                                  max_depth=1,
                                  min_child_weight=13,
@@ -433,19 +435,24 @@ def main():
             ridge_solvers.append('cholesky')
             ridge_solvers.append('lsqr')
             ridge_solvers.append('sag')
+            RR2 = Ridge()
             RR = Ridge(alpha=0.02, solver="lsqr")
-            # estimates.append(Estimator(RR, 'RR'))
+            estimates.append(Estimator(RR2, 'RR2'))
+            estimates.append(Estimator(RR, 'RR'))
+            estimates.append(Estimator(modelX2, 'XGBR2'))
             estimates.append(Estimator(modelX,'XGBR'))
             # LASSO
             lasso_alphas = np.linspace(0, 0.02, 11)
             LAS = Lasso(alpha=0.002)
-            #estimates.append(Estimator(LAS, 'LAS'))
+            estimates.append(Estimator(LAS, 'LAS'))
 
             # EL
+            EL2 = ElasticNet()
             EL = ElasticNet(alpha=0.01, l1_ratio=0.01)
             ratios = np.arange(0, 1, 0.01)
             alphas = [1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 0.0, 1.0, 10.0, 100.0]
-            #estimates.append(Estimator(EL, 'EL'))
+            estimates.append(Estimator(EL2, 'EL2'))
+            estimates.append(Estimator(EL, 'EL'))
 
             KNN = KNeighborsRegressor()
             k_values = np.array([1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21])
