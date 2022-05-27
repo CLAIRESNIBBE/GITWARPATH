@@ -426,7 +426,23 @@ def main():
             y_test = test[target_column].values
             x_test = test.drop([target_column], axis=1)
             x_test = sc.fit_transform(x_test)
-            model = XGBRegressor(n_estimators=5000, missing=-999.0)
+            KNN2 = KNeighborsRegressor()
+            hp_candidates = [
+                {'n_neighbors': [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], 'weights': ['uniform', 'distance'],
+                 'p': [1, 2, 5]}]
+            cv = RepeatedKFold(n_splits=10, n_repeats=3, random_state=1)
+            grid = GridSearchCV(estimator=KNN2,
+                                param_grid=hp_candidates,
+                                cv=cv,
+                                verbose=1,
+                                scoring='neg_mean_squared_error',
+                                return_train_score=True)
+            grid.fit(x_train, y_train)
+            predicted =np.square(grid.predict(x_test))
+            meanabsoluterror = mean_absolute_error(y_test, predicted)
+            print('MAE ',meanabsoluterror)
+
+            model = XGBRegressor( n_estimators=5000,missing=-999.0)
             model.fit(x_train, y_train, eval_set=[(x_train, y_train), (x_test, y_test)],early_stopping_rounds = 100)
             #ypred = model.predict(x_test)
             #ypred = np.square(ypred)
@@ -461,21 +477,22 @@ def main():
             #          'subsample': [0.6, 0.7, 0.8],
             #          'colsample_bytree': [0.5, 0.6, 0.7, 0.8, 0.9, 1],
             #          'n_estimators': [50]}
-            params={'max_depth': [1],
-                                'min_child_weight': [13],
-                                'subsample': [.8],
-                                'colsample_bytree': [1],
-                                'colsample_bylevel': [0.6, 0.7, 0.8,
-                                                      0.9, 1],
-                                'colsample_bynode': [0.6, 0.7, 0.8,
-                                                     0.9, 1],
-                                'n_estimators': [50]}
+            #params={'max_depth': [1],
+            #                    'min_child_weight': [13],
+            #                    'subsample': [.8],
+            #                    'colsample_bytree': [1],
+            #                    'colsample_bylevel': [0.6, 0.7, 0.8,
+            #                                          0.9, 1],
+            #                    'colsample_bynode': [0.6, 0.7, 0.8,
+            #                                         0.9, 1],
+            #                    'n_estimators': [50]}
+            params = {'max_depth': [3, 6, 10],
+                      'learning_rate': [0.01, 0.05, 0.1],
+                      'n_estimators': [100, 500, 1000],
+                      'colsample_bytree': [0.3, 0.7]}
 
 
             grid_search(params,XGBRegressor(missing=-999.0),x_train,y_train,x_test,y_test)
-
-
-
 
 
 

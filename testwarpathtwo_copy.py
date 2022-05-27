@@ -260,11 +260,10 @@ def main():
         while fixedtraintest == False:
             for root, dirs, files in os.walk(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations"):
                 for file in files:
-                    if file.endswith('.csv') and 'TEST' not in file and 'TRAIN' not in file and "SPLIT" not in file:
+                    if not fixedtraintest and file.endswith('.csv') and 'TEST' not in file and 'TRAIN' not in file and "SPLIT" not in file:
                         # filesImp.append(file)
-                        if not fixedtraintest:
                             filedf = pd.read_csv(root + '\\' + file, ";")
-                            trainID, testID = train_test_split(filedf, test_size=0.3)
+                            trainID, testID = train_test_split(filedf, test_size=0.2)
                             trainSize = len(trainID)
                             trainID.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TRAINSPLIT" + ".csv",
                                            ";")
@@ -323,7 +322,7 @@ def main():
         rootIWPC = root.replace("WarImputations\\Training", "MICESTATSMODELHIV\\")
         IWPC_csv = rootIWPC + filesIWPC[fileindex]
         IWPCDF = pd.read_csv(IWPC_csv,';')
-        sampleSize = int(round(trainSize*0.5))
+        sampleSize = int(round(trainSize*0))
         dfIWPC = IWPCDF.sample(n=sampleSize)
 
         dfIWPC["Status"] = "train"
@@ -362,7 +361,7 @@ def main():
         dfmod.drop([".imp"], axis=1, inplace=True)
         dfmod.drop([".id"], axis=1, inplace=True)
         dfmod.drop(["Unnamed: 0.1.1"], axis=1, inplace=True)
-        combinedata = True
+        combinedata = False
         suffix = str(df).zfill(3)
         if combinedata == True:
             dfmod = dfmod.sample(frac=1)
@@ -446,18 +445,21 @@ def main():
             LAS = Lasso(alpha=0.002)
             estimates.append(Estimator(LAS, 'LAS'))
 
+
             # EL
             EL2 = ElasticNet()
             EL = ElasticNet(alpha=0.01, l1_ratio=0.01)
+            ABEL = AdaBoostRegressor(EL)
             ratios = np.arange(0, 1, 0.01)
             alphas = [1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 0.0, 1.0, 10.0, 100.0]
             estimates.append(Estimator(EL2, 'EL2'))
             estimates.append(Estimator(EL, 'EL'))
+            estimates.append(Estimator(ABEL,'ABEL'))
 
-            KNN = KNeighborsRegressor()
-            k_values = np.array([1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21])
-            param_grid = dict(n_neighbors=k_values)
-            # estimates.append(Estimator(KNN, 'KNN'))
+            KNN2 = KNeighborsRegressor()
+            KNN = KNeighborsRegressor(n_neighbors=15,p=2,weights="uniform")
+            estimates.append(Estimator(KNN, 'KNN'))
+            estimates.append(Estimator(KNN2, 'KNN2'))
 
             # n_estimators = [int(x) for x in np.linspace(start=200, stop=1000, num=10)]
             # max_features = ['auto', 'sqrt']
