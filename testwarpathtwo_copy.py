@@ -13,6 +13,7 @@ from sklearn.metrics import make_scorer
 from sklearn.svm import LinearSVR, SVR
 from sklearn.neural_network import MLPRegressor
 from sklearn.ensemble import GradientBoostingRegressor, AdaBoostRegressor
+from sklearn.ensemble import StackingRegressor
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import cross_val_score, cross_validate
 from sklearn.ensemble import RandomForestRegressor
@@ -316,17 +317,18 @@ def main():
                 filesImp.append(
                     r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Split\ImpWarPATHSPLIT_" + suffix + ".csv")
     results = []
+    combinedata = False
     for file in filesImp:
         dfnew = pd.read_csv(file, ";")
         fileindex = filesImp.index(file)
-        rootIWPC = root.replace("WarImputations\\Training", "MICESTATSMODELHIV\\")
-        IWPC_csv = rootIWPC + filesIWPC[fileindex]
-        IWPCDF = pd.read_csv(IWPC_csv,';')
-        sampleSize = int(round(trainSize*0))
-        dfIWPC = IWPCDF.sample(n=sampleSize)
-
-        dfIWPC["Status"] = "train"
-        dfIWPC.drop(["Unnamed: 0"], axis=1, inplace=True)
+        if combinedata == True:
+          rootIWPC = root.replace("WarImputations\\Training", "MICESTATSMODELHIV\\")
+          IWPC_csv = rootIWPC + filesIWPC[fileindex]
+          IWPCDF = pd.read_csv(IWPC_csv,';')
+          sampleSize = int(round(trainSize*0))
+          dfIWPC = IWPCDF.sample(n=sampleSize)
+          dfIWPC["Status"] = "train"
+          dfIWPC.drop(["Unnamed: 0"], axis=1, inplace=True)
         df = fileindex + 1
         dfmod = dfnew
         dfmod.drop(['Gender', 'Country_recruitment'], axis=1, inplace=True)
@@ -337,8 +339,9 @@ def main():
                                        np.where(dfmod["Target_INR"] == "aTwo_point_five", 2.5, 2.0))
         dfmod["Target_INR"] = dfmod.apply(lambda x: INRThree(x["Target_INR"]), axis=1)
         dfmod["Target_INR"] = dfmod['Target_INR'].astype("float")
-        dfIWPC["Target_INR"] = dfIWPC.apply(lambda x: INRThree(x["Target_INR"]), axis=1)
-        dfIWPC["Target_INR"] = dfIWPC['Target_INR'].astype("float")
+        if combinedata == True:
+          dfIWPC["Target_INR"] = dfIWPC.apply(lambda x: INRThree(x["Target_INR"]), axis=1)
+          dfIWPC["Target_INR"] = dfIWPC['Target_INR'].astype("float")
         dfmod["Inducer"] = dfmod.apply(lambda x: ConvertYesNo(x["Inducer_status"]), axis=1)
         dfmod["Amiodarone"] = dfmod.apply(lambda x: ConvertYesNo(x["Amiodarone_status"]), axis=1)
         dfmod["Smoker"] = dfmod.apply(lambda x: ConvertYesNo(x["Smoking_status"]), axis=1)
@@ -361,7 +364,6 @@ def main():
         dfmod.drop([".imp"], axis=1, inplace=True)
         dfmod.drop([".id"], axis=1, inplace=True)
         dfmod.drop(["Unnamed: 0.1.1"], axis=1, inplace=True)
-        combinedata = False
         suffix = str(df).zfill(3)
         if combinedata == True:
             dfmod = dfmod.sample(frac=1)
@@ -476,8 +478,24 @@ def main():
             #        'LR': {},
             #        'KNN': param_grid
             #        }
-
+            NN2 = MLPRegressor()
+            NN = MLPRegressor(hidden_layer_sizes=(100,), activation="relu", random_state=1, max_iter=2000)
+            estimates.append(Estimator(NN, 'NN'))
+            estimates.append(Estimator(NN, 'NN2'))
             results2 = []
+            estimates = []
+            estimates.append(Estimator(LR,'LR'))
+            RF = RandomForestRegressor(max_depth=80, max_features='sqrt', min_samples_leaf=5,
+                                       min_samples_split=12, n_estimators=2000)
+            ABRF = AdaBoostRegressor(base_estimator=RandomForestRegressor(max_depth=80,
+                                                                   max_features='sqrt',
+                                                                   min_samples_leaf=5,
+                                                                   min_samples_split=12,
+                                                                   n_estimators=2000),
+                              n_estimators=1, random_state=42)
+            estimates.append(Estimator(RF,'RF'))
+            estimates.append(Estimator(ABRF,'ABRF'))
+
             for _, est in enumerate(estimates):
                 resultsdict = traineval(est, x_train, y_train, x_test, y_test, squaring=squaring)
                 # print("Accuracy: %.3f%% (%.3f%%)" % (results2.mean() * 100.0, results2.std() * 100.0))
@@ -501,6 +519,7 @@ def main():
                 ab_EL = AdaBoostRegressor(EL, n_estimators=400, random_state=7)
                 SGD = SGDRegressor(penalty="l2")
                 KNN = KNeighborsRegressor(weights="uniform", p=1, n_neighbors=14, algorithm="brute")
+                NN = MLPRegressor(hidden_layer_sizes=(100,), activation="relu", random_state=1, max_iter=2000)
                 NN = MLPRegressor(hidden_layer_sizes=(100,), activation="relu", random_state=1, max_iter=2000)
                 # NN = MLPRegressor(hidden_layer_sizes=(100,), activation='logistic', solver='lbfgs', max_iter=1000)
                 # SV = SVR(kernel='linear', cache_size=1000)
@@ -693,10 +712,10 @@ def main():
             current_stddev = confintlimit95(metriclist)
             confinterval.append({'estimator':current_estimator, 'metric':current_metric,'mean':current_mean,'95% CI lower bound':current_mean-current_stddev,'95% CI upper bound':current_mean+current_stddev})
         #stddev.append({'metric':current_metric,'standarddev':current_stddev,'mean':current_mean})
+    dfResults.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfResults" + ".csv", ";")
+    dfSummary.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfSummary" + ".csv", ";")
     dfConfidence = pd.DataFrame(confinterval, columns= ['estimator','metric','mean','95% CI lower bound','95% CI upper bound'])
     dfConfidence.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfConfidence" + ".csv", ";")
-    dfResults.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfResults" + ".csv", ";")
-    #dfSummary.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfSummary" + ".csv", ";")
     print("STOP HERE")
 
 
