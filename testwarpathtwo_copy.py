@@ -7,7 +7,10 @@ import numpy as np
 from tabulate import tabulate
 from matplotlib import pyplot as plt
 from warfit_learn import datasets, preprocessing
-from sklearn.linear_model import LinearRegression, Ridge
+from lineartree import LinearForestRegressor
+from lineartree import LinearTreeRegressor
+from lineartree import LinearBoostRegressor
+from sklearn.linear_model import LinearRegression, Ridge, Perceptron
 from sklearn.metrics import mean_absolute_error
 from sklearn.metrics import make_scorer
 from sklearn.svm import LinearSVR, SVR
@@ -414,54 +417,52 @@ def main():
             estimates.append(Estimator(LR, 'LR'))
             estimates.append(Estimator(LAS2, 'LAS2'))
             # XGB
-            modelX2 = XGBRegressor()
-            modelX = XGBRegressor(booster='gblinear',
-                                 max_depth=1,
-                                 min_child_weight=13,
-                                 subsample=0.8,
-                                 colsample_bytree=1,
-                                 colsample_bylevel=0.6,
-                                 colsample_bynode=0.9,
-                                 n_estimators=50,
-                                 learning_rate= 1,
-
-                                 )
+            #modelX2 = XGBRegressor()
+            #modelX = XGBRegressor(booster='gblinear',
+            #                     max_depth=1,
+            #                     min_child_weight=13,
+            #                    subsample=0.8,
+            #                     colsample_bylevel=0.6,
+            #                     colsample_bynode=0.9,
+            #                     n_estimators=50,
+            #                     learning_rate= 1,
+            #                     )
 
 
             # RIDGE
-            grid = dict()
-            ridge_alphas = np.linspace(0, 0.02, 11)
-            ridge_solvers = []
-            ridge_solvers.append('svd')
-            ridge_solvers.append('cholesky')
-            ridge_solvers.append('lsqr')
-            ridge_solvers.append('sag')
-            RR2 = Ridge()
-            RR = Ridge(alpha=0.02, solver="lsqr")
-            estimates.append(Estimator(RR2, 'RR2'))
-            estimates.append(Estimator(RR, 'RR'))
-            estimates.append(Estimator(modelX2, 'XGBR2'))
-            estimates.append(Estimator(modelX,'XGBR'))
+            #grid = dict()
+            #ridge_alphas = np.linspace(0, 0.02, 11)
+            #ridge_solvers = []
+            #ridge_solvers.append('svd')
+            #ridge_solvers.append('cholesky')
+            #ridge_solvers.append('lsqr')
+            #ridge_solvers.append('sag')
+            #RR2 = Ridge()
+            #RR = Ridge(alpha=0.02, solver="lsqr")
+            #estimates.append(Estimator(RR2, 'RR2'))
+            #estimates.append(Estimator(RR, 'RR'))
+            #estimates.append(Estimator(modelX2, 'XGBR2'))
+            #estimates.append(Estimator(modelX,'XGBR'))
             # LASSO
-            lasso_alphas = np.linspace(0, 0.02, 11)
-            LAS = Lasso(alpha=0.002)
-            estimates.append(Estimator(LAS, 'LAS'))
+            #lasso_alphas = np.linspace(0, 0.02, 11)
+            #LAS = Lasso(alpha=0.002)
+            #estimates.append(Estimator(LAS, 'LAS'))
 
 
             # EL
-            EL2 = ElasticNet()
-            EL = ElasticNet(alpha=0.01, l1_ratio=0.01)
-            ABEL = AdaBoostRegressor(EL)
-            ratios = np.arange(0, 1, 0.01)
-            alphas = [1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 0.0, 1.0, 10.0, 100.0]
-            estimates.append(Estimator(EL2, 'EL2'))
-            estimates.append(Estimator(EL, 'EL'))
-            estimates.append(Estimator(ABEL,'ABEL'))
+            #EL2 = ElasticNet()
+            #EL = ElasticNet(alpha=0.01, l1_ratio=0.01)
+            #ABEL = AdaBoostRegressor(EL)
+            #ratios = np.arange(0, 1, 0.01)
+            #alphas = [1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 0.0, 1.0, 10.0, 100.0]
+            #estimates.append(Estimator(EL2, 'EL2'))
+            #estimates.append(Estimator(EL, 'EL'))
+            #estimates.append(Estimator(ABEL,'ABEL'))
 
-            KNN2 = KNeighborsRegressor()
-            KNN = KNeighborsRegressor(n_neighbors=15,p=2,weights="uniform")
-            estimates.append(Estimator(KNN, 'KNN'))
-            estimates.append(Estimator(KNN2, 'KNN2'))
+            #KNN2 = KNeighborsRegressor()
+            #KNN = KNeighborsRegressor(n_neighbors=15,p=2,weights="uniform")
+            #estimates.append(Estimator(KNN, 'KNN'))
+            #estimates.append(Estimator(KNN2, 'KNN2'))
 
             # n_estimators = [int(x) for x in np.linspace(start=200, stop=1000, num=10)]
             # max_features = ['auto', 'sqrt']
@@ -478,24 +479,21 @@ def main():
             #        'LR': {},
             #        'KNN': param_grid
             #        }
-            NN2 = MLPRegressor()
-            NN = MLPRegressor(hidden_layer_sizes=(100,), activation="relu", random_state=1, max_iter=2000)
-            estimates.append(Estimator(NN, 'NN'))
-            estimates.append(Estimator(NN, 'NN2'))
-            results2 = []
+            #NN2 = MLPRegressor()
+            #NN = MLPRegressor(hidden_layer_sizes=(100,), activation="relu", random_state=1, max_iter=2000)
+            #estimates.append(Estimator(NN, 'NN'))
+            #estimates.append(Estimator(NN, 'NN2'))
+            #results2 = []
             estimates = []
             estimates.append(Estimator(LR,'LR'))
-            RF = RandomForestRegressor(max_depth=80, max_features='sqrt', min_samples_leaf=5,
-                                       min_samples_split=12, n_estimators=2000)
-            ABRF = AdaBoostRegressor(base_estimator=RandomForestRegressor(max_depth=80,
-                                                                   max_features='sqrt',
-                                                                   min_samples_leaf=5,
-                                                                   min_samples_split=12,
-                                                                   n_estimators=2000),
-                              n_estimators=1, random_state=42)
+            RF = RandomForestRegressor(max_depth=120, max_features=3, min_samples_leaf=4,
+                                       min_samples_split=12, n_estimators=100)
+            #{'bootstrap': True, 'max_depth': 120, 'max_features': 3, 'min_samples_leaf': 4, 'min_samples_split': 12,
+            # 'n_estimators': 100}
+            #................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................,,,,,,,,,,,
+            ABRF = AdaBoostRegressor(base_estimator=RF,  learning_rate=0.05, n_estimators=5)
             estimates.append(Estimator(RF,'RF'))
             estimates.append(Estimator(ABRF,'ABRF'))
-
             for _, est in enumerate(estimates):
                 resultsdict = traineval(est, x_train, y_train, x_test, y_test, squaring=squaring)
                 # print("Accuracy: %.3f%% (%.3f%%)" % (results2.mean() * 100.0, results2.std() * 100.0))

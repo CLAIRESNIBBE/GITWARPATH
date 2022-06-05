@@ -1,3 +1,4 @@
+import copy
 import sklearn
 import csv
 import os
@@ -13,7 +14,7 @@ from sklearn.metrics import make_scorer
 from sklearn.svm import LinearSVR, SVR
 from sklearn.neural_network import MLPRegressor
 from sklearn.ensemble import GradientBoostingRegressor, AdaBoostRegressor
-from sklearn.model_selection import GridSearchCV, RepeatedKFold, KFold
+from sklearn.model_selection import GridSearchCV, RepeatedKFold, KFold, RandomizedSearchCV
 from sklearn.model_selection import cross_val_score, cross_validate
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.pipeline import Pipeline
@@ -75,7 +76,6 @@ from tpot.builtins import StackingEstimator, ZeroCount
 from numpy import loadtxt
 # from keras.models import Sequential
 # from keras.layers import Dense
-from copy import copy
 
 def ExitSquareBracket(variable):
     stringvar = str(variable)
@@ -260,6 +260,37 @@ def grid_search(params, reg, x_train, y_train, x_test, y_test):
     mae = mean_absolute_error(y_test, predicted)
     print("MAE:", mae)
 
+
+import numpy as np
+import pandas as pd
+
+
+def get_grid_df(fitted_gs_estimator):
+    res_dict = fitted_gs_estimator.cv_results_
+
+    results_df = pd.DataFrame()
+    for key in res_dict.keys():
+        results_df[key] = res_dict[key]
+
+    return results_df
+
+
+def group_report(results_df):
+    param_cols = [x for x in results_df.columns if 'param' in x and x is not 'params']
+    focus_cols = param_cols + ['mean_test_score']
+
+    print("Grid CV Report")
+
+    output_df = pd.DataFrame(columns=['param_type', 'param_set',
+                                      'mean_score', 'mean_std'])
+    cc = 0
+    for param in param_cols:
+        for key, group in results_df.groupby(param):
+            output_df.loc[cc] = (param, key, group['mean_test_score'].mean(), group['mean_test_score'].std())
+            cc += 1
+    return output_df
+
+
 def main():
     combinedata = False
     scaler = MinMaxScaler()
@@ -353,13 +384,14 @@ def main():
     for file in filesImp:
         dfnew = pd.read_csv(file, ";")
         fileindex = filesImp.index(file)
-        rootIWPC = root.replace("WarImputations\\Training", "MICESTATSMODELHIV\\")
-        IWPC_csv = rootIWPC + filesIWPC[fileindex]
-        IWPCDF = pd.read_csv(IWPC_csv,';')
-        sampleSize = int(round(trainSize) * 0.25)
-        dfIWPC = IWPCDF.sample(n=sampleSize)
-        dfIWPC["Status"] = "train"
-        dfIWPC.drop(["Unnamed: 0"], axis=1, inplace=True)
+        if combinedata == True:
+            rootIWPC = root.replace("WarImputations\\Training", "MICESTATSMODELHIV\\")
+            IWPC_csv = rootIWPC + filesIWPC[fileindex]
+            IWPCDF = pd.read_csv(IWPC_csv,';')
+            sampleSize = int(round(trainSize) * 0.25)
+            dfIWPC = IWPCDF.sample(n=sampleSize)
+            dfIWPC["Status"] = "train"
+            dfIWPC.drop(["Unnamed: 0"], axis=1, inplace=True)
         df = fileindex + 1
         dfmod = dfnew
         dfmod.drop(['Gender', 'Country_recruitment'], axis=1, inplace=True)
@@ -370,8 +402,9 @@ def main():
                                        np.where(dfmod["Target_INR"] == "aTwo_point_five", 2.5, 2.0))
         dfmod["Target_INR"] = dfmod.apply(lambda x: INRThree(x["Target_INR"]), axis=1)
         dfmod["Target_INR"] = dfmod['Target_INR'].astype("float")
-        dfIWPC["Target_INR"] = dfIWPC.apply(lambda x: INRThree(x["Target_INR"]), axis=1)
-        dfIWPC["Target_INR"] = dfIWPC['Target_INR'].astype("float")
+        if combinedata == True:
+            dfIWPC["Target_INR"] = dfIWPC.apply(lambda x: INRThree(x["Target_INR"]), axis=1)
+            dfIWPC["Target_INR"] = dfIWPC['Target_INR'].astype("float")
         dfmod["Inducer"] = dfmod.apply(lambda x: ConvertYesNo(x["Inducer_status"]), axis=1)
         dfmod["Amiodarone"] = dfmod.apply(lambda x: ConvertYesNo(x["Amiodarone_status"]), axis=1)
         dfmod["Smoker"] = dfmod.apply(lambda x: ConvertYesNo(x["Smoking_status"]), axis=1)
@@ -426,6 +459,106 @@ def main():
             y_test = test[target_column].values
             x_test = test.drop([target_column], axis=1)
             x_test = sc.fit_transform(x_test)
+            # Use the random grid to search for best hyperparameters
+            # First create the base model to tune
+            rf = RandomForestRegressor()
+            rf.fit(x_train,y_train)
+            predicted = np.square(rf.predict(x_test))
+            maepredict = mean_absolute_error(y_test,predicted)
+            print('MAE for base model is ', maepredict)
+            if False:
+                # Number of trees in random forest
+                n_estimators = [int(x) for x in np.linspace(start=200, stop=2000, num=10)]
+                # Number of features to consider at every split
+                max_features = ['auto', 'sqrt']
+                # Maximum number of levels in tree
+                max_depth = [int(x) for x in np.linspace(10, 110, num=11)]
+                max_depth.append(None)
+                # Minimum number of samples required to split a node
+                min_samples_split = [2, 5, 10]
+                # Minimum number of samples required at each leaf node
+                min_samples_leaf = [1, 2, 4]
+                # Method of selecting samples for training each tree
+                bootstrap = [True, False]
+                # Create the random grid
+                random_grid = {'n_estimators': n_estimators,
+                           'max_features': max_features,
+                           'max_depth': max_depth,
+                           'min_samples_split': min_samples_split,
+                           'min_samples_leaf': min_samples_leaf,
+                           'bootstrap': bootstrap}
+
+                # Random search of parameters, using 3 fold cross validation,
+                # search across 100 different combinations, and use all available cores
+                rf_random = RandomizedSearchCV(estimator=rf, param_distributions=random_grid, n_iter=100, cv=3, verbose=2,
+                                           random_state=42, n_jobs=-1)
+                # Fit the random search model
+                rf_random.fit(x_train,y_train)
+                predict2 = np.square(rf_random.predict(x_test))
+                maepredict2 = mean_absolute_error(y_test, predict2)
+                print('MAE after randomized search is ', maepredict2)
+
+            # Create the parameter grid based on the results of random search
+                param_grid = {
+                'bootstrap': [True],
+                'max_depth': [90, 100, 110,120,130],
+                'max_features': [2, 3],
+                'min_samples_leaf': [3, 4, 5],
+                'min_samples_split': [8, 10, 12],
+                'n_estimators': [100, 200, 300, 1000]
+                }
+
+                grid_search = GridSearchCV(estimator=rf, param_grid=param_grid,
+                                       cv=5, n_jobs=-1, verbose=2)
+                grid_search.fit(x_train, y_train)
+                print(grid_search.best_params_)
+                predict2 = np.square(grid_search.predict(x_test))
+                maepredict2 = mean_absolute_error(y_test, predict2)
+                print('MAE after randomized search is ', maepredict2)
+            RF = RandomForestRegressor(max_depth=120, max_features=3, min_samples_leaf=4,
+                                       min_samples_split=12, n_estimators=100)
+            #hyperparameter_space = {'n_estimators': list(range(1, 102, 2)),
+            #                        'learning_rate': [0.01, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]}
+
+            hyperparameter_space = {'n_estimators': list(range(5,500,10)),
+                                    'learning_rate': [ 0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.1, 0.11, 0.12, 0.13,0.14, 0.15,0.2,0.3,0.4,0.5]}
+            gs = GridSearchCV(AdaBoostRegressor(base_estimator=RF),
+                              param_grid=hyperparameter_space,
+                              cv=5, n_jobs=-1, verbose=3)
+            grid_result = gs.fit(x_train, y_train)
+            # summarize the best score and configuration
+            print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
+            # summarize all scores that were evaluated
+            means = grid_result.cv_results_['mean_test_score']
+            stds = grid_result.cv_results_['std_test_score']
+            params = grid_result.cv_results_['params']
+            for mean, stdev, param in zip(means, stds, params):
+                print("%f (%f) with: %r" % (mean, stdev, param))
+
+
+
+
+
+            #ada_best = copy.deepcopy(pre_gs_inst.best_params_)
+            #ada_best['n_estimators'] = 3000
+            ABRF = AdaBoostRegressor(base_estimator=RF,
+                                     loss='linear', learning_rate= 0.045, n_estimators=50)
+
+            ABRF.fit(x_train, y_train)
+            y_pred = np.square(ABRF.predict(x_test))
+            print("MAE : ", mean_absolute_error(y_test, y_pred))
+            print("MAPE : ", (np.abs(y_test - y_pred) / y_test).mean())
+
+
+
+
+            results_df = get_grid_df(pre_gs_inst)
+            group_report(results_df)
+
+
+
+
+
             KNN2 = KNeighborsRegressor()
             hp_candidates = [
                 {'n_neighbors': [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], 'weights': ['uniform', 'distance'],

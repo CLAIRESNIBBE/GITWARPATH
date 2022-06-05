@@ -3,6 +3,7 @@ import numpy as np
 from warfit_learn.estimators import Estimator
 from sklearn.ensemble import RandomForestRegressor, AdaBoostRegressor
 from sklearn.linear_model import LinearRegression
+
 def variance(metric):
     meanvalue = np.mean(metric)
     sumsquares = 0
@@ -19,6 +20,10 @@ def confintlimit95(metric):
 
 metric_columns = ['MAE', 'PW20', 'R2']
 estimates = []
+RF = RandomForestRegressor(max_depth=120, max_features=3, min_samples_leaf=4,
+                                       min_samples_split=12, n_estimators=100)
+
+
 LR = LinearRegression()
 estimates.append(Estimator(LR,'LR'))
 RF = RandomForestRegressor(max_depth=80, max_features='sqrt', min_samples_leaf=5,
@@ -32,7 +37,11 @@ ABRF = AdaBoostRegressor(base_estimator=RandomForestRegressor(max_depth=80,
 
 estimates.append(Estimator(RF,'RF'))
 estimates.append(Estimator(ABRF,'ABRF'))
+
+
+
 dfResults = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfResults" + ".csv", ";")
+#dfSummary = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfSummary" + ".csv", ";")
 dfSummary = dfResults.groupby('Estimator').apply(np.mean)
 stddev = []
 confinterval = []
@@ -51,6 +60,6 @@ for i in range(len(metric_columns)):
 dfConfidence = pd.DataFrame(confinterval,
                             columns=['estimator', 'metric', 'mean', '95% CI lower bound', '95% CI upper bound'])
 dfConfidence.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfConfidence" + ".csv", ";")
-dfResults.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfResults" + ".csv", ";")
-dfSummary.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfSummary" + ".csv", ";")
+#dfResults.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfResults" + ".csv", ";")
+#dfSummary.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfSummary" + ".csv", ";")
 print("STOP HERE")
