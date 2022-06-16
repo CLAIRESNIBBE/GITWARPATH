@@ -5,6 +5,7 @@ import os.path
 import pandas as pd
 import numpy as np
 from tabulate import tabulate
+from os.path import isfile, join
 from matplotlib import pyplot as plt
 from warfit_learn import datasets, preprocessing
 from lineartree import LinearForestRegressor
@@ -295,40 +296,41 @@ def main():
         dftestimp = dftest.loc[df[".imp"] == counter]
         suffix = str(counter).zfill(3)
         dftestimp.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Testing\test_" + suffix + ".csv", ";")
-
     counter = 0
     metric_columns = ['MAE', 'PW20', 'R2']
     for root, dirs, files in os.walk(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations"):
-        for file in files:
-            if file.endswith('.csv') and (
+        if root == 'C:\\Users\\Claire\\GIT_REPO_1\\CSCthesisPY\\WarImputations':
+           for file in files:
+                if file.endswith('.csv') and (
                     "train_" not in file and "test_" not in file and "SPLIT" not in file and "TRAIN" not in file and "TEST" not in file) and "ImpWarPATH" in file:
-                filedf = pd.read_csv(root + '\\' + file, ";")
-                if "Status" not in filedf.columns:
-                    filedf["Status"] = ""
-                    counter = counter + 1
-                for row in filedf.itertuples():
-                    checkID = row[4]
-                    rowindex = filedf.loc[filedf[".id"] == checkID].index.tolist()[0]  # OR row[0]
-                    if checkID in patients_train:
-                        filedf.loc[rowindex, 'Status'] = 'train'
-                    elif checkID in patients_test:
-                        filedf.loc[rowindex, 'Status'] = 'test'
-                suffix = str(counter).zfill(3)
-                filedf.to_csv(
+                    filedf = pd.read_csv(root + '\\' + file, ";")
+                    if "Status" not in filedf.columns:
+                        filedf["Status"] = ""
+                        counter = counter + 1
+                    for row in filedf.itertuples():
+                        checkID = row[4]
+                        rowindex = filedf.loc[filedf[".id"] == checkID].index.tolist()[0]  # OR row[0]
+                        if checkID in patients_train:
+                            filedf.loc[rowindex, 'Status'] = 'train'
+                        elif checkID in patients_test:
+                            filedf.loc[rowindex, 'Status'] = 'test'
+                    suffix = str(counter).zfill(3)
+                    filedf.to_csv(
                     r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Split\ImpWarPATHSPLIT_" + suffix + ".csv",
                     ";")
-                filesImp.append(
+                    filesImp.append(
                     r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Split\ImpWarPATHSPLIT_" + suffix + ".csv")
     results = []
-    combinedata = False
+    root = 'C:\\Users\\Claire\\GIT_REPO_1\\CSCthesisPY\\WarImputations'
     for file in filesImp:
         dfnew = pd.read_csv(file, ";")
         fileindex = filesImp.index(file)
         if combinedata == True:
-          rootIWPC = root.replace("WarImputations\\Training", "MICESTATSMODELHIV\\")
-          IWPC_csv = rootIWPC + filesIWPC[fileindex]
+          #rootIWPC = root.replace("WarImputations\\Training", "MICESTATSMODELHIV\\")+"\\"
+          rootIWPC = root.replace("WarImputations", "MICESTATSMODELHIV\\")
+          IWPC_csv = rootIWPC +  filesIWPC[fileindex]
           IWPCDF = pd.read_csv(IWPC_csv,';')
-          sampleSize = int(round(trainSize*0))
+          sampleSize = int(round(trainSize*0.5))
           dfIWPC = IWPCDF.sample(n=sampleSize)
           dfIWPC["Status"] = "train"
           dfIWPC.drop(["Unnamed: 0"], axis=1, inplace=True)
@@ -406,6 +408,7 @@ def main():
             x_train = train.drop([target_column], axis=1)
             y_test = test[target_column].values
             x_test = test.drop([target_column], axis=1)
+
             LAS = Lasso(alpha=0.009)
             LAS2 = Lasso()
             #RF = RandomForestRegressor(max_depth=80, max_features='sqrt', min_samples_leaf=5,
@@ -486,28 +489,54 @@ def main():
             #results2 = []
             estimates = []
             estimates.append(Estimator(LR,'LR'))
-            RF = RandomForestRegressor(max_depth=120, max_features=3, min_samples_leaf=4,
-                                       min_samples_split=12, n_estimators=100)
-            #{'bootstrap': True, 'max_depth': 120, 'max_features': 3, 'min_samples_leaf': 4, 'min_samples_split': 12,
-            # 'n_estimators': 100}
-            #................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................,,,,,,,,,,,
-            ABRF = AdaBoostRegressor(base_estimator=RF,  learning_rate=0.05, n_estimators=5)
-            estimates.append(Estimator(RF,'RF'))
-            estimates.append(Estimator(ABRF,'ABRF'))
+            #MLPR = MLPRegressor(alpha=0.05, hidden_layer_sizes=(100, 50, 30), learning_rate='adaptive', max_iter=100,
+            #                    solver='sgd')
+            MLPR_Scaling = False
+            if MLPR_Scaling == True:
+                sc_X = StandardScaler()
+                x_traincopy = x_train
+                x_testcopy = x_test
+                x_train= sc_X.fit_transform(x_train)
+                x_test = sc_X.transform(x_test)
+            #MLPR4=MLPRegressor(alpha=0.03, hidden_layer_sizes=(23,23,), learning_rate='adaptive', max_iter=4000)
+            #pipeline_scaled = Pipeline([('scale',MinMaxScaler()),('alg',MLPR4)])
+            #clf = pipeline.fit(x_train,y_train)
+            #train_score = clf.score(x_train,y_train)
+            #test_score = clf.score(x_test, y_test)
+            #print("training score ", train_score)
+            #print("test score ", test_score)
+
+            #MLPR1 = MLPRegressor(hidden_layer_sizes=(6,), activation="relu", random_state=1, max_iter=2000)
+            #MLPR2 = MLPRegressor(alpha=0.05, learning_rate='adaptive', max_iter=2000,  activation="relu",solver='lbfgs')
+            #MLPR3 = MLPRegressor(hidden_layer_sizes=(64, 64, 64), activation="relu", solver='lbfgs',random_state=1, max_iter=2000)
+            #MLPR3= MLPRegressor(alpha=0.05, hidden_layer_sizes=(50, 50), activation="relu",learning_rate='adaptive',  max_iter=2000)
+            #MLPR = MLPRegressor(hidden_layer_sizes=(100,), activation='relu', solver='lbfgs', max_iter=2000)
+            #estimates.append(Estimator(MLPR1,'MLPR1'))
+            #estimates.append(Estimator(MLPR2,'MLPR2'))
+            #estimates.append(Estimator(MLPR3,'MLPR3'))
+            #estimates.append(Estimator(pipeline_scaled,'MLPR4'))
+
+            if True:
+                #RF = RandomForestRegressor(max_depth=125, max_features=2, min_samples_leaf=3,min_samples_split=8, n_estimators=100)
+                #RF = RandomForestRegressor(max_depth=125, max_features=2, min_samples_leaf=3,min_samples_split=8, n_estimators=200)
+                RF = RandomForestRegressor(max_depth=120, max_features=3, min_samples_leaf=4,min_samples_split=12, n_estimators=100)
+                #RF = RandomForestRegressor(){'bootstrap': True, 'max_depth': 120, 'max_features': 3, 'min_samples_leaf': 4, 'min_samples_split': 12,
+                # 'n_estimators': 100}
+                #................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................,,,,,,,,,,,
+                ABRF = AdaBoostRegressor(base_estimator=RF,  learning_rate=0.015, n_estimators=15)
+                ABRF2 = AdaBoostRegressor(base_estimator=RF, learning_rate=0.01, n_estimators=10)
+                estimates.append(Estimator(RF,'RF'))
+                estimates.append(Estimator(ABRF,'ABRF'))
+                estimates.append(Estimator(ABRF2, 'ABRF2'))
             for _, est in enumerate(estimates):
                 resultsdict = traineval(est, x_train, y_train, x_test, y_test, squaring=squaring)
                 # print("Accuracy: %.3f%% (%.3f%%)" % (results2.mean() * 100.0, results2.std() * 100.0))
                 res_dict = {
-                    'Estimator': [est.identifier for x in range(len(resultsdict['PW20']))],
-                    'PW20': resultsdict['PW20'],
-                    'MAE': resultsdict['MAE'],
-                    'R2': resultsdict['R2']}
+                     'Estimator': [est.identifier for x in range(len(resultsdict['PW20']))],
+                     'PW20': resultsdict['PW20'],
+                     'MAE': resultsdict['MAE'],
+                     'R2': resultsdict['R2']}
                 results.append(res_dict)
-
-                # rog = {k: [np.mean(res_dict[k])]
-                #         for k in list(res_dict.keys())[1:]}
-                # print(tabulate(prog, headers=prog.keys()))
-                # results.append(res_dict)
 
             df_res = pd.DataFrame()
             for res in results:
@@ -519,7 +548,7 @@ def main():
                 KNN = KNeighborsRegressor(weights="uniform", p=1, n_neighbors=14, algorithm="brute")
                 NN = MLPRegressor(hidden_layer_sizes=(100,), activation="relu", random_state=1, max_iter=2000)
                 NN = MLPRegressor(hidden_layer_sizes=(100,), activation="relu", random_state=1, max_iter=2000)
-                # NN = MLPRegressor(hidden_layer_sizes=(100,), activation='logistic', solver='lbfgs', max_iter=1000)
+                NN = MLPRegressor(hidden_layer_sizes=(100,), activation='relu', solver='lbfgs', max_iter=1000)
                 # SV = SVR(kernel='linear', cache_size=1000)
                 # SVReg = SVR(epsilon=1.5, kernel='sigmoid',C=2.0)
 

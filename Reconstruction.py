@@ -17,12 +17,10 @@ def variance(metric):
 def confintlimit95(metric):
     return 1.96 * np.sqrt(variance(metric ) / len(metric))
 
-
 metric_columns = ['MAE', 'PW20', 'R2']
 estimates = []
 RF = RandomForestRegressor(max_depth=120, max_features=3, min_samples_leaf=4,
                                        min_samples_split=12, n_estimators=100)
-
 
 LR = LinearRegression()
 estimates.append(Estimator(LR,'LR'))
@@ -34,10 +32,11 @@ ABRF = AdaBoostRegressor(base_estimator=RandomForestRegressor(max_depth=80,
                                                                    min_samples_split=12,
                                                                    n_estimators=2000),
                                                                    n_estimators=1, random_state=42)
+ABRF2 = ABRF
 
 estimates.append(Estimator(RF,'RF'))
 estimates.append(Estimator(ABRF,'ABRF'))
-
+estimates.append(Estimator(ABRF2,'ABRF2'))
 
 
 dfResults = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfResults" + ".csv", ";")
