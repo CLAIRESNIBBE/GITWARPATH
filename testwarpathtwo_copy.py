@@ -47,7 +47,6 @@ warnings.filterwarnings("ignore")
 from sklearn.exceptions import ConvergenceWarning
 from sklearn.exceptions import ChangedBehaviorWarning
 from sklearn.exceptions import DataConversionWarning
-from cubist import Cubist
 
 warnings.filterwarnings("ignore", category=ConvergenceWarning)
 warnings.filterwarnings("ignore", category=ChangedBehaviorWarning)
@@ -390,8 +389,8 @@ def main():
             target_column = 'Dose_mg_week'
             status_column = "Status"
             # unnamed_column = "Unnamed: 0.1.1"
-            train = dfmod.loc[dfmod["Status"] == "train"]
-            test = dfmod.loc[dfmod["Status"] == "test"]
+            train = data.loc[data["Status"] == "train"]
+            test = data.loc[data["Status"] == "test"]
             # train, test = train_test_split(data, test_size=test_size)
             squaring = True
             train = train.drop([status_column], axis=1)
@@ -498,25 +497,28 @@ def main():
                 x_testcopy = x_test
                 x_train= sc_X.fit_transform(x_train)
                 x_test = sc_X.transform(x_test)
-            #MLPR4=MLPRegressor(alpha=0.03, hidden_layer_sizes=(23,23,), learning_rate='adaptive', max_iter=4000)
-            #pipeline_scaled = Pipeline([('scale',MinMaxScaler()),('alg',MLPR4)])
+            MLPR2=MLPRegressor(alpha=0.001, hidden_layer_sizes=(60,), activation="relu",learning_rate='adaptive', learning_rate_init=0.002,max_iter=1500)
+            MLPR1=MLPRegressor(alpha= 0.0001, hidden_layer_sizes= (90,), learning_rate='adaptive', learning_rate_init=0.002,max_iter= 3000)
+
+            pipeline2_scaled = Pipeline([('scale',MinMaxScaler()),('alg',MLPR2)])
+            pipeline1_scaled = Pipeline([('scale',MinMaxScaler()),('alg',MLPR1)])
             #clf = pipeline.fit(x_train,y_train)
             #train_score = clf.score(x_train,y_train)
             #test_score = clf.score(x_test, y_test)
             #print("training score ", train_score)
             #print("test score ", test_score)
 
-            #MLPR1 = MLPRegressor(hidden_layer_sizes=(6,), activation="relu", random_state=1, max_iter=2000)
-            #MLPR2 = MLPRegressor(alpha=0.05, learning_rate='adaptive', max_iter=2000,  activation="relu",solver='lbfgs')
+            MLPR1 = MLPRegressor(hidden_layer_sizes=(90,5,), activation="relu", random_state=1, max_iter=3500,learning_rate_init=0.001)
+            MLPR2 = MLPRegressor(hidden_layer_sizes=(15,3,),alpha=0.05, learning_rate_init = 0.003, max_iter=2500,  activation="relu")
             #MLPR3 = MLPRegressor(hidden_layer_sizes=(64, 64, 64), activation="relu", solver='lbfgs',random_state=1, max_iter=2000)
             #MLPR3= MLPRegressor(alpha=0.05, hidden_layer_sizes=(50, 50), activation="relu",learning_rate='adaptive',  max_iter=2000)
             #MLPR = MLPRegressor(hidden_layer_sizes=(100,), activation='relu', solver='lbfgs', max_iter=2000)
             #estimates.append(Estimator(MLPR1,'MLPR1'))
             #estimates.append(Estimator(MLPR2,'MLPR2'))
             #estimates.append(Estimator(MLPR3,'MLPR3'))
-            #estimates.append(Estimator(pipeline_scaled,'MLPR4'))
-
-            if True:
+            estimates.append(Estimator(pipeline1_scaled,'MLPR1'))
+            estimates.append(Estimator(pipeline2_scaled,'MLPR2'))
+            if False:
                 #RF = RandomForestRegressor(max_depth=125, max_features=2, min_samples_leaf=3,min_samples_split=8, n_estimators=100)
                 #RF = RandomForestRegressor(max_depth=125, max_features=2, min_samples_leaf=3,min_samples_split=8, n_estimators=200)
                 RF = RandomForestRegressor(max_depth=120, max_features=3, min_samples_leaf=4,min_samples_split=12, n_estimators=100)

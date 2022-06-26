@@ -1,12 +1,19 @@
 import copy
 import sklearn
+import sklearn_evaluation as sklearneval
 import csv
 import os
+import plotly.graph_objects as go
 import os.path
 import pandas as pd
 import numpy as np
+import scikitplot as skplot
 from tabulate import tabulate
 from matplotlib import pyplot as plt
+from IPython.display import display
+from sklearn_evaluation.plot import grid_search
+from yellowbrick.features import ParallelCoordinates
+from yellowbrick.regressor import AlphaSelection, PredictionError, ResidualsPlot
 from warfit_learn import datasets, preprocessing
 from sklearn.linear_model import LinearRegression, Ridge
 from sklearn.metrics import mean_absolute_error
@@ -22,6 +29,7 @@ import xgboost
 from xgboost import XGBClassifier  # for extreme gradient boosting model
 from xgboost import XGBRFRegressor
 from xgboost import XGBRegressor
+from xgboost import plot_tree
 from warfit_learn.estimators import Estimator
 from warfit_learn.evaluation import evaluate_estimators
 from warfit_learn.metrics.scoring import confidence_interval
@@ -43,7 +51,7 @@ warnings.filterwarnings("ignore")
 from sklearn.exceptions import ConvergenceWarning
 from sklearn.exceptions import ChangedBehaviorWarning
 from sklearn.exceptions import DataConversionWarning
-from cubist import Cubist
+#from cubist import Cubist
 
 warnings.filterwarnings("ignore", category=ConvergenceWarning)
 warnings.filterwarnings("ignore", category=ChangedBehaviorWarning)
@@ -76,6 +84,54 @@ from tpot.builtins import StackingEstimator, ZeroCount
 from numpy import loadtxt
 # from keras.models import Sequential
 # from keras.layers import Dense
+
+
+from imports import *
+import logging
+
+# a function  to create and save logs in the log files
+def log(path, file):
+    """[Create a log file to record the experiment's logs]
+
+    Arguments:
+        path {string} -- path to the directory
+        file {string} -- file name
+
+    Returns:
+        [func] -- [logger that record logs]
+
+    Author:
+
+    """
+
+    # check if the file exist
+    log_file = os.path.join(path, file)
+
+    if not os.path.isfile(log_file):
+        open(log_file, "w+").close()
+
+    console_logging_format = "%(levelname)s %(message)s"
+    file_logging_format = "%(levelname)s: %(asctime)s: %(message)s"
+
+    # configure logger
+    logging.basicConfig(level=logging.INFO, format=console_logging_format)
+    logger = logging.getLogger()
+
+    # create a file handler for output file
+    handler = logging.FileHandler(log_file)
+
+    # set the logging level for log file
+    handler.setLevel(logging.INFO)
+
+    # create a logging format
+    formatter = logging.Formatter(file_logging_format)
+    handler.setFormatter(formatter)
+
+    # add the handlers to the logger
+    logger.addHandler(handler)
+
+    return logger
+
 
 def ExitSquareBracket(variable):
     stringvar = str(variable)
@@ -247,7 +303,8 @@ def traineval(est: Estimator,  xtrain, ytrain, xtest, ytest, squaring):
     resultsdict['MAE'] = [MAE]
     resultsdict['R2'] = [R2]
     return resultsdict
-def grid_search(params, reg, x_train, y_train, x_test, y_test):
+
+def grid_searchnew(params, reg, x_train, y_train, x_test, y_test):
     kfold = KFold(n_splits=5, shuffle=True, random_state=2)
     grid_reg = GridSearchCV(reg, params, scoring='neg_mean_squared_error', cv=kfold)
     grid_reg.fit(x_train, y_train)
@@ -260,9 +317,163 @@ def grid_search(params, reg, x_train, y_train, x_test, y_test):
     mae = mean_absolute_error(y_test, predicted)
     print("MAE:", mae)
 
+def plot_grid_search(cv_results, grid_param_1, grid_param_2, name_param_1, name_param_2):
+    # Get Test Scores Mean and std for each grid search
+    scores_mean = cv_results['mean_test_score']
+    scores_mean = np.array(scores_mean).reshape(len(grid_param_2),len(grid_param_1))
 
-import numpy as np
-import pandas as pd
+    scores_sd = cv_results['std_test_score']
+    scores_sd = np.array(scores_sd).reshape(len(grid_param_2),len(grid_param_1))
+
+    # Plot Grid search scores
+    _, ax = plt.subplots(1,1)
+
+    # Param1 is the X-axis, Param 2 is represented as a different curve (color line)
+    for idx, val in enumerate(grid_param_2):
+        ax.plot(grid_param_1, scores_mean[idx,:], '-o', label= name_param_2 + ': ' + str(val))
+
+    ax.set_title("Grid Search Scores", fontsize=20, fontweight='bold')
+    ax.set_xlabel(name_param_1, fontsize=16)
+    ax.set_ylabel('CV Average Score', fontsize=16)
+    ax.legend(loc="best", fontsize=15)
+    ax.grid('on')
+
+
+def GridSearch_table_plot(grid_clf, param_name,
+                          num_results=15,
+                          negative=True,
+                          graph=True,
+                          display_all_params=True):
+    '''Display grid search results
+
+    Arguments
+    ---------
+
+    grid_clf           the estimator resulting from a grid search
+                       for example: grid_clf = GridSearchCV( ...
+
+    param_name         a string with the name of the parameter being tested
+    num_results        an integer indicating the number of results to display
+                       Default: 15
+
+    negative           boolean: should the sign of the score be reversed?
+                       scoring = 'neg_log_loss', for instance
+                       Default: True
+
+    graph              boolean: should a graph be produced?
+                       non-numeric parameters (True/False, None) don't graph well
+                       Default: True
+
+    display_all_params boolean: should we print out all of the parameters, not just the ones searched for?
+                       Default: True
+
+    Usage
+    -----
+
+    GridSearch_table_plot(grid_clf, "min_samples_leaf")
+
+                          '''
+    from matplotlib import pyplot as plt
+    from IPython.display import display
+    import pandas as pd
+    clf = grid_clf.best_estimator_
+    clf_params = grid_clf.best_params_
+    if negative:
+        clf_score = -grid_clf.best_score_
+    else:
+        clf_score = grid_clf.best_score_
+    clf_stdev = grid_clf.cv_results_['std_test_score'][grid_clf.best_index_]
+    cv_results = grid_clf.cv_results_
+
+    print("best parameters: {}".format(clf_params))
+    print("best score:      {:0.5f} (+/-{:0.5f})".format(clf_score, clf_stdev))
+    if display_all_params:
+        import pprint
+        pprint.pprint(clf.get_params())
+
+    # pick out the best results
+    # =========================
+    scores_df = pd.DataFrame(cv_results).sort_values(by='rank_test_score')
+
+    best_row = scores_df.iloc[0, :]
+    if negative:
+        best_mean = -best_row['mean_test_score']
+    else:
+        best_mean = best_row['mean_test_score']
+    best_stdev = best_row['std_test_score']
+    best_param = best_row['param_' + param_name]
+
+    # display the top 'num_results' results
+    # =====================================
+    display(pd.DataFrame(cv_results) \
+            .sort_values(by='rank_test_score').head(num_results))
+
+    # plot the results
+    # ================
+    scores_df = scores_df.sort_values(by='param_' + param_name)
+
+    if negative:
+        means = -scores_df['mean_test_score']
+    else:
+        means = scores_df['mean_test_score']
+    stds = scores_df['std_test_score']
+    params = scores_df['param_' + param_name]
+    # plot
+    if graph:
+        plt.figure(figsize=(8, 8))
+        plt.errorbar(params, means, yerr=stds)
+
+        plt.axhline(y=best_mean + best_stdev, color='red')
+        plt.axhline(y=best_mean - best_stdev, color='red')
+        plt.plot(best_param, best_mean, 'or')
+
+        plt.title(param_name + " vs Score\nBest Score {:0.5f}".format(clf_score))
+        plt.xlabel(param_name)
+        plt.ylabel('Score')
+        plt.show()
+    # Calling Method
+#plot_grid_search(pipe_grid.cv_results_, n_estimators, max_features, 'N Estimators', 'Max Features')
+
+def GridSearch_Contour_plot(grid_clf, paramlist, param1, param2, Contour, Surface):
+    paramdf = pd.DataFrame(grid_clf.cv_results_["params"])
+    meantestdf = pd.DataFrame(grid_clf.cv_results_["mean_test_score"], columns=["Accuracy"])
+    grid_res = pd.concat([paramdf, meantestdf], axis=1)
+    grid_contour = grid_res.groupby(paramlist).mean()
+    grid_reset = grid_contour.reset_index()
+    grid_reset.columns = [param1, param2, 'Accuracy']
+    grid_pivot = grid_reset.pivot(param2, param1)
+    x = grid_pivot.columns.levels[1].values
+    y = grid_pivot.index.values
+    z = grid_pivot.values
+    # X and Y axes labels
+    layout = go.Layout(
+        xaxis=go.layout.XAxis(
+            title=go.layout.xaxis.Title(
+                text=param1)
+        ),
+        yaxis=go.layout.YAxis(
+            title=go.layout.yaxis.Title(
+                text=param2)
+        ))
+    if Contour == True:
+        fig = go.Figure(data=[go.Contour(z=z, x=x, y=y)], layout=layout)
+
+        fig.update_layout(title='Hyperparameter tuning - 2D Contour Plot', autosize=False,
+                          width=500, height=450,
+                          margin=dict(l=65, r=50, b=65, t=90))
+        fig.show()
+    else:
+        fig = go.Figure(data=[go.Surface(z=z, y=y, x=x)], layout=layout)
+
+        fig.update_layout(title='Hyperparameter tuning - 3D Surface Plot',
+                          scene=dict(
+                              xaxis_title=param1,
+                              yaxis_title=param2,
+                              zaxis_title='Accuracy'),
+                          autosize=False,
+                          width=800, height=500,
+                          margin=dict(l=65, r=50, b=65, t=90))
+        fig.show()
 
 
 def get_grid_df(fitted_gs_estimator):
@@ -293,6 +504,7 @@ def group_report(results_df):
 
 def main():
     combinedata = False
+    #sklearn.externals.joblib.load('gridsearch.pkl')
     scaler = MinMaxScaler()
     dftemplate = pd.DataFrame()
     dfWarPath = pd.DataFrame()
@@ -474,6 +686,7 @@ def main():
                 grid_search = GridSearchCV(estimator=AdaBoostRegressor(RFR), param_grid=grid, n_jobs=-1, cv=kfold, verbose=3)
                 # execute the grid search
                 grid_result = grid_search.fit(x_train,y_train)
+
                 # summarize the best score and configuration
                 print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
                 # summarize all scores that were evaluated
@@ -484,42 +697,86 @@ def main():
                     print("%f (%f) with: %r" % (mean, stdev, param))
                 print("end of tuning for AdaBoostRegressor")
 
-            rf= RandomForestRegressor()
-            param_grid = {
-                'bootstrap': [True],
-                'max_depth': [90, 100, 110, 115, 120, 125, 130, 135],
-                'max_features': [2, 3, 4, 5],
-                'min_samples_leaf': [3, 4, 5, 6],
-                'min_samples_split': [8, 9, 10, 11, 12, 13, 4],
-                'n_estimators': [80, 90, 100, 110, 120, 130, 140, 200, 300, 1000]
-            }
+                rf= RandomForestRegressor()
+                max_features_range = np.arange(1, 6, 1)
+                n_estimators_range = np.arange(10, 210, 10)
+                param_grid = dict(max_features=max_features_range, n_estimators=n_estimators_range)
+                kfold = KFold(n_splits=5, shuffle=True, random_state=2)
+                grid = GridSearchCV(estimator=rf, param_grid=param_grid, cv=kfold, n_jobs=-1, verbose=3)
+                grid_result = grid.fit(x_train, y_train)
 
-            kfold = KFold(n_splits=5, shuffle=True, random_state=2)
-            grid = GridSearchCV(estimator=rf, param_grid=param_grid, cv=kfold, n_jobs=-1, verbose=3)
-            grid_result = grid.fit(x_train, y_train)
-            # summarize the best score and configuration
+                GridSearch_table_plot(grid_result, "n_estimators")
+                # summarize the best score and configuration
+                print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
+                # summarize all scores that were evaluated
+                #means = grid_result.cv_results_['mean_test_score']
+                #stds = grid_result.cv_results_['std_test_score']
+                #params = grid_result.cv_results_['params']
+                #for mean, stdev, param in zip(means, stds, params):
+                #print("%f (%f) with: %r" % (mean, stdev, param))
+                #print("end of tuning for RandomForestRegressor")
+
+            kfold = KFold(n_splits=10, shuffle=True, random_state=2)
+            #param_grid = {
+            #    'alg__hidden_layer_sizes': [(5, 3,), (10, 5,), (25, 10,)],
+            #    'alg__max_iter': [1000, 1500, 2000,2500,3000,3500, 4000]}
+
+            #param_grid2 = {
+            #    'alg__hidden_layer_sizes': [(5,3,),(10,5,),(25,10,)],
+            #    'alg__max_iter': [1000,2000,4000],
+            #    'alg__activation': [ 'relu'],
+            #    'alg__alpha': [0.0001],
+            #    'alg__learning_rate': [ 'adaptive'],
+            #    'alg__learning_rate_init':[0.002],
+            #}
+
+            #hidden_layer_sizes = [(5, 3,), (10, 5,), (25, 10,)]
+            #max_iter = [ 1000, 2000,3000, 4000]
+            mlp_reg = MLPRegressor()
+            pipeline_scaled = Pipeline([('scale',MinMaxScaler()),('alg',mlp_reg)])
+            layers = []
+            layers = [5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95,100]
+            #layers2 = [3,5,10,20]
+            results = []
+            for x in layers:
+                #for y in layers2:
+                    #if x>y:
+                        param_grid = {
+                        'alg__hidden_layer_sizes': [(x,)],
+                        'alg__max_iter': [1000, 1500, 2000, 2500, 3000, 3500, 4000],
+                        'alg__learning_rate_init': [0.001,0.002,0.003],
+                        'alg__learning_rate':['adaptive']
+                        }
+                        grid = GridSearchCV(estimator = pipeline_scaled, param_grid = param_grid, n_jobs=-1, cv = kfold, scoring="neg_mean_absolute_error",verbose=3)
+                        grid_result = grid.fit(x_train,y_train)
+                        currentvalues = {'best_score':grid_result.best_score_, 'best_params':grid_result.best_params_}
+                        results.append(currentvalues)
+            for j in range(len(results)):
+                print(results[j])
+
+
+            grid = GridSearchCV(estimator=pipeline_scaled, param_grid=param_grid, n_jobs=-1, cv=kfold, verbose=3)
+            print(pipeline_scaled.get_params().keys())
+            grid_result=grid.fit(x_train,y_train)
+            param1 = 'alg__hidden_layer_sizes'
+            param2 = 'alg__max_iter'
+            GridSearch_Contour_plot(grid_result, [param1, param2], param1, param2, True, False)
             print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
-            # summarize all scores that were evaluated
-            means = grid_result.cv_results_['mean_test_score']
-            stds = grid_result.cv_results_['std_test_score']
-            params = grid_result.cv_results_['params']
-            for mean, stdev, param in zip(means, stds, params):
-                print("%f (%f) with: %r" % (mean, stdev, param))
-            print("end of tuning for RandomForestRegressor")
+            GridSearch_Contour_plot(grid_result, [param1, param2], param1, param2, False, True)
 
-            kfold = KFold(n_splits=5, shuffle=True, random_state=2)
-            param_grid = {
-                'hidden_layer_sizes': [(10,10),(15,15),(20,20),(21,21),(22,22),(23,23),(24,24),(25,25),(26,26),(27,27),(28,28),(29,29),(30,30)],
-                'max_iter': [2000,3000,4000,5000,6000,7000],
-                'activation': [ 'relu'],
-                'solver': ['adam'],
-                'alpha': [0.0001, 0.0003,0.0004,0.0005,0.001,0.003,0.004,0.005,0.01,0.015, 0.02, 0.025, 0.03],
-                'learning_rate': [ 'adaptive'],
-            }
-            grid = GridSearchCV(mlp_reg, param_grid, n_jobs=-1, cv=kfold, verbose=3)
-            minscale = MinMaxScaler()
-            x_train_scaled = minscale.fit_transform(x_train)
-            grid_result = grid.fit(x_train_scaled, y_train)
+
+
+            hidden_layer_sizes = [(5,3,),(8,5),(10,5,),(25,10,)]
+            max_iter = [800, 1000,2000,4000]
+            GridSearch_table_plot(grid_result, "hidden_layer_sizes")
+            #plot_grid_search(grid_result.cv_results_, hidden_layer_sizes, max_iter, 'Hidden Layer Sizes', 'Max Iter')
+            #plot_grid_search(grid_result.cv_results_, hidden_layer_sizes, max_iter, 'Hidden Layer Sizes', 'Max Iter')
+            changes = []
+            changes.append('hidden_layer_sizes')
+            changes.append('max_iter')
+            #sklearneval.plot.grid_search(grid_result.cv_results_, change='hidden_layer_sizes',kind='bar',cmap='Reds')
+            #sklearneval.plot.grid_search(grid_result.cv_results_, changes, kind='bar', cmap='Reds')
+            #plt.show()
             # summarize the best score and configuration
             print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
             # summarize all scores that were evaluated
@@ -596,6 +853,8 @@ def main():
             params = grid_result.cv_results_['params']
             for mean, stdev, param in zip(means, stds, params):
                 print("%f (%f) with: %r" % (mean, stdev, param))
+            sklearn.plot.grid_search(grid_result.cv_results, change = 'n_estimators', kind='bar')
+
             print("end of tuning for RandomForestRegressor")
 
 
