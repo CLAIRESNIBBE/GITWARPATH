@@ -9,6 +9,8 @@ import pandas as pd
 import numpy as np
 import scikitplot as skplot
 from tabulate import tabulate
+from random import sample
+from random import choices
 from matplotlib import pyplot as plt
 from IPython.display import display
 from sklearn_evaluation.plot import grid_search
@@ -51,7 +53,8 @@ warnings.filterwarnings("ignore")
 from sklearn.exceptions import ConvergenceWarning
 from sklearn.exceptions import ChangedBehaviorWarning
 from sklearn.exceptions import DataConversionWarning
-#from cubist import Cubist
+
+# from cubist import Cubist
 
 warnings.filterwarnings("ignore", category=ConvergenceWarning)
 warnings.filterwarnings("ignore", category=ChangedBehaviorWarning)
@@ -88,6 +91,7 @@ from numpy import loadtxt
 
 from imports import *
 import logging
+
 
 # a function  to create and save logs in the log files
 def log(path, file):
@@ -135,12 +139,13 @@ def log(path, file):
 
 def ExitSquareBracket(variable):
     stringvar = str(variable)
-    if stringvar.find('[') >= 0 and stringvar.find(']') >=0:
-        var1 = stringvar.replace('[','')
-        var2 = var1.replace(']','')
+    if stringvar.find('[') >= 0 and stringvar.find(']') >= 0:
+        var1 = stringvar.replace('[', '')
+        var2 = var1.replace(']', '')
         return var2
     else:
         return stringvar
+
 
 def collect_Metrics(metrics, model, metric):
     container = []
@@ -149,12 +154,14 @@ def collect_Metrics(metrics, model, metric):
             container.append(metrics[metric][metrics['Estimator'] == model].values)
     return container
 
+
 def collect_Results(metrics, model, metric):
     container = []
     for i in range(len(metrics)):
         if (metrics[i]['model'] == model):
             container.append(metrics[i][metric])
     return container
+
 
 def variance(metric):
     meanvalue = np.mean(metric)
@@ -165,14 +172,18 @@ def variance(metric):
     variance = sumsquares / ((len(metric) - 1))
     return variance
 
+
 def std_deviation(metric):
     return np.sqrt(variance(metric))
+
 
 def SList(series):
     return np.array(series.values.tolist())
 
+
 def confintlimit95(metric):
     return 1.96 * np.sqrt(variance(metric) / len(metric))
+
 
 def format_summary(df_res):
     df_summary = df_res.groupby(['Estimator']).mean()
@@ -198,6 +209,7 @@ def format_summary(df_res):
                 df_summary[metric][df_summary['Estimator'] == alg] = conf
     return df_summary
 
+
 def MLAR(trueval, predval):
     # mean log of accuracy ratio
     sum = 0
@@ -205,12 +217,14 @@ def MLAR(trueval, predval):
         sum += np.log(predval[i] / trueval[i])
     return (np.exp(sum / len(trueval)) - 1) * 100
 
+
 def MALAR(trueval, predval):
     # mean absolute log of accuracy ratio
     sum = 0
     for i in range(len(trueval)):
         sum += abs(np.log(predval[i] / trueval[i]))
     return (np.exp(sum / len(trueval)) - 1) * 100
+
 
 def RSquared(trueval, predval):
     true_mean = np.mean(trueval)
@@ -221,6 +235,7 @@ def RSquared(trueval, predval):
         lowersum += np.square(trueval[i] - true_mean)
     return topsum / lowersum * 100
 
+
 def BSA(height, weight):
     return 0.007184 * height ** 0.725 * weight ** 0.425
 
@@ -230,14 +245,17 @@ def BSA(height, weight):
         var = variance(df_WARPATH[current_metric])
         std_Dev.append({'model': 'WarPATH', 'metric': current_metric, 'SD': std, 'VAR': var})
 
+
 def ConvertYesNo(variable):
     if variable == "Yes":
         return 1
     elif variable == "No":
         return 0
 
+
 def MAEScore(true, predicted):
-    return mean_absolute_error(true,predicted)
+    return mean_absolute_error(true, predicted)
+
 
 def PercIn20(true, predicted):
     patients_in_20 = 0
@@ -246,11 +264,13 @@ def PercIn20(true, predicted):
             patients_in_20 += 1
     return 100 * patients_in_20 / len(true)
 
+
 def INRThree(targetINR):
     if (targetINR >= 2.5) & (targetINR <= 3.5):
         return 1
     else:
         return 0
+
 
 def evaluate_models(models, x_train, x_test, y_train, y_test):
     # fit and evaluate the models
@@ -266,6 +286,7 @@ def evaluate_models(models, x_train, x_test, y_train, y_test):
     # report model performance
     return scores
 
+
 def evaluate(model, test_features, test_labels):
     predictions = model.predict(test_features)
     errors = abs(predictions - test_labels)
@@ -278,19 +299,19 @@ def evaluate(model, test_features, test_labels):
     return accuracy
 
 
-def traineval(est: Estimator,  xtrain, ytrain, xtest, ytest, squaring):
+def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring):
     resultsdict = {'PW20': 0, 'MAE': 0, 'R2': 0}
     print(f'\n{est.identifier}...')
     mae_scorer = make_scorer(MAEScore)
     kcv = KFold(n_splits=10, random_state=1, shuffle=True)
-    #ridinitial = grid[est.identifier]
+    # ridinitial = grid[est.identifier]
     ytest_numpy = np.array(ytest)
     model = est.estimator
-    fitted = model.fit(xtrain,ytrain)
-    predict=fitted.predict(xtest)
-    #search = GridSearchCV(est.estimator, gridinitial, scoring='neg_mean_absolute_error',cv=cv)
-    #gridresult= search.fit(xtrain, ytrain)
-    #redicts = search.best_estimator_.predict(xtest)
+    fitted = model.fit(xtrain, ytrain)
+    predict = fitted.predict(xtest)
+    # search = GridSearchCV(est.estimator, gridinitial, scoring='neg_mean_absolute_error',cv=cv)
+    # gridresult= search.fit(xtrain, ytrain)
+    # redicts = search.best_estimator_.predict(xtest)
     if squaring:
         ytest = np.square(ytest)
         predict = np.square(predict)
@@ -298,11 +319,12 @@ def traineval(est: Estimator,  xtrain, ytrain, xtest, ytest, squaring):
     MAE = mean_absolute_error(ytest, predict)
     R2 = RSquared(ytest, predict)
     results2 = cross_val_score(model, xtrain, ytrain, cv=kcv, scoring='neg_mean_absolute_error')
-    #print("Accuracy: %.3f%% (%.3f%%)" % (results2.mean() * 100.0, results2.std() * 100.0))
+    # print("Accuracy: %.3f%% (%.3f%%)" % (results2.mean() * 100.0, results2.std() * 100.0))
     resultsdict['PW20'] = [PW20]
     resultsdict['MAE'] = [MAE]
     resultsdict['R2'] = [R2]
     return resultsdict
+
 
 def grid_searchnew(params, reg, x_train, y_train, x_test, y_test):
     kfold = KFold(n_splits=5, shuffle=True, random_state=2)
@@ -317,20 +339,21 @@ def grid_searchnew(params, reg, x_train, y_train, x_test, y_test):
     mae = mean_absolute_error(y_test, predicted)
     print("MAE:", mae)
 
+
 def plot_grid_search(cv_results, grid_param_1, grid_param_2, name_param_1, name_param_2):
     # Get Test Scores Mean and std for each grid search
     scores_mean = cv_results['mean_test_score']
-    scores_mean = np.array(scores_mean).reshape(len(grid_param_2),len(grid_param_1))
+    scores_mean = np.array(scores_mean).reshape(len(grid_param_2), len(grid_param_1))
 
     scores_sd = cv_results['std_test_score']
-    scores_sd = np.array(scores_sd).reshape(len(grid_param_2),len(grid_param_1))
+    scores_sd = np.array(scores_sd).reshape(len(grid_param_2), len(grid_param_1))
 
     # Plot Grid search scores
-    _, ax = plt.subplots(1,1)
+    _, ax = plt.subplots(1, 1)
 
     # Param1 is the X-axis, Param 2 is represented as a different curve (color line)
     for idx, val in enumerate(grid_param_2):
-        ax.plot(grid_param_1, scores_mean[idx,:], '-o', label= name_param_2 + ': ' + str(val))
+        ax.plot(grid_param_1, scores_mean[idx, :], '-o', label=name_param_2 + ': ' + str(val))
 
     ax.set_title("Grid Search Scores", fontsize=20, fontweight='bold')
     ax.set_xlabel(name_param_1, fontsize=16)
@@ -432,7 +455,9 @@ def GridSearch_table_plot(grid_clf, param_name,
         plt.ylabel('Score')
         plt.show()
     # Calling Method
-#plot_grid_search(pipe_grid.cv_results_, n_estimators, max_features, 'N Estimators', 'Max Features')
+
+
+# plot_grid_search(pipe_grid.cv_results_, n_estimators, max_features, 'N Estimators', 'Max Features')
 
 def GridSearch_Contour_plot(grid_clf, paramlist, param1, param2, Contour, Surface):
     paramdf = pd.DataFrame(grid_clf.cv_results_["params"])
@@ -503,8 +528,9 @@ def group_report(results_df):
 
 
 def main():
+    dfImputedList = []
     combinedata = False
-    #sklearn.externals.joblib.load('gridsearch.pkl')
+    # sklearn.externals.joblib.load('gridsearch.pkl')
     scaler = MinMaxScaler()
     dftemplate = pd.DataFrame()
     dfWarPath = pd.DataFrame()
@@ -518,7 +544,7 @@ def main():
     pd.set_option("display.max_rows", False)
     df = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\MiceRWarPATHData.csv", ";")
     filesIWPC = []
-    if  True:
+    if True:
         for root, dirs, files in os.walk(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\MICESTATSMODEL"):
             for file in files:
                 if file.endswith('.csv'):
@@ -604,7 +630,7 @@ def main():
         if combinedata == True:
             rootIWPC = root.replace("WarImputations\\Training", "MICESTATSMODELHIV\\")
             IWPC_csv = rootIWPC + filesIWPC[fileindex]
-            IWPCDF = pd.read_csv(IWPC_csv,';')
+            IWPCDF = pd.read_csv(IWPC_csv, ';')
             sampleSize = int(round(trainSize) * 0.25)
             dfIWPC = IWPCDF.sample(n=sampleSize)
             dfIWPC["Status"] = "train"
@@ -612,9 +638,6 @@ def main():
         df = fileindex + 1
         dfmod = dfnew
         dfmod.drop(['Gender', 'Country_recruitment'], axis=1, inplace=True)
-        # dfIWPC.drop(['AgeDecades'], axis =1, inplace = True)
-        # dfIWPC.drop(['INR_Three'], axis=1, inplace=True)
-        # dfmod["INR_Three"] = np.where(dfmod["Target_INR"] == "Three", 1, 0)
         dfmod["Target_INR"] = np.where(dfmod["Target_INR"] == "Three", 3.0,
                                        np.where(dfmod["Target_INR"] == "aTwo_point_five", 2.5, 2.0))
         dfmod["Target_INR"] = dfmod.apply(lambda x: INRThree(x["Target_INR"]), axis=1)
@@ -657,391 +680,64 @@ def main():
         else:
             filename = "dfWarfarin" + suffix
             dfmod.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\PreProcessed\\" + filename + ".csv", ";")
-        for boot in range(n_bootstraps):
-            dfsample = dfmod.sample(n=364, frac=None, replace=True)
-            dfsample = dfsample.reset_index(drop=True)
-            boot = boot + 1
-
-
-
-        if df==1:
-            print("On imputation ", df)
-            data = dfmod
-            print(data.shape)
-            data['Dose_mg_week'] = data['Dose_mg_week'].apply(np.sqrt)
-            sc = StandardScaler()
-            target_column = 'Dose_mg_week'
-            status_column = "Status"
-            train = dfmod.loc[dfmod["Status"] == "train"]
-            test = dfmod.loc[dfmod["Status"] == "test"]
-            squaring = True
-            train = train.drop([status_column], axis=1)
-            test = test.drop([status_column], axis=1)
-            y_train = train[target_column].values
-            x_train = train.drop([target_column], axis=1)
-            x_train = sc.fit_transform(x_train)
-            y_test = test[target_column].values
-            x_test = test.drop([target_column], axis=1)
-            x_test = sc.fit_transform(x_test)
-            # Use the random grid to search for best hyperparameters
-            # First create the base model to tune
-            if False:
-                RFR = RandomForestRegressor(max_depth=120, max_features=3, min_samples_leaf=4,
-                                           min_samples_split=12, n_estimators=100)
-                #grid = {'n_estimators': [10, 50, 100, 500],'learning_rate': [0.0001, 0.001, 0.01, 0.1, 1.0]}
-                grid = {'n_estimators': [10, 15, 20, 25, 30, 35, 40, 45, 50, 100, 500], 'learning_rate': [0.0001, 0.001, 0.005, 0.01, 0.015,0.1, 1.0]}
-                #grid['n_estimators'] = [10, 50, 100, 500]
-                #grid['learning_rate'] = [0.0001, 0.001, 0.01, 0.1, 1.0]
-                # define the evaluation procedure
-                kfold = KFold(n_splits=10, shuffle=True, random_state=2)
-                # define the grid search procedure
-                grid_search = GridSearchCV(estimator=AdaBoostRegressor(RFR), param_grid=grid, n_jobs=-1, cv=kfold, verbose=3)
-                # execute the grid search
-                grid_result = grid_search.fit(x_train,y_train)
-
-                # summarize the best score and configuration
-                print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
-                # summarize all scores that were evaluated
-                means = grid_result.cv_results_['mean_test_score']
-                stds = grid_result.cv_results_['std_test_score']
-                params = grid_result.cv_results_['params']
-                for mean, stdev, param in zip(means, stds, params):
-                    print("%f (%f) with: %r" % (mean, stdev, param))
-                print("end of tuning for AdaBoostRegressor")
-
-                rf= RandomForestRegressor()
-                max_features_range = np.arange(1, 6, 1)
-                n_estimators_range = np.arange(10, 210, 10)
-                param_grid = dict(max_features=max_features_range, n_estimators=n_estimators_range)
-                kfold = KFold(n_splits=5, shuffle=True, random_state=2)
-                grid = GridSearchCV(estimator=rf, param_grid=param_grid, cv=kfold, n_jobs=-1, verbose=3)
-                grid_result = grid.fit(x_train, y_train)
-
-                GridSearch_table_plot(grid_result, "n_estimators")
-                # summarize the best score and configuration
-                print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
-                # summarize all scores that were evaluated
-                #means = grid_result.cv_results_['mean_test_score']
-                #stds = grid_result.cv_results_['std_test_score']
-                #params = grid_result.cv_results_['params']
-                #for mean, stdev, param in zip(means, stds, params):
-                #print("%f (%f) with: %r" % (mean, stdev, param))
-                #print("end of tuning for RandomForestRegressor")
-                kfold = KFold(n_splits=10, shuffle=True, random_state=2)
-                #n_estimators = 400, max_depth = 3, learning_rate = 0.01, colsample_bytree = 0.5
-                #param_grid = {'max_depth': [3],
-                #          'n_estimators': [400],
-                #          'learning_rate': [0.01],
-                #          'colsample_bytree': [0.5],
-                #          'subsample':[0.6,0.7,0.8,0.9,1.0]}
-                param_grid = {  'max_depth': [3,4,5,6,7,8,9,10],
-                              'n_estimators':[100, 200, 300, 400, 500, 600, 700, 800, 900, 1000],
-                              'learning_rate': [0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3],
-                              'colsample_bytree': [0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
-                               'subsample': [0.6, 0.7, 0.8, 0.9, 1.0]  }
-                model = XGBRegressor()
-                kfold = KFold(n_splits=10, shuffle=True, random_state=2)
-                grid = GridSearchCV(estimator=model, param_grid=param_grid, cv=kfold, scoring="neg_mean_absolute_error", verbose=2)
-                grid_result = grid.fit(x_train, y_train)
-                print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
-                # summarize all scores that were evaluated
-                means = grid_result.cv_results_['mean_test_score']
-                stds = grid_result.cv_results_['std_test_score']
-                params = grid_result.cv_results_['params']
-                for mean, stdev, param in zip(means, stds, params):
-                     print("%f (%f) with: %r" % (mean, stdev, param))
-
-
-
-            #param_grid = {
-            #    'alg__hidden_layer_sizes': [(5, 3,), (10, 5,), (25, 10,)],
-            #    'alg__max_iter': [1000, 1500, 2000,2500,3000,3500, 4000]}
-
-            #param_grid2 = {
-            #    'alg__hidden_layer_sizes': [(5,3,),(10,5,),(25,10,)],
-            #    'alg__max_iter': [1000,2000,4000],
-            #    'alg__activation': [ 'relu'],
-            #    'alg__alpha': [0.0001],
-            #    'alg__learning_rate': [ 'adaptive'],
-            #    'alg__learning_rate_init':[0.002],
-            #}
-
-            #hidden_layer_sizes = [(5, 3,), (10, 5,), (25, 10,)]
-            #max_iter = [ 1000, 2000,3000, 4000]
-            mlp_reg = MLPRegressor()
-            kfold = KFold(n_splits=10, shuffle=True, random_state=2)
-            pipeline_scaled = Pipeline([('scale',MinMaxScaler()),('alg',mlp_reg)])
-            layers = []
-            layers = [5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95,100]
-            iters =  [1000, 1500, 1600, 1700, 1800, 1900,2000,2100, 2200, 2300, 2400, 2500, 2600, 2700, 2800, 2900,3000,3100,3200,3300,3400,3500]
-            rates = [0.001,0.002,0.0021,0.0022,0.0023,0.0024,0.0025,0.0026,0.0027,0.0028,0.0029,0.003,0.0031,0.0032,0.0033,0.0034,0.0035,0.0036,0.0037,0.0038,0.0039,0.004,0.0045,0.005,0.0055,0.006]
-            #layers2 = [3,5,10,20]
-            results = []
-            for x in iters:
-                print('iter is ',x)
-                #for y in layers2:
-                    #if x>y:
-                param_grid = {
-                        'alg__hidden_layer_sizes': [(15,3,)],
-                        'alg__max_iter': [x],
-                        'alg__learning_rate_init': [0.001,0.002,0.0021,0.0022,0.0023,0.0024,0.0025,0.0026,0.0027,0.0028,0.0029,0.003,0.0031,0.0032,0.0033,0.0034,0.0035,0.0036,0.0037,0.0038,0.0039,0.004,0.0045,0.005,0.0055,0.006],
-                        'alg__learning_rate':['adaptive']
-                        }
-                grid = GridSearchCV(estimator = pipeline_scaled, param_grid = param_grid, n_jobs=-1, cv = kfold, scoring="neg_mean_absolute_error",verbose=3)
-                grid_result = grid.fit(x_train,y_train)
-                currentvalues = {'best_score':grid_result.best_score_, 'best_params':grid_result.best_params_}
-                results.append(currentvalues)
-            for j in range(len(results)):
-                print(results[j])
-
-
-            grid = GridSearchCV(estimator=pipeline_scaled, param_grid=param_grid, n_jobs=-1, cv=kfold, verbose=3)
-            print(pipeline_scaled.get_params().keys())
-            grid_result=grid.fit(x_train,y_train)
-            param1 = 'alg__hidden_layer_sizes'
-            param2 = 'alg__max_iter'
-            GridSearch_Contour_plot(grid_result, [param1, param2], param1, param2, True, False)
-            print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
-            GridSearch_Contour_plot(grid_result, [param1, param2], param1, param2, False, True)
-
-
-
-            hidden_layer_sizes = [(5,3,),(8,5),(10,5,),(25,10,)]
-            max_iter = [800, 1000,2000,4000]
-            GridSearch_table_plot(grid_result, "hidden_layer_sizes")
-            #plot_grid_search(grid_result.cv_results_, hidden_layer_sizes, max_iter, 'Hidden Layer Sizes', 'Max Iter')
-            #plot_grid_search(grid_result.cv_results_, hidden_layer_sizes, max_iter, 'Hidden Layer Sizes', 'Max Iter')
-            changes = []
-            changes.append('hidden_layer_sizes')
-            changes.append('max_iter')
-            #sklearneval.plot.grid_search(grid_result.cv_results_, change='hidden_layer_sizes',kind='bar',cmap='Reds')
-            #sklearneval.plot.grid_search(grid_result.cv_results_, changes, kind='bar', cmap='Reds')
-            #plt.show()
-            # summarize the best score and configuration
-            print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
-            # summarize all scores that were evaluated
-            means = grid_result.cv_results_['mean_test_score']
-            stds = grid_result.cv_results_['std_test_score']
-            params = grid_result.cv_results_['params']
-            for mean, stdev, param in zip(means, stds, params):
-                print("%f (%f) with: %r" % (mean, stdev, param))
-            NN2 = MLPRegressor()
-            NN = MLPRegressor(hidden_layer_sizes=(10,), activation="relu", random_state=1, max_iter=2000)
-            estimates.append(Estimator(NN, 'NN'))
-            estimates.append(Estimator(NN, 'NN2'))
-
-
-
-
-
-
-            rf = RandomForestRegressor()
-            #rf.fit(x_train,y_train)
-            #predicted = np.square(rf.predict(x_test))
-            #maepredict = mean_absolute_error(y_test,predicted)
-            #print('MAE for base model is ', maepredict)
-            if False:
-                # Number of trees in random forest
-                n_estimators = [int(x) for x in np.linspace(start=200, stop=2000, num=10)]
-                # Number of features to consider at every split
-                max_features = ['auto', 'sqrt']
-                # Maximum number of levels in tree
-                max_depth = [int(x) for x in np.linspace(10, 110, num=11)]
-                max_depth.append(None)
-                # Minimum number of samples required to split a node
-                min_samples_split = [2, 5, 10]
-                # Minimum number of samples required at each leaf node
-                min_samples_leaf = [1, 2, 4]
-                # Method of selecting samples for training each tree
-                bootstrap = [True, False]
-                # Create the random grid
-                random_grid = {'n_estimators': n_estimators,
-                           'max_features': max_features,
-                           'max_depth': max_depth,
-                           'min_samples_split': min_samples_split,
-                           'min_samples_leaf': min_samples_leaf,
-                           'bootstrap': bootstrap}
-
-                # Random search of parameters, using 3 fold cross validation,
-                # search across 100 different combinations, and use all available cores
-                rf_random = RandomizedSearchCV(estimator=rf, param_distributions=random_grid, n_iter=100, cv=3, verbose=2,
-                                           random_state=42, n_jobs=-1)
-                # Fit the random search model
-                rf_random.fit(x_train,y_train)
-                predict2 = np.square(rf_random.predict(x_test))
-                maepredict2 = mean_absolute_error(y_test, predict2)
-                print('MAE after randomized search is ', maepredict2)
-
-            # Create the parameter grid based on the results of random search
-            param_grid = {
-             'bootstrap': [True],
-             'max_depth': [90, 100, 110,115,120,125,130,135],
-             'max_features': [2, 3, 4, 5],
-             'min_samples_leaf': [3, 4, 5,6],
-             'min_samples_split': [8,9, 10, 11,12,13,4],
-             'n_estimators': [80,90,100,110, 120,130, 140,200, 300, 1000]
-             }
-
-            kfold = KFold(n_splits=5, shuffle=True, random_state=2)
-            grid = GridSearchCV(estimator=rf, param_grid=param_grid, cv=kfold, n_jobs=-1, verbose=3)
-            grid_result = grid.fit(x_train, y_train)
-            # summarize the best score and configuration
-            print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
-            # summarize all scores that were evaluated
-            means = grid_result.cv_results_['mean_test_score']
-            stds = grid_result.cv_results_['std_test_score']
-            params = grid_result.cv_results_['params']
-            for mean, stdev, param in zip(means, stds, params):
-                print("%f (%f) with: %r" % (mean, stdev, param))
-            sklearn.plot.grid_search(grid_result.cv_results, change = 'n_estimators', kind='bar')
-
-            print("end of tuning for RandomForestRegressor")
-
-
-
-
-
-
-            #print(grid_search.best_params_)
-            #    predict2 = np.square(grid_search.predict(x_test))
-            #    maepredict2 = mean_absolute_error(y_test, predict2)
-            #    print('MAE after randomized search is ', maepredict2)
-            #    RF = RandomForestRegressor(max_depth=120, max_features=3, min_samples_leaf=4,
-            #                           min_samples_split=12, n_estimators=100)
-            #hyperparameter_space = {'n_estimators': list(range(1, 102, 2)),
-            #                        'learning_rate': [0.01, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]}
-
-            #RF = RandomForestRegressor(max_depth=120, max_features=3, min_samples_leaf=4,
-            #                           min_samples_split=12, n_estimators=100)
-
-            #hyperparameter_space = {'n_estimators': list(range(5,500,10)),
-            #                        'learning_rate': [ 0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.1, 0.11, 0.12, 0.13,0.14, 0.15,0.2,0.3,0.4,0.5]}
-            #gs = GridSearchCV(AdaBoostRegressor(base_estimator=RF),
-            #                  param_grid=hyperparameter_space,
-            #                  cv=5, n_jobs=-1, verbose=3)
-            #grid_result = gs.fit(x_train, y_train)
-            # summarize the best score and configuration
-            #print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
-            # summarize all scores that were evaluated
-            #means = grid_result.cv_results_['mean_test_score']
-            #stds = grid_result.cv_results_['std_test_score']
-            #params = grid_result.cv_results_['params']
-            #for mean, stdev, param in zip(means, stds, params):
-            #    print("%f (%f) with: %r" % (mean, stdev, param))
-
-
-
-
-
-            #ada_best = copy.deepcopy(pre_gs_inst.best_params_)
-            #ada_best['n_estimators'] = 3000
-            #ABRF = AdaBoostRegressor(base_estimator=RF,
-            #                         loss='linear', learning_rate= 0.045, n_estimators=50)
-
-            #ABRF.fit(x_train, y_train)
-            #y_pred = np.square(ABRF.predict(x_test))
-            #print("MAE : ", mean_absolute_error(y_test, y_pred))
-            #print("MAPE : ", (np.abs(y_test - y_pred) / y_test).mean())
-
-
-
-
-            #results_df = get_grid_df(pre_gs_inst)
-            #group_report(results_df)
-
-
-
-
-
-            KNN2 = KNeighborsRegressor()
-            hp_candidates = [
-                {'n_neighbors': [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], 'weights': ['uniform', 'distance'],
-                 'p': [1, 2, 5]}]
-            cv = RepeatedKFold(n_splits=10, n_repeats=3, random_state=1)
-            grid = GridSearchCV(estimator=KNN2,
-                                param_grid=hp_candidates,
-                                cv=cv,
-                                verbose=1,
-                                scoring='neg_mean_squared_error',
-                                return_train_score=True)
-            grid.fit(x_train, y_train)
-            predicted =np.square(grid.predict(x_test))
-            meanabsoluterror = mean_absolute_error(y_test, predicted)
-            #print('MAE ',meanabsoluterror)
-
-            model = XGBRegressor( )
-
-            model.fit(x_train, y_train, eval_set=[(x_train, y_train), (x_test, y_test)],early_stopping_rounds = 100)
-            #ypred = model.predict(x_test)
-            #ypred = np.square(ypred)
-            #meanabsoluterror = mean_absolute_error(y_test, ypred)
-            #print(meanabsoluterror)
-            if True:
-                results = model.evals_result()
-                plt.figure(figsize=(10, 7))
-                plt.plot(results["validation_0"]["rmse"], label="Training loss")
-                plt.plot(results["validation_1"]["rmse"], label="Validation loss")
-                plt.axvline(21, color="gray", label="Optimal tree number")
-                plt.xlabel("Number of trees")
-                plt.ylabel("Loss")
-                plt.legend()
-
-
-
-
-
-
-            print('end of part 1')
-            #params = {'max_depth': [1, 2, 3, 4, 6, 7, 8],'n_estimators': [10]}
-            #params = {'max_depth': [1, 2, 3],
-            #          'min_child_weight': [1, 2, 3, 4, 5],
-            #          'n_estimators': [10]}
-            #params = {'max_depth': [2],
-            #          'min_child_weight': [2, 3],
-            #          'subsample': [0.5, 0.6, 0.7, 0.8,0.9],
-            #         'n_estimators': [10, 50]}
-            #params = {'max_depth': [1],
-            #          'min_child_weight': [1, 2, 3],
-            #          'subsample': [0.6, 0.7, 0.8],
-            #          'colsample_bytree': [0.5, 0.6, 0.7, 0.8, 0.9, 1],
-            #          'n_estimators': [50]}
-            #params={'max_depth': [1],
-            #                    'min_child_weight': [13],
-            #                    'subsample': [.8],
-            #                    'colsample_bytree': [1],
-            #                    'colsample_bylevel': [0.6, 0.7, 0.8,
-            #                                          0.9, 1],
-            #                    'colsample_bynode': [0.6, 0.7, 0.8,
-            #                                         0.9, 1],
-            #                    'n_estimators': [50]}
-            params = {'max_depth': [3, 6, 10],
-                      'learning_rate': [0.01, 0.05, 0.1],
-                      'n_estimators': [100, 500, 1000],
-                      'colsample_bytree': [0.3, 0.7]}
-
-
-            grid_search(params,XGBRegressor(missing=-999.0),x_train,y_train,x_test,y_test)
-
-
-
-            #model = XGBRegressor()
-            #model.fit(x_train, y_train)
-            predictedfirst = np.square(model.predict(x_test))
-            maefirst = mean_absolute_error(y_test,predictedfirst)
-            print(maefirst)
-            cv = RepeatedKFold(n_splits=10, n_repeats=3, random_state=1)
-            params = {'max_depth': [1, 2, 3, 4, 6, 7, 8],
-                      'n_estimators': [31],
-                      }
-
-            grid = GridSearchCV(estimator=model, param_grid=params, scoring='neg_mean_squared_error',cv = cv )
-            grid.fit(x_train, y_train)
-            print('best_estimator_',grid.best_estimator_)
-            print('best_params_', grid.best_params_)
-            predicted = np.square(grid.predict(x_test))
-            meanabsoluterror = mean_absolute_error(y_test,predicted)
-            print(meanabsoluterror)
-
+        dfImputedList.append(dfmod)
+
+    print("Ready to bootstrap")
+    matrix = np.zeros((364,n_bootstraps))
+    print(matrix)
+    patientlist = list(np.arange(1, 364 + 1))
+    patient_sample = choices(patientlist,k=364)
+    for boot in range(n_bootstraps):
+      patient_sample= choices(patientlist,k=364)
+      row = 0
+      for j in range(len(patient_sample)):
+         matrix[row,boot]=patient_sample[j]
+         row = row + 1
+
+    print(matrix)
+
+    dfMatrix = pd.DataFrame(matrix)
+    for boot in range(n_bootstraps):
+        patientlist = dfMatrix[boot]
+        for imp in range(impNumber):
+            suffix = str(imp + 1).zfill(3)
+            filename = "dfWarfarin" + suffix
+            dfImp = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\PreProcessed\\" + filename + ".csv")
+            dfImparray = dfImp.to_numpy()
+            bootstrap=[]
+            for i in range(len(patientlist)):
+                for j in range(len(dfImparray)):
+                    if (j == patientlist[i]):
+                       bootstrap.append(dfImparray[j])
+            bootcurrent = bootstrap
+            if (imp==0):
+                trainboot = pd.DataFrame(bootcurrent)
+            else:
+                bootcurrent = pd.DataFrame(bootcurrent)
+                frames = (trainboot,bootcurrent)
+                trainboot = pd.concat(frames)
+
+    trainboot.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\ImputedforTuning" + ".csv", ";")
+
+
+
+
+    #['C:\\Users\\Claire\\GIT_REPO_1\\CSCthesisPY\\WarImputations\\Split\\ImpWarPATHSPLIT_001.csv',
+    # 'C:\\Users\\Claire\\GIT_REPO_1\\CSCthesisPY\\WarImputations\\Split\\ImpWarPATHSPLIT_002.csv',
+    # 'C:\\Users\\Claire\\GIT_REPO_1\\CSCthesisPY\\WarImputations\\Split\\ImpWarPATHSPLIT_003.csv']
+
+    for boot in range(n_bootstraps):
+        for imp in range(impNumber):
+            suffix = str(imp+1).zfill(3)
+            filename = "dfWarfarin"+suffix
+            dbfile = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\PreProcessed\\" + filename + ".csv")
+            databoot = matrix[imp][boot]
+            dbdataboot = pd.DataFrame(databoot)
+            if imp==1:
+                trainboot = databoot
+            else:
+                frames=[trainboot,databoot]
+                trainboot=pd.concat(frames)
 
 
 

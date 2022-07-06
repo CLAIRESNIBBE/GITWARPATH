@@ -235,9 +235,7 @@ def main():
     scaler = MinMaxScaler()
     dftemplate = pd.DataFrame()
     dfWarPath = pd.DataFrame()
-    impNumber = 3
-    maxImp = 3
-    runImp = 0
+    impNumber = 100
     pd.set_option("display.max_rows", None, "display.max_columns", None)
     pd.set_option('expand_frame_repr', False)
     pd.set_option("display.max_rows", False)
@@ -302,7 +300,7 @@ def main():
     for root, dirs, files in os.walk(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations"):
         if root == 'C:\\Users\\Claire\\GIT_REPO_1\\CSCthesisPY\\WarImputations':
            for file in files:
-                if runImp < maxImp and file.endswith('.csv') and (
+                if file.endswith('.csv') and (
                     "train_" not in file and "test_" not in file and "SPLIT" not in file and "TRAIN" not in file and "TEST" not in file) and "ImpWarPATH" in file:
                     filedf = pd.read_csv(root + '\\' + file, ";")
                     if "Status" not in filedf.columns:
@@ -321,10 +319,8 @@ def main():
                     ";")
                     filesImp.append(
                     r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Split\ImpWarPATHSPLIT_" + suffix + ".csv")
-                    runImp = runImp + 1
     results = []
     root = 'C:\\Users\\Claire\\GIT_REPO_1\\CSCthesisPY\\WarImputations'
-
     for file in filesImp:
         dfnew = pd.read_csv(file, ";")
         fileindex = filesImp.index(file)
