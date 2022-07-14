@@ -1,8 +1,12 @@
 import copy
+import sys
 import sklearn
 import sklearn_evaluation as sklearneval
 import csv
 import os
+import miceforest as mf
+import lightgbm
+import optuna
 import plotly.graph_objects as go
 import os.path
 import pandas as pd
@@ -12,6 +16,7 @@ from tabulate import tabulate
 from random import sample
 from random import choices
 from matplotlib import pyplot as plt
+from collections import Counter
 from IPython.display import display
 from sklearn_evaluation.plot import grid_search
 from yellowbrick.features import ParallelCoordinates
@@ -252,6 +257,20 @@ def ConvertYesNo(variable):
     elif variable == "No":
         return 0
 
+def TrainOrTest(variable, testlist):
+    if variable in testlist:
+        return 'test'
+    else:
+        return 'train'
+
+    #for i in range(len(testlist)):
+    #    current_row = rowlist[i]
+    #    if variable in testlist:
+    #        return 'test'
+    #    else:
+    #        return 'train'
+
+
 
 def MAEScore(true, predicted):
     return mean_absolute_error(true, predicted)
@@ -285,7 +304,6 @@ def evaluate_models(models, x_train, x_test, y_train, y_test):
         scores.append(-mae)
     # report model performance
     return scores
-
 
 def evaluate(model, test_features, test_labels):
     predictions = model.predict(test_features)
@@ -325,7 +343,6 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring):
     resultsdict['R2'] = [R2]
     return resultsdict
 
-
 def grid_searchnew(params, reg, x_train, y_train, x_test, y_test):
     kfold = KFold(n_splits=5, shuffle=True, random_state=2)
     grid_reg = GridSearchCV(reg, params, scoring='neg_mean_squared_error', cv=kfold)
@@ -344,7 +361,6 @@ def plot_grid_search(cv_results, grid_param_1, grid_param_2, name_param_1, name_
     # Get Test Scores Mean and std for each grid search
     scores_mean = cv_results['mean_test_score']
     scores_mean = np.array(scores_mean).reshape(len(grid_param_2), len(grid_param_1))
-
     scores_sd = cv_results['std_test_score']
     scores_sd = np.array(scores_sd).reshape(len(grid_param_2), len(grid_param_1))
 
@@ -526,18 +542,30 @@ def group_report(results_df):
             cc += 1
     return output_df
 
+def has_duplicates(values):
+   if len(values) != len(set(values)):
+      return True
+   else:
+     return False
 
 def main():
+    old_stdout = sys.stdout
+    log_file = open("cv.log", "w")
+    sys.stdout = log_file
     dfImputedList = []
+    combineImputations = False
     combinedata = False
     # sklearn.externals.joblib.load('gridsearch.pkl')
     scaler = MinMaxScaler()
     dftemplate = pd.DataFrame()
     dfWarPath = pd.DataFrame()
-    impNumber = 3
-    maxImp = 3
+    dfTrainTest = pd.DataFrame()
+    impNumber = 100
+    #impNumber = 3
+    maxImp = 100
+    #maxImp = 3
     runImp = 0
-    n_bootstraps = 10
+    n_bootstraps = 1
 
     pd.set_option("display.max_rows", None, "display.max_columns", None)
     pd.set_option('expand_frame_repr', False)
@@ -624,8 +652,48 @@ def main():
                     r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Split\ImpWarPATHSPLIT_" + suffix + ".csv")
                 runImp = runImp + 1
                 results = []
+    combineImputations = True
+    if combineImputations==True:
+         frames = []
+         for file in filesImp:
+             dbfile = pd.read_csv(file,";")
+             frames.append(dbfile)
+         dfFrame = pd.concat(frames, ignore_index=True)
+         dfFrame.insert(0, 'Row', np.arange(len(dfFrame)))
+         trainID, testID = train_test_split(dfFrame, test_size=0.2)
+         trainID["Status"]="train"
+         testID["Status"]="test"
+         frames = [trainID, testID]
+         dfSuper = pd.concat(frames, ignore_index=True)
+         trainID.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TRAINSPLIT" + ".csv", ";")
+         testID.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TESTSPLIT" + ".csv",   ";")
+         dfSuper.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\AllImputations" + ".csv",   ";")
+         patients_train = trainID["Row"].to_list()
+         patients_test  = testID["Row"].to_list()
+         #dfFrame["Status"] = dfFrame.apply(lambda x: TrainOrTest(x['Row'] ,patients_test), axis=1)
+         #dfFrame['Status'] = np.where((dfFrame['Row'].any() in patients_test), 'test','train')
+         #dfFrame["Status"] = ''
+
+         if False:
+            for row in dfFrame.itertuples():
+                 #checkID = row[4]
+                 checkID = dfFrame["Row"]
+                 rowindex = dfFrame.loc[dfFrame["Row"] == checkID].index.tolist()[0]  # OR row[0]
+                 if checkID.any() in patients_train:
+                    dfFrame.loc[rowindex, 'Status'] = 'train'
+                 elif checkID.any() in patients_test:
+                   dfFrame.loc[rowindex, 'Status'] = 'test'
+         #suffix = str(counter).zfill(3)
+         #dfSuper.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Split\ImpWarPATHSuper" + ".csv",";")
+         #dfSuper = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Split\ImpWarPATHSPLIT_" + suffix + ".csv",";")
+         filesImp = []
+         filesImp.append(dfSuper)
+
     for file in filesImp:
-        dfnew = pd.read_csv(file, ";")
+        if combineImputations==False:
+            dfnew = pd.read_csv(file, ";")
+        else:
+            dfnew = file
         fileindex = filesImp.index(file)
         if combinedata == True:
             rootIWPC = root.replace("WarImputations\\Training", "MICESTATSMODELHIV\\")
@@ -678,70 +746,166 @@ def main():
             combfilename = "comb" + suffix
             dfmod.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\combinedata\\" + combfilename + ".csv", ";")
         else:
+          if combineImputations== True:
+            filename = "dfSuper"
             filename = "dfWarfarin" + suffix
-            dfmod.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\PreProcessed\\" + filename + ".csv", ";")
-        dfImputedList.append(dfmod)
+            train = dfmod.loc[dfmod["Status"] == "train"]
+            test = dfmod.loc[dfmod["Status"] == "test"]
+            train.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\PreProcessed\\" + filename+"train" + ".csv", ";")
+            test.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\PreProcessed\\" + filename+"test" + ".csv", ";")
+            dfmod.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\PreProcessed\\" + filename+"allPatients" + ".csv", ";")
+          else:
+              filename = "dfWarfarin" + suffix
+              dfmod.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\PreProcessed\\" + filename + ".csv", ";")
+          dfImputedList.append(dfmod)
 
-    print("Ready to bootstrap")
-    matrix = np.zeros((364,n_bootstraps))
-    print(matrix)
-    patientlist = list(np.arange(1, 364 + 1))
-    patient_sample = choices(patientlist,k=364)
-    for boot in range(n_bootstraps):
-      patient_sample= choices(patientlist,k=364)
-      row = 0
-      for j in range(len(patient_sample)):
-         matrix[row,boot]=patient_sample[j]
-         row = row + 1
-
-    print(matrix)
-
-    dfMatrix = pd.DataFrame(matrix)
-    for boot in range(n_bootstraps):
-        patientlist = dfMatrix[boot]
-        for imp in range(impNumber):
-            suffix = str(imp + 1).zfill(3)
-            filename = "dfWarfarin" + suffix
-            dfImp = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\PreProcessed\\" + filename + ".csv")
-            dfImparray = dfImp.to_numpy()
-            bootstrap=[]
-            for i in range(len(patientlist)):
-                for j in range(len(dfImparray)):
-                    if (j == patientlist[i]):
-                       bootstrap.append(dfImparray[j])
-            bootcurrent = bootstrap
-            if (imp==0):
-                trainboot = pd.DataFrame(bootcurrent)
+        patientNum = len(dfmod)
+        dfcolumns = dfmod.columns
+        Bootstrapping = False
+        if Bootstrapping == True:
+            print("Ready to bootstrap")
+            matrix = np.zeros((patientNum,n_bootstraps))
+            patientlist = list(np.arange(0, patientNum ))
+            matrixlist = []
+            for boot in range(n_bootstraps):
+                patient_sample= choices(patientlist,k=patientNum)
+                row = 0
+                for j in range(len(patient_sample)):
+                    matrix[row,boot]=patient_sample[j]
+                    matrixlist.append(patient_sample[j])
+                    row = row + 1
+            print("duplication check in matrixlist---")
+            if has_duplicates(matrixlist):
+                counter = Counter(matrixlist)
+                #print(counter)
+                print([key for key in Counter(matrixlist).keys() if Counter(matrixlist)[key] > 1])
+                #dfCounter = pd.DataFrame(counter, columns = ('Patient','Sampled'))
+                #dfCounter.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Imputed_MatrixDuplicates" + ".csv", ";")
             else:
-                bootcurrent = pd.DataFrame(bootcurrent)
-                frames = (trainboot,bootcurrent)
-                trainboot = pd.concat(frames)
+                print('matrixlist has no duplicates')
 
-    trainboot.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\ImputedforTuning" + ".csv", ";")
+            print('len of matrix is ', len(matrix))
+            print(matrix)
+            dfMatrix = pd.DataFrame(matrix)
+            dfMatrix.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Imputed_Matrix" + ".csv", ";")
 
+            for boot in range(n_bootstraps):
+            # obtaining a bootstrap of specific patients (those who appear in index boot of dfmatrix)
+                patientlist = dfMatrix[boot]
+                for imp in range(impNumber):
+                    suffix = str(imp + 1).zfill(3)
+                    filenametrain = "dfWarfarin" + suffix + "train"
+                    filenametest = "dfWarfarin" + suffix + "test"
+                # obtaining the imp'th imputed non-stacked dataset
+                    dfImpTrain = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\PreProcessed\\" + filenametrain + ".csv")
+                    dfImpTest = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\PreProcessed\\" + filenametest + ".csv")
+                    dfImparray = dfImpTrain.to_numpy()
+                    bootstrap=[]
+                    runextra = 0 # running counter of train patients appearing more than once in sample index
+                    for i in range(len(patientlist)):
+                        for j in range(len(dfImparray)):
+                            if (j == patientlist[i]):
+                                bootstrap.append(dfImparray[j])
+                    bootcurrent = bootstrap
+                    if (imp==0):
+                        trainboot = pd.DataFrame(bootcurrent)
+                        trainboot = pd.DataFrame(trainboot[0].str.split(";", expand=True))
+                        trainboot.columns = ['Patient', 'Weight_kg', 'Height_cm', 'Target_INR', 'Dose_mg_week', 'Status', 'Inducer', 'Amiodarone',
+                                         'Smoker', 'Indicationflag', 'AgeYears', 'HIVPositive', 'HIVUnknown']
+                        trainboot.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\ImputedforTuning" + suffix+".csv", ";")
+                    else:
+                        bootcurrent = pd.DataFrame(bootcurrent)
+                        bootcurrent = pd.DataFrame(bootcurrent[0].str.split(";", expand=True))
+                        bootcurrent.columns = ['Patient', 'Weight_kg', 'Height_cm', 'Target_INR', 'Dose_mg_week', 'Status', 'Inducer', 'Amiodarone',
+                                         'Smoker', 'Indicationflag', 'AgeYears', 'HIVPositive', 'HIVUnknown']
+                        bootcurrent.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\ImputedforTuning" + suffix + ".csv", ";")
+                        frames = (trainboot,bootcurrent)
+                        trainboot = pd.concat(frames)
 
+            trainboot.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\ImputedforTuning" + ".csv", ";")
 
 
     #['C:\\Users\\Claire\\GIT_REPO_1\\CSCthesisPY\\WarImputations\\Split\\ImpWarPATHSPLIT_001.csv',
     # 'C:\\Users\\Claire\\GIT_REPO_1\\CSCthesisPY\\WarImputations\\Split\\ImpWarPATHSPLIT_002.csv',
     # 'C:\\Users\\Claire\\GIT_REPO_1\\CSCthesisPY\\WarImputations\\Split\\ImpWarPATHSPLIT_003.csv']
-
-    for boot in range(n_bootstraps):
-        for imp in range(impNumber):
-            suffix = str(imp+1).zfill(3)
-            filename = "dfWarfarin"+suffix
-            dbfile = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\PreProcessed\\" + filename + ".csv")
-            databoot = matrix[imp][boot]
-            dbdataboot = pd.DataFrame(databoot)
-            if imp==1:
+    if False:
+        for boot in range(n_bootstraps):
+         for imp in range(impNumber):
+             suffix = str(imp+1).zfill(3)
+             filename = "dfWarfarin"+suffix
+             dbfile = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\PreProcessed\\" + filename + ".csv")
+             databoot = matrix[imp][boot]
+             dbdataboot = pd.DataFrame(databoot)
+             if imp==1:
                 trainboot = databoot
-            else:
+             else:
                 frames=[trainboot,databoot]
                 trainboot=pd.concat(frames)
 
+    if df == 1:
+        print("On imputation ", df)
+        data = dfmod
+        print(data.shape)
+        data['Dose_mg_week'] = data['Dose_mg_week'].apply(np.sqrt)
+        sc = StandardScaler()
+        target_column = 'Dose_mg_week'
+        status_column = "Status"
+        train = dfmod.loc[dfmod["Status"] == "train"]
+        test = dfmod.loc[dfmod["Status"] == "test"]
+        squaring = True
+        train = train.drop([status_column], axis=1)
+        test = test.drop([status_column], axis=1)
+        y_train = train[target_column].values
+        x_train = train.drop([target_column], axis=1)
+        #x_train = sc.fit_transform(x_train)
+        y_test = test[target_column].values
+        x_test = test.drop([target_column], axis=1)
+        #x_test = sc.fit_transform(x_test)
 
+        #---------------------------------------------------------------------------------------------------------------
+        # MLPREGRESSOR()
+        #---------------------------------------------------------------------------------------------------------------
+        mlp_reg = MLPRegressor()
+        kfold = KFold(n_splits=10, shuffle=True, random_state=2)
+        pipeline_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', mlp_reg)])
+        layers = []
+        #layers = [1,2,3,4, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100]
+        #layers = [1, 2, 3, 4, 5, 10, 15, 20, 30, 40, 50]
+        #layers = [1,2,3,4,5,10]
+        #layers = [10, 11, 12, 13, 14,15, 16, 18, 20]
+        #layers = [20, 21, 22, 23, 24, 25, 26, 28, 30]
+        #layers = [30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 45, 50, 55, 60]
+        layers = [60, 65, 70, 75, 80, 85, 90, 95, 100]
+        #iters = [1000, 1500, 1600, 1700, 1800, 1900, 2000, 2100, 2200, 2300, 2400, 2500, 2600, 2700, 2800, 2900, 3000,
+        #         3100, 3200, 3300, 3400, 3500]
+        iters = [1000, 1500, 2000, 2500, 3000]
+        #rates = [0.001, 0.002, 0.0021, 0.0022, 0.0023, 0.0024, 0.0025, 0.0026, 0.0027, 0.0028, 0.0029, 0.003, 0.0031,
+        #         0.0032, 0.0033, 0.0034, 0.0035, 0.0036, 0.0037, 0.0038, 0.0039, 0.004, 0.0045, 0.005, 0.0055, 0.006]
 
-
+        rates = [0.001, 0.002, 0.003, 0.004, 0.005]
+        # layers2 = [3,5,10,20]
+        results = []
+        for x in layers:
+            print('iter is ', x)
+            # for y in layers2:
+            # if x>y:
+            param_grid = {
+                'alg__hidden_layer_sizes': [(x,)],
+                'alg__max_iter': [1000, 1500, 2000, 2500, 3000],
+                'alg__learning_rate_init': [ 0.003, 0.004],
+                'alg__learning_rate': ['adaptive']
+            }
+            grid = GridSearchCV(estimator=pipeline_scaled, param_grid=param_grid, n_jobs=-1, cv=kfold,
+                                scoring="neg_mean_absolute_error", verbose=3)
+            grid_result = grid.fit(x_train, y_train)
+            currentvalues = {'best_score': grid_result.best_score_, 'best_params': grid_result.best_params_}
+            results.append(currentvalues)
+            for j in range(len(results)):
+                print(results[j])
+        dfResults=pd.DataFrame(results)
+        dfResults.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\MLPRGridResults"+ ".csv", ";")
+        sys.stdout = old_stdout
+        log_file.close()
 
 if __name__ == "__main__":
     main()

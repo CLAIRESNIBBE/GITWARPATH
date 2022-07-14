@@ -661,9 +661,6 @@ def main():
             dfsample = dfmod.sample(n=364, frac=None, replace=True)
             dfsample = dfsample.reset_index(drop=True)
             boot = boot + 1
-
-
-
         if df==1:
             print("On imputation ", df)
             data = dfmod
@@ -791,7 +788,7 @@ def main():
                 grid_result = grid.fit(x_train,y_train)
                 currentvalues = {'best_score':grid_result.best_score_, 'best_params':grid_result.best_params_}
                 results.append(currentvalues)
-            for j in range(len(results)):
+            for j in range(len(gridresults)):
                 print(results[j])
 
 
