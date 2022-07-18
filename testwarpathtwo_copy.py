@@ -208,7 +208,7 @@ def traineval(est: Estimator,  xtrain, ytrain, xtest, ytest, squaring):
     resultsdict = {'PW20': 0, 'MAE': 0, 'R2': 0}
     print(f'\n{est.identifier}...')
     mae_scorer = make_scorer(MAEScore)
-    kcv = KFold(n_splits=10, random_state=1, shuffle=True)
+    #kcv = KFold(n_splits=10, random_state=1, shuffle=True)
     #ridinitial = grid[est.identifier]
     ytest_numpy = np.array(ytest)
     model = est.estimator
@@ -506,7 +506,7 @@ def main():
                 x_test = sc_X.transform(x_test)
             if True:
                 #MLPR1 = MLPRegressor(hidden_layer_sizes=(90,5,), activation="relu", learning_rate='adaptive', max_iter=1000,learning_rate_init=0.001)
-                MLPR2 = MLPRegressor(hidden_layer_sizes=(15,3,), learning_rate='adaptive',learning_rate_init = 0.004, max_iter=1000,activation="relu")
+                MLPR2 = MLPRegressor(hidden_layer_sizes=(196,), learning_rate='adaptive',learning_rate_init = 0.003, max_iter=1000,activation="relu")
                 #MLPR2A = MLPRegressor(hidden_layer_sizes=(15, 3,), learning_rate='adaptive', learning_rate_init=0.0039, max_iter=1500,activation="relu")
                 #MLPR2B = MLPRegressor(hidden_layer_sizes=(15, 3,), learning_rate='adaptive', learning_rate_init=0.0034,max_iter=2600,activation="relu")
                 #MLPR2C = MLPRegressor(hidden_layer_sizes=(15, 3,), learning_rate='adaptive', learning_rate_init=0.0031,max_iter=3100,activation="relu")

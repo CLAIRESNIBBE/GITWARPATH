@@ -549,11 +549,14 @@ def has_duplicates(values):
      return False
 
 def main():
-    old_stdout = sys.stdout
-    log_file = open("cv.log", "w")
-    sys.stdout = log_file
+    combineImputations = True
+    logFile=False
+    if logFile:
+        old_stdout = sys.stdout
+        log_file = open("cv.log", "w")
+        sys.stdout = log_file
     dfImputedList = []
-    combineImputations = False
+    combineImputations = True
     combinedata = False
     # sklearn.externals.joblib.load('gridsearch.pkl')
     scaler = MinMaxScaler()
@@ -592,108 +595,94 @@ def main():
             trainSize = len(trainDF)
     else:
         fixedtraintest = False
+        combfile = r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\CombinedWarImputations\AllImputations" + ".csv"
+        filesImp = []
         while fixedtraintest == False:
             for root, dirs, files in os.walk(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations"):
-                for file in files:
-                    if file.endswith('.csv') and 'TEST' not in file and 'TRAIN' not in file and "SPLIT" not in file:
+                if fixedtraintest == False:
+                    for file in files:
+                        if not os.path.exists(combfile) and file.endswith('.csv') and 'TEST' not in file and 'TRAIN' not in file and "SPLIT" not in file:
                         # filesImp.append(file)
-                        if not fixedtraintest:
-                            filedf = pd.read_csv(root + '\\' + file, ";")
-                            trainID, testID = train_test_split(filedf, test_size=0.3)
-                            trainSize = len(trainID)
-                            trainID.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TRAINSPLIT" + ".csv",
+                           if combineImputations == False:
+                              filedf = pd.read_csv(root + '\\' + file, ";")
+                              trainID, testID = train_test_split(filedf, test_size=0.2)
+                              trainSize = len(trainID)
+                              trainID.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TRAINSPLIT" + ".csv",
                                            ";")
-                            testID.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TESTSPLIT" + ".csv",
-                                          ";")
-                            fixedtraintest = True
-        # for imp in range(impNumber):
-    patients_train = []
-    patients_train = trainID[".id"].to_list()
+                              testID.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TESTSPLIT" + ".csv",
+                                         ";")
+                              patients_train = []
+                              patients_train = trainID[".id"].to_list()
+                              dftrain = df[df['.id'].isin(patients_train)]
+                              dftrain.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Training\train" + suffix + ".csv", ";")
+                              for imp in range(impNumber):
+                                counter = imp + 1
+                                dftrainimp = dftrain.loc[df[".imp"] == counter]
+                                suffix = str(counter).zfill(3)
+                                dftrainimp.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Training\train_" + suffix + ".csv",
+                                    ";")
+                                patients_test = []
+                                patients_test = testID[".id"].to_list()
+                                dftest = df[df['.id'].isin(patients_test)]
+                                dftest.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Testing\test" + suffix + ".csv", ";")
+                                for imp in range(impNumber):
+                                  counter = imp + 1
+                                  dftestimp = dftest.loc[df[".imp"] == counter]
+                                  suffix = str(counter).zfill(3)
+                                  dftestimp.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Testing\test_" + suffix + ".csv", ";")
 
-    dftrain = df[df['.id'].isin(patients_train)]
-    dftrain.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Training\train" + suffix + ".csv", ";")
-    for imp in range(impNumber):
-        counter = imp + 1
-        dftrainimp = dftrain.loc[df[".imp"] == counter]
-        suffix = str(counter).zfill(3)
-        dftrainimp.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Training\train_" + suffix + ".csv",
-                          ";")
-    patients_test = []
-    patients_test = testID[".id"].to_list()
-    dftest = df[df['.id'].isin(patients_test)]
-    dftest.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Testing\test" + suffix + ".csv", ";")
-    for imp in range(impNumber):
-        counter = imp + 1
-        dftestimp = dftest.loc[df[".imp"] == counter]
-        suffix = str(counter).zfill(3)
-        dftestimp.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Testing\test_" + suffix + ".csv", ";")
+                           fixedtraintest = True
+                           counter = 0
+                           for root, dirs, files in os.walk(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations"):
+                              for file in files:
+                                 if runImp < maxImp and file.endswith('.csv') and (
+                                    "train_" not in file and "test_" not in file and "SPLIT" not in file and "TRAIN" not in file and "TEST" not in file) and "ImpWarPATH" in file:
+                                    filedf = pd.read_csv(root + '\\' + file, ";")
+                                    if combineImputations==True:
+                                       counter=counter+1
+                                       runImp = runImp + 1
+                                       suffix = str(counter).zfill(3)
+                                    elif combineImputations==False:
+                                      if "Status" not in filedf.columns:
+                                        filedf["Status"] = ""
+                                        counter = counter + 1
+                                        for row in filedf.itertuples():
+                                          checkID = row[4]
+                                          rowindex = filedf.loc[filedf[".id"] == checkID].index.tolist()[0]  # OR row[0]
+                                          if checkID in patients_train:
+                                            filedf.loc[rowindex, 'Status'] = 'train'
+                                          elif checkID in patients_test:
+                                            filedf.loc[rowindex, 'Status'] = 'test'
+                                          suffix = str(counter).zfill(3)
+                                          runimp = runimp + 1
+                                          filedf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Split\ImpWarPATHSPLIT_" + suffix + ".csv",
+                                                            ";")
+                                    if len(filesImp) > 95:
+                                        print('stop')
+                                    filesImp.append(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Split\ImpWarPATHSPLIT_" + suffix + ".csv")
 
-    counter = 0
-    for root, dirs, files in os.walk(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations"):
-        for file in files:
-            if runImp < maxImp and file.endswith('.csv') and (
-                    "train_" not in file and "test_" not in file and "SPLIT" not in file and "TRAIN" not in file and "TEST" not in file) and "ImpWarPATH" in file:
-                filedf = pd.read_csv(root + '\\' + file, ";")
-                if "Status" not in filedf.columns:
-                    filedf["Status"] = ""
-                    counter = counter + 1
-                for row in filedf.itertuples():
-                    checkID = row[4]
-                    rowindex = filedf.loc[filedf[".id"] == checkID].index.tolist()[0]  # OR row[0]
-                    if checkID in patients_train:
-                        filedf.loc[rowindex, 'Status'] = 'train'
-                    elif checkID in patients_test:
-                        filedf.loc[rowindex, 'Status'] = 'test'
-                suffix = str(counter).zfill(3)
-                filedf.to_csv(
-                    r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Split\ImpWarPATHSPLIT_" + suffix + ".csv",
-                    ";")
-                filesImp.append(
-                    r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Split\ImpWarPATHSPLIT_" + suffix + ".csv")
-                runImp = runImp + 1
-                results = []
-    combineImputations = True
-    if combineImputations==True:
-         frames = []
-         for file in filesImp:
-             dbfile = pd.read_csv(file,";")
-             frames.append(dbfile)
-         dfFrame = pd.concat(frames, ignore_index=True)
-         dfFrame.insert(0, 'Row', np.arange(len(dfFrame)))
-         trainID, testID = train_test_split(dfFrame, test_size=0.2)
-         trainID["Status"]="train"
-         testID["Status"]="test"
-         frames = [trainID, testID]
-         dfSuper = pd.concat(frames, ignore_index=True)
-         trainID.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TRAINSPLIT" + ".csv", ";")
-         testID.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TESTSPLIT" + ".csv",   ";")
-         dfSuper.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\AllImputations" + ".csv",   ";")
-         patients_train = trainID["Row"].to_list()
-         patients_test  = testID["Row"].to_list()
-         #dfFrame["Status"] = dfFrame.apply(lambda x: TrainOrTest(x['Row'] ,patients_test), axis=1)
-         #dfFrame['Status'] = np.where((dfFrame['Row'].any() in patients_test), 'test','train')
-         #dfFrame["Status"] = ''
-
-         if False:
-            for row in dfFrame.itertuples():
-                 #checkID = row[4]
-                 checkID = dfFrame["Row"]
-                 rowindex = dfFrame.loc[dfFrame["Row"] == checkID].index.tolist()[0]  # OR row[0]
-                 if checkID.any() in patients_train:
-                    dfFrame.loc[rowindex, 'Status'] = 'train'
-                 elif checkID.any() in patients_test:
-                   dfFrame.loc[rowindex, 'Status'] = 'test'
-         #suffix = str(counter).zfill(3)
-         #dfSuper.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Split\ImpWarPATHSuper" + ".csv",";")
-         #dfSuper = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Split\ImpWarPATHSPLIT_" + suffix + ".csv",";")
-         filesImp = []
-         filesImp.append(dfSuper)
+                    if combineImputations==True:
+                       combfile = r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\CombinedWarImputations\AllImputations" + ".csv"
+                       if not os.path.exists(combfile):
+                          frames = []
+                          for i in range(len(filesImp)):
+                             file = filesImp[i]
+                             dbfile = pd.read_csv(file,";")
+                             frames.append(dbfile)
+                          dfFrame = pd.concat(frames, ignore_index=True)
+                          trainID, testID = train_test_split(dfFrame, test_size=0.2)
+                          trainID["Status"]="train"
+                          testID["Status"]="test"
+                          frames = [trainID, testID]
+                          dfSuper = pd.concat(frames, ignore_index=True)
+                          trainID.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\CombinedWarImputations\TRAINSPLIT" + ".csv", ";")
+                          testID.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\CombinedWarImputations\TESTSPLIT" + ".csv",   ";")
+                          dfSuper.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\CombinedWarImputations\AllImputations" + ".csv",   ";")
+                          filesImp=[]
+                          filesImp.append(combfile)
 
     for file in filesImp:
-        if combineImputations==False:
-            dfnew = pd.read_csv(file, ";")
-        else:
-            dfnew = file
+        dfnew = pd.read_csv(file, ";")
         fileindex = filesImp.index(file)
         if combinedata == True:
             rootIWPC = root.replace("WarImputations\\Training", "MICESTATSMODELHIV\\")
@@ -747,16 +736,10 @@ def main():
             dfmod.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\combinedata\\" + combfilename + ".csv", ";")
         else:
           if combineImputations== True:
-            filename = "dfSuper"
-            filename = "dfWarfarin" + suffix
-            train = dfmod.loc[dfmod["Status"] == "train"]
-            test = dfmod.loc[dfmod["Status"] == "test"]
-            train.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\PreProcessed\\" + filename+"train" + ".csv", ";")
-            test.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\PreProcessed\\" + filename+"test" + ".csv", ";")
-            dfmod.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\PreProcessed\\" + filename+"allPatients" + ".csv", ";")
+            filename = "dfWarfarin001allPatients"
           else:
-              filename = "dfWarfarin" + suffix
-              dfmod.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\PreProcessed\\" + filename + ".csv", ";")
+            filename = "dfWarfarin" + suffix
+          dfmod.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\PreProcessed\\" + filename + ".csv", ";")
           dfImputedList.append(dfmod)
 
         patientNum = len(dfmod)
@@ -875,7 +858,9 @@ def main():
         #layers = [10, 11, 12, 13, 14,15, 16, 18, 20]
         #layers = [20, 21, 22, 23, 24, 25, 26, 28, 30]
         #layers = [30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 45, 50, 55, 60]
-        layers = [60, 65, 70, 75, 80, 85, 90, 95, 100]
+        #layers = [60, 65, 70, 75, 80, 85, 90, 95, 100]
+        #layers = [100,120,140,160,180,200]
+        layers = [180,181,182,183,184,185,186,187,188,189,190,191,192,193,194,195,196,197,198,199,200]
         #iters = [1000, 1500, 1600, 1700, 1800, 1900, 2000, 2100, 2200, 2300, 2400, 2500, 2600, 2700, 2800, 2900, 3000,
         #         3100, 3200, 3300, 3400, 3500]
         iters = [1000, 1500, 2000, 2500, 3000]
