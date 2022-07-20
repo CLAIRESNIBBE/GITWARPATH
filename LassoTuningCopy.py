@@ -860,10 +860,11 @@ def main():
         #layers = [30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 45, 50, 55, 60]
         #layers = [60, 65, 70, 75, 80, 85, 90, 95, 100]
         #layers = [100,120,140,160,180,200]
-        layers = [180,181,182,183,184,185,186,187,188,189,190,191,192,193,194,195,196,197,198,199,200]
+        #layers = [180,181,182,183,184,185,186,187,188,189,190,191,192,193,194,195,196,197,198,199,200]
+        layers = [196]
         #iters = [1000, 1500, 1600, 1700, 1800, 1900, 2000, 2100, 2200, 2300, 2400, 2500, 2600, 2700, 2800, 2900, 3000,
         #         3100, 3200, 3300, 3400, 3500]
-        iters = [1000, 1500, 2000, 2500, 3000]
+        iters = [1000,  1500, 2000, 2500,  3000, 3500, 4000]
         #rates = [0.001, 0.002, 0.0021, 0.0022, 0.0023, 0.0024, 0.0025, 0.0026, 0.0027, 0.0028, 0.0029, 0.003, 0.0031,
         #         0.0032, 0.0033, 0.0034, 0.0035, 0.0036, 0.0037, 0.0038, 0.0039, 0.004, 0.0045, 0.005, 0.0055, 0.006]
 
@@ -876,8 +877,8 @@ def main():
             # if x>y:
             param_grid = {
                 'alg__hidden_layer_sizes': [(x,)],
-                'alg__max_iter': [1000, 1500, 2000, 2500, 3000],
-                'alg__learning_rate_init': [ 0.003, 0.004],
+                'alg__max_iter': [1000,  1500, 2000, 2500,  3000, 3500, 4000],
+                'alg__learning_rate_init': [0.001,0.002,  0.003],
                 'alg__learning_rate': ['adaptive']
             }
             grid = GridSearchCV(estimator=pipeline_scaled, param_grid=param_grid, n_jobs=-1, cv=kfold,
@@ -889,8 +890,9 @@ def main():
                 print(results[j])
         dfResults=pd.DataFrame(results)
         dfResults.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\MLPRGridResults"+ ".csv", ";")
-        sys.stdout = old_stdout
-        log_file.close()
+        if logFile:
+            sys.stdout = old_stdout
+            log_file.close()
 
 if __name__ == "__main__":
     main()
