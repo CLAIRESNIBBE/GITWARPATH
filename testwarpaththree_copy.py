@@ -524,8 +524,6 @@ def main():
             #lasso_alphas = np.linspace(0, 0.02, 11)
             #LAS = Lasso(alpha=0.002)
             #estimates.append(Estimator(LAS, 'LAS'))
-
-
             # EL
             #EL2 = ElasticNet()
             #EL = ElasticNet(alpha=0.01, l1_ratio=0.01)
@@ -562,6 +560,7 @@ def main():
             #estimates.append(Estimator(NN, 'NN2'))
 
             estimates = []
+
             XGBR = XGBRegressor(n_estimators=400, max_depth=3, learning_rate=0.01, colsample_bytree=0.5, subsample=0.9)
             estimates.append(Estimator(LR,'LR'))
             #estimates.append(Estimator(pipeline_scaled, 'MLPR1'))
@@ -622,48 +621,48 @@ def main():
                 #estimates.append(Estimator(pipeline6_scaled,'MLPR6'))
 
             if True:
-                #RF = RandomForestRegressor()
-                #KNNR = KNeighborsRegressor()
-                #pipeline_KNNR_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', KNNR)])
-                #RF = RandomForestRegressor(max_depth=125, max_features=2, min_samples_leaf=3,min_samples_split=8, n_estimators=100)
-                #RF = RandomForestRegressor(max_depth=125, max_features=2, min_samples_leaf=3,min_samples_split=8, n_estimators=200)
-                #RF = RandomForestRegressor(max_depth=120, max_features=3, min_samples_leaf=4,min_samples_split=12, n_estimators=100)
-                #RF = RandomForestRegressor(){'bootstrap': True, 'max_depth': 120, 'max_features': 3, 'min_samples_leaf': 4, 'min_samples_split': 12,
-                # 'n_estimators': 100}
-                #................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................,,,,,,,,,,,
-                #ABRF = AdaBoostRegressor(base_estimator=RF,  learning_rate=0.015, n_estimators=15)
-                #ABRF2 = AdaBoostRegressor(base_estimator=RF, learning_rate=0.01, n_estimators=10)
-                #estimates.append(Estimator(RF,'RF'))
-                #estimates.append(Estimator(pipeline_KNNR_scaled, 'KNN'))
-                #estimates.append(Estimator(KNNR, 'KNN'))
-                #estimates.append(Estimator(ABRF,'ABRF'))
-                #estimates.append(Estimator(ABRF2, 'ABRF2'))
-                #model = Lasso()
-                #pipeline_LASSO_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
-                #estimates.append(Estimator(pipeline_LASSO_scaled, 'LASSO'))
-                #model = Ridge()
-                #pipeline_Ridge_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
-                #estimates.append(Estimator(pipeline_Ridge_scaled, 'RIDGE'))
-                #model = ElasticNet()
-                #pipeline_ELNET_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
-                #estimates.append(Estimator(pipeline_ELNET_scaled, 'ELNET'))
-                #model = sklearn.svm.SVR()
-                #pipeline_SVREG_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
-                #estimates.append(Estimator(pipeline_SVREG_scaled,"SVREG"))
-                RFR  = RandomForestRegressor(max_depth=90, max_features='sqrt', min_samples_leaf=60,
-                                           min_samples_split=12, n_estimators=300)
 
-                estimates.append(Estimator(AdaModel, "ADABR"))
+               #RF = RandomForestRegressor()
+               KNNR = KNeighborsRegressor()
+               pipeline_KNNR_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', KNNR)])
+               #RF = RandomForestRegressor(max_depth=125, max_features=2, min_samples_leaf=3,min_samples_split=8, n_estimators=100)
+               #RF = RandomForestRegressor(max_depth=125, max_features=2, min_samples_leaf=3,min_samples_split=8, n_estimators=200)
+               #RF = RandomForestRegressor(max_depth=120, max_features=3, min_samples_leaf=4,min_samples_split=12, n_estimators=100)
+               #RF = RandomForestRegressor(){'bootstrap': True, 'max_depth': 120, 'max_features': 3, 'min_samples_leaf': 4, 'min_samples_split': 12,
+               # 'n_estimators': 100}
+               #................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................,,,,,,,,,,,
+               #ABRF = AdaBoostRegressor(base_estimator=RF,  learning_rate=0.015, n_estimators=15)
+               #ABRF2 = AdaBoostRegressor(base_estimator=RF, learning_rate=0.01, n_estimators=10)
+               #estimates.append(Estimator(RF,'RF'))
+               estimates.append(Estimator(pipeline_KNNR_scaled, 'KNN'))
+               #estimates.append(Estimator(KNNR, 'KNN'))
+               #estimates.append(Estimator(ABRF,'ABRF'))
+               #estimates.append(Estimator(ABRF2, 'ABRF2'))
+               #model = Lasso()
+               #pipeline_LASSO_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
+               #estimates.append(Estimator(pipeline_LASSO_scaled, 'LASSO'))
+               #model = Ridge()
+               #pipeline_Ridge_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
+               #estimates.append(Estimator(pipeline_Ridge_scaled, 'RIDGE'))
+               #model = ElasticNet()
+               #pipeline_ELNET_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
+               #estimates.append(Estimator(pipeline_ELNET_scaled, 'ELNET'))
+               #model = sklearn.svm.SVR()
+               #pipeline_SVREG_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
+               #estimates.append(Estimator(pipeline_SVREG_scaled,"SVREG"))
 
-            for _, est in enumerate(estimates):
-                resultsdict = traineval(est, x_train, y_train, x_test, y_test, squaring=squaring, df=df)
-                # print("Accuracy: %.3f%% (%.3f%%)" % (results2.mean() * 100.0, results2.std() * 100.0))
-                res_dict = {
+               #RFR  = RandomForestRegressor(max_depth=90, max_features='sqrt', min_samples_leaf=60, min_samples_split=12, n_estimators=300)
+
+               #estimates.append(Estimator(AdaModel, "ADABR"))
+               for _, est in enumerate(estimates):
+                  resultsdict = traineval(est, x_train, y_train, x_test, y_test, squaring=squaring, df=df)
+                   # print("Accuracy: %.3f%% (%.3f%%)" % (results2.mean() * 100.0, results2.std() * 100.0))
+                  res_dict = {
                      'Estimator': [est.identifier for x in range(len(resultsdict['PW20']))],
                      'PW20': resultsdict['PW20'],
                      'MAE': resultsdict['MAE'],
                      'R2': resultsdict['R2']}
-                results.append(res_dict)
+                  results.append(res_dict)
 
             df_res = pd.DataFrame()
             for res in results:

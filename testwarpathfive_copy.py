@@ -125,25 +125,6 @@ def SList(series):
 def confintlimit95(metric):
     return 1.96 * np.sqrt(variance(metric) / len(metric))
 
-def TrainOrTest(patientID,TrainList, TestList):
-    TrainDF = pd.DataFrame(TrainList.sort())
-    TestDF = pd.DataFrame(TestList.sort())
-    if (patientID in TrainList):
-        return 'train'
-    elif (patientID in TestList):
-        return 'test'
-
-
-    #newList = []
-    #for patient in patientIDList:
-    #  currpatient = patient
-    #  for fixedpatient in TrainList:
-    #    if (fixedpatient == currpatient):
-    #      newList.append('train')
-    #  for fixedpatient in TestList:
-    #    if (fixedpatient == currpatient):
-    #      newList.append('test')
-    #return newList
 
 def format_summary(df_res):
     df_summary = df_res.groupby(['Estimator']).mean()
@@ -206,6 +187,7 @@ def ConvertYesNo(variable):
     elif variable == "No":
         return 0
 
+
 def MAEScore(true, predicted):
     return mean_absolute_error(true, predicted)
 
@@ -238,6 +220,15 @@ def evaluate_models(models, x_train, x_test, y_train, y_test):
         scores.append(-mae)
     # report model performance
     return scores
+
+def is_open(file_name):
+    if os.path.exists(file_name):
+        try:
+            os.rename(file_name, file_name) #can't rename an open file so an error will be thrown
+            return False
+        except:
+            return True
+    raise NameError
 
 
 def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df):
@@ -321,6 +312,7 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df):
     resultsdict['R2'] = [R2]
     return resultsdict
 
+
 def main():
     # dfHyper = pd.DataFrame()
     combinedata = False
@@ -356,6 +348,9 @@ def main():
             if os.path.exists(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\CombinedWarImputations\TESTSPLIT" + ".csv"):
                 testID = pd.read_csv(
                     r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\CombinedWarImputations\TESTSPLIT" + ".csv")
+
+
+
         if False:
          if os.path.exists(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TRAINSPLIT" + ".csv"):
             if os.path.exists(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TESTSPLIT" + ".csv"):
@@ -446,12 +441,6 @@ def main():
               runImp = runImp + 1
         #filesImp.append(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\CombinedWarImputations\AllImputations" + ".csv")
     results = []
-
-    if os.path.exists(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TRAINSPLIT" + ".csv"):
-        if os.path.exists(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TESTSPLIT" + ".csv"):
-            trainID = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TRAINSPLIT" + ".csv", ";")
-            testID = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TESTSPLIT" + ".csv", ";")
-
     root = 'C:\\Users\\Claire\\GIT_REPO_1\\CSCthesisPY\\WarImputations'
     for file in filesImp:
         dfnew = pd.read_csv(file, ";")
@@ -524,33 +513,14 @@ def main():
             # unnamed_column = "Unnamed: 0.1.1"
             #train = data.loc[data["Status"] == "train"]
             #test = data.loc[data["Status"] == "test"]
-            train, test = train_test_split(data, test_size=test_size, random_state=1)
+            train, test = train_test_split(data, test_size=test_size,random_state=150)
             traindf = pd.DataFrame(train)
             testdf = pd.DataFrame(test)
             traindf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Train"+suffix+ ".csv", ";")
             testdf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Test"+suffix+".csv", ";")
-            testdf['Status'] = 'test'
-            traindf['Status'] = 'train'
-            frames = (traindf, testdf)
-            combdf = pd.concat(frames)
-            #combdf.index = combdf.index + 1
-            combdf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\TrainPlusTest" + suffix + ".csv", ";")
-            combID = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\TrainPlusTest" + suffix + ".csv", ";")
-            #combID.index = combID.index+1
-            combID.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\TrainTestStatus" + suffix + ".csv", ";")
-            combID['NewStatus'] = 'train'
-            combID['NewStatus'] = combID.apply(lambda x:TrainOrTest(x["Unnamed: 0"],trainID[".id"].tolist(), testID[".id"].tolist()), axis=1)
-            combID.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\TrainTestStatus" + suffix + ".csv", ";")
             squaring = True
-            combIDcopy = combID
-            train = combID[combID.NewStatus == "train"]
-            test = combID[combID.NewStatus == "test"]
-            train = train.drop([status_column], axis=1)
-            test = test.drop([status_column], axis=1)
-            train = train.drop(['NewStatus'], axis=1)
-            test = test.drop(['NewStatus'], axis=1)
-
-
+            #train = train.drop([status_column], axis=1)
+            #test = test.drop([status_column], axis=1)
             x_cols = list(train.columns)
             # _cols_notarg = x_cols.remove(target_column)
             targ_col = list(target_column)
@@ -719,18 +689,18 @@ def main():
              #estimates.append(Estimator(KNNR, 'KNN'))
              #estimates.append(Estimator(ABRF,'ABRF'))
              # estimates.append(Estimator(ABRF2, 'ABRF2'))
-             model = Lasso()
-             pipeline_LASSO_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
-             estimates.append(Estimator(pipeline_LASSO_scaled, 'LASSO'))
-             model = Ridge()
-             pipeline_Ridge_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
-             estimates.append(Estimator(pipeline_Ridge_scaled, 'RIDGE'))
-             model = ElasticNet()
-             pipeline_ELNET_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
-             estimates.append(Estimator(pipeline_ELNET_scaled, 'ELNET'))
-             model = sklearn.svm.SVR()
-             pipeline_SVREG_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
-             estimates.append(Estimator(pipeline_SVREG_scaled,"SVREG"))
+             #model = Lasso()
+             #pipeline_LASSO_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
+             #estimates.append(Estimator(pipeline_LASSO_scaled, 'LASSO'))
+             #model = Ridge()
+             #pipeline_Ridge_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
+             #estimates.append(Estimator(pipeline_Ridge_scaled, 'RIDGE'))
+             #model = ElasticNet()
+             #pipeline_ELNET_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
+             #estimates.append(Estimator(pipeline_ELNET_scaled, 'ELNET'))
+             #model = sklearn.svm.SVR()
+             #pipeline_SVREG_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
+             #estimates.append(Estimator(pipeline_SVREG_scaled,"SVREG"))
              #RF = RandomForestRegressor()
              #estimates.append(Estimator(RF, 'RF'))
              #estimates.append(Estimator(RF, 'RF2'))
@@ -958,4 +928,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
