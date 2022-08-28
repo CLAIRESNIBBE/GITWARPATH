@@ -289,11 +289,11 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df):
             dfpre = df - 1
             suffixpre = str(dfpre).zfill(3)
             dfHyper = pd.read_csv(
-                r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPERPARAMSIWPCADD\model_" + ml_learner + suffixpre + ".csv", ";")
+                r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPERPARAMETERS\model_" + ml_learner + suffixpre + ".csv", ";")
         frames = (dfHyper, dfHyperCurrent)
         dfHyper = pd.concat(frames)
         suffix = str(df).zfill(3)
-        dfHyper.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPERPARAMSIWPCADD\model_" + ml_learner + suffix + ".csv",
+        dfHyper.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPERPARAMETERS\model_" + ml_learner + suffix + ".csv",
                        ";")
 
     fitted = model.fit(xtrain, ytrain)
@@ -315,7 +315,7 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df):
 
 def main():
     # dfHyper = pd.DataFrame()
-    combinedata = True
+    combinedata = False
     scaler = MinMaxScaler()
     dftemplate = pd.DataFrame()
     dfWarPath = pd.DataFrame()
@@ -446,13 +446,12 @@ def main():
         dfnew = pd.read_csv(file, ";")
         fileindex = filesImp.index(file)
         if combinedata == True:
-            trainSize = 291
             rootIWPC = root.replace("WarImputations", "MICESTATSMODELHIV\\")
             IWPC_csv = rootIWPC + filesIWPC[fileindex]
             IWPCDF = pd.read_csv(IWPC_csv, ';')
             sampleSize = int(round(trainSize * 0.5))
             dfIWPC = IWPCDF.sample(n=sampleSize)
-            #dfIWPC["Status"] = "train"
+            dfIWPC["Status"] = "train"
             dfIWPC.drop(["Unnamed: 0"], axis=1, inplace=True)
         df = fileindex + 1
         dfmod = dfnew
@@ -494,14 +493,11 @@ def main():
         elif combinedata == True:
             dfmod = dfmod.sample(frac=1)
             dfIWPC = dfIWPC.sample(frac=1)
-            #frames = [dfmod, dfIWPC]
-            #dfmod = pd.concat(frames)
-            #dfmod = dfmod.sample(frac=1)
-            #combfilename = "comb" + suffix
-            filename = "dfIWPC" + suffix
-            dfmod.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\PreProcessed\\" + filename + ".csv", ";")
-            filename = "dfWarfarin" + suffix
-            dfmod.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\PreProcessed\\" + filename + ".csv", ";")
+            frames = [dfmod, dfIWPC]
+            dfmod = pd.concat(frames)
+            dfmod = dfmod.sample(frac=1)
+            combfilename = "comb" + suffix
+            dfmod.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\combinedata\\" + combfilename + ".csv", ";")
         else:
             filename = "dfWarfarin" + suffix
             dfmod.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\PreProcessed\\" + filename + ".csv", ";")
@@ -510,7 +506,7 @@ def main():
             data = dfmod
             data.index = data.index + 1
             print(data.shape)
-            #data['Dose_mg_week'] = data['Dose_mg_week'].apply(np.sqrt)
+            data['Dose_mg_week'] = data['Dose_mg_week'].apply(np.sqrt)
             estimates = []
             target_column = 'Dose_mg_week'
             status_column = "Status"
@@ -519,17 +515,10 @@ def main():
             #test = data.loc[data["Status"] == "test"]
             train, test = train_test_split(data, test_size=test_size,random_state=2)
             traindf = pd.DataFrame(train)
-            if combinedata == True:
-                frames = (traindf, dfIWPC)
-                traindf = pd.concat(frames)
             testdf = pd.DataFrame(test)
             traindf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Train"+suffix+ ".csv", ";")
             testdf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Test"+suffix+".csv", ";")
             squaring = True
-            train = traindf
-            test = testdf
-            train['Dose_mg_week'] = train['Dose_mg_week'].apply(np.sqrt)
-            test['Dose_mg_week'] = test['Dose_mg_week'].apply(np.sqrt)
             #train = train.drop([status_column], axis=1)
             #test = test.drop([status_column], axis=1)
             x_cols = list(train.columns)

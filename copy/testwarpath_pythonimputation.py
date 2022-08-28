@@ -125,6 +125,25 @@ def SList(series):
 def confintlimit95(metric):
     return 1.96 * np.sqrt(variance(metric) / len(metric))
 
+def TrainOrTest(patientID,TrainList, TestList):
+    TrainDF = pd.DataFrame(TrainList.sort())
+    TestDF = pd.DataFrame(TestList.sort())
+    if (patientID in TrainList):
+        return 'train'
+    elif (patientID in TestList):
+        return 'test'
+
+
+    #newList = []
+    #for patient in patientIDList:
+    #  currpatient = patient
+    #  for fixedpatient in TrainList:
+    #    if (fixedpatient == currpatient):
+    #      newList.append('train')
+    #  for fixedpatient in TestList:
+    #    if (fixedpatient == currpatient):
+    #      newList.append('test')
+    #return newList
 
 def format_summary(df_res):
     df_summary = df_res.groupby(['Estimator']).mean()
@@ -187,7 +206,6 @@ def ConvertYesNo(variable):
     elif variable == "No":
         return 0
 
-
 def MAEScore(true, predicted):
     return mean_absolute_error(true, predicted)
 
@@ -220,15 +238,6 @@ def evaluate_models(models, x_train, x_test, y_train, y_test):
         scores.append(-mae)
     # report model performance
     return scores
-
-def is_open(file_name):
-    if os.path.exists(file_name):
-        try:
-            os.rename(file_name, file_name) #can't rename an open file so an error will be thrown
-            return False
-        except:
-            return True
-    raise NameError
 
 
 def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df):
@@ -289,11 +298,11 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df):
             dfpre = df - 1
             suffixpre = str(dfpre).zfill(3)
             dfHyper = pd.read_csv(
-                r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPERPARAMSIWPCADD\model_" + ml_learner + suffixpre + ".csv", ";")
+                r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPERPARAMETERS\model_" + ml_learner + suffixpre + ".csv", ";")
         frames = (dfHyper, dfHyperCurrent)
         dfHyper = pd.concat(frames)
         suffix = str(df).zfill(3)
-        dfHyper.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPERPARAMSIWPCADD\model_" + ml_learner + suffix + ".csv",
+        dfHyper.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPERPARAMETERS\model_" + ml_learner + suffix + ".csv",
                        ";")
 
     fitted = model.fit(xtrain, ytrain)
@@ -312,10 +321,9 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df):
     resultsdict['R2'] = [R2]
     return resultsdict
 
-
 def main():
     # dfHyper = pd.DataFrame()
-    combinedata = True
+    combinedata = False
     scaler = MinMaxScaler()
     dftemplate = pd.DataFrame()
     dfWarPath = pd.DataFrame()
@@ -340,7 +348,7 @@ def main():
         dfcurrent.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\ImpWarPATH_" + suffix + ".csv", ";")
     filesImp = []
     combineImputations = False
-    test_size = 0.2
+    test_size = 0.3
     if combineImputations == True and os.path.exists(
             r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\CombinedWarImputations\AllImputations" + ".csv"):
         if os.path.exists(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\CombinedWarImputations\TRAINSPLIT" + ".csv"):
@@ -348,9 +356,6 @@ def main():
             if os.path.exists(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\CombinedWarImputations\TESTSPLIT" + ".csv"):
                 testID = pd.read_csv(
                     r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\CombinedWarImputations\TESTSPLIT" + ".csv")
-
-
-
         if False:
          if os.path.exists(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TRAINSPLIT" + ".csv"):
             if os.path.exists(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TESTSPLIT" + ".csv"):
@@ -375,33 +380,50 @@ def main():
                                       ";")
                         #fixedtraintest = True
     metric_columns = ['MAE', 'PW20', 'R2']
-    if False:
-        # for imp in range(impNumber):
-        patients_train = []
-        patients_train = trainID[".id"].to_list()
+    newimputation = True
+    if newimputation == True:
+        combinedata = False
+        squaring = True
+        #filename1 = "Warpath_SimpleMeanImputed"
+        #file1 = r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\\" + filename1 + ".csv"
+        #filename2 = "Warpath_SimpleMedianImputed"
+        #file2 = r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\\" + filename2 + ".csv"
+        #filesImp.append(file1)
+        #filesImp.append(file2)
+        #filename3 = "WarpathIterativeImputed"
+        #file3 = r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\\" + filename3 + ".csv"
+        #filesImp.append(file3)
+        filename4 = "WarpathKNNImputed"
+        file4 = r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\\" + filename4 + ".csv"
+        filesImp.append(file4)
+    else:
+        if False:
+         # for imp in range(impNumber):
+         patients_train = []
+         patients_train = trainID[".id"].to_list()
 
-        dftrain = df[df['.id'].isin(patients_train)]
-        dftrain.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Training\train" + suffix + ".csv", ";")
-        for imp in range(impNumber):
+         dftrain = df[df['.id'].isin(patients_train)]
+         dftrain.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Training\train" + suffix + ".csv", ";")
+         for imp in range(impNumber):
             counter = imp + 1
             dftrainimp = dftrain.loc[df[".imp"] == counter]
             suffix = str(counter).zfill(3)
             dftrainimp.to_csv(
                 r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Training\train_" + suffix + ".csv",
                 ";")
-        patients_test = []
-        patients_test = testID[".id"].to_list()
-        dftest = df[df['.id'].isin(patients_test)]
-        dftest.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Testing\test" + suffix + ".csv", ";")
-        for imp in range(impNumber):
-            counter = imp + 1
-            dftestimp = dftest.loc[df[".imp"] == counter]
-            suffix = str(counter).zfill(3)
-            dftestimp.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Testing\test_" + suffix + ".csv",
+            patients_test = []
+            patients_test = testID[".id"].to_list()
+            dftest = df[df['.id'].isin(patients_test)]
+            dftest.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Testing\test" + suffix + ".csv", ";")
+            for imp in range(impNumber):
+              counter = imp + 1
+              dftestimp = dftest.loc[df[".imp"] == counter]
+              suffix = str(counter).zfill(3)
+              dftestimp.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Testing\test_" + suffix + ".csv",
                              ";")
-        counter = 0
-        for root, dirs, files in os.walk(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations"):
-            if root == 'C:\\Users\\Claire\\GIT_REPO_1\\CSCthesisPY\\WarImputations':
+            counter = 0
+            for root, dirs, files in os.walk(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations"):
+             if root == 'C:\\Users\\Claire\\GIT_REPO_1\\CSCthesisPY\\WarImputations':
                 for file in files:
                     if runImp < maxImp and file.endswith('.csv') and (
                             "train_" not in file and "test_" not in file and "SPLIT" not in file and "TRAIN" not in file and "TEST" not in file) and "ImpWarPATH" in file:
@@ -424,35 +446,41 @@ def main():
                         filesImp.append(
                             r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Split\ImpWarPATHSPLIT_" + suffix + ".csv")
                         runImp = runImp + 1
-    else:
-      counter = 0
-      for root, dirs, files in os.walk(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations"):
-        if root == 'C:\\Users\\Claire\\GIT_REPO_1\\CSCthesisPY\\WarImputations':
-          for file in files:
-            if runImp < maxImp and file.endswith('.csv') and (
-              "train_" not in file and "test_" not in file and "SPLIT" not in file and "TRAIN" not in file and "TEST" not in file) and "ImpWarPATH" in file:
-              filedf = pd.read_csv(root + '\\' + file, ";")
-              counter = counter + 1
-              suffix = str(counter).zfill(3)
-              filedf.to_csv(
-              r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Split\ImpWarPATHSPLIT_" + suffix + ".csv", ";")
-              filesImp.append(
-              r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Split\ImpWarPATHSPLIT_" + suffix + ".csv")
-              runImp = runImp + 1
-        #filesImp.append(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\CombinedWarImputations\AllImputations" + ".csv")
+        elif False:
+            counter = 0
+            for root, dirs, files in os.walk(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations"):
+                if root == 'C:\\Users\\Claire\\GIT_REPO_1\\CSCthesisPY\\WarImputations':
+                    for file in files:
+                        if runImp < maxImp and file.endswith('.csv') and (
+                        "train_" not in file and "test_" not in file and "SPLIT" not in file and "TRAIN" not in file and "TEST" not in file) and "ImpWarPATH" in file:
+                         filedf = pd.read_csv(root + '\\' + file, ";")
+                         counter = counter + 1
+                         suffix = str(counter).zfill(3)
+                         filedf.to_csv(
+                         r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Split\ImpWarPATHSPLIT_" + suffix + ".csv", ";")
+                         filesImp.append(
+                         r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Split\ImpWarPATHSPLIT_" + suffix + ".csv")
+                         runImp = runImp + 1
+                         #filesImp.append(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\CombinedWarImputations\AllImputations" + ".csv")
     results = []
+
+    if False:
+       if os.path.exists(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TRAINSPLIT" + ".csv"):
+            if os.path.exists(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TESTSPLIT" + ".csv"):
+                trainID = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TRAINSPLIT" + ".csv", ";")
+                testID = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TESTSPLIT" + ".csv", ";")
+
     root = 'C:\\Users\\Claire\\GIT_REPO_1\\CSCthesisPY\\WarImputations'
     for file in filesImp:
         dfnew = pd.read_csv(file, ";")
         fileindex = filesImp.index(file)
         if combinedata == True:
-            trainSize = 291
             rootIWPC = root.replace("WarImputations", "MICESTATSMODELHIV\\")
             IWPC_csv = rootIWPC + filesIWPC[fileindex]
             IWPCDF = pd.read_csv(IWPC_csv, ';')
             sampleSize = int(round(trainSize * 0.5))
             dfIWPC = IWPCDF.sample(n=sampleSize)
-            #dfIWPC["Status"] = "train"
+            dfIWPC["Status"] = "train"
             dfIWPC.drop(["Unnamed: 0"], axis=1, inplace=True)
         df = fileindex + 1
         dfmod = dfnew
@@ -482,11 +510,13 @@ def main():
         # dfIWPC["HIVUnknown"] = 0
         dfmod.drop(["HIV_status"], axis=1, inplace=True)
         dfmod.drop(["Unnamed: 0"], axis=1, inplace=True)
-        dfmod.drop(["Unnamed: 0.1"], axis=1, inplace=True)
+        if newimputation == False:
+            dfmod.drop(["Unnamed: 0.1"], axis=1, inplace=True)
+            dfmod.drop([".imp"], axis=1, inplace=True)
+            dfmod.drop([".id"], axis=1, inplace=True)
+            dfmod.drop(["Unnamed: 0.1.1"], axis=1, inplace=True)
         dfmod.drop(["Age_years"], axis=1, inplace=True)
-        dfmod.drop([".imp"], axis=1, inplace=True)
-        dfmod.drop([".id"], axis=1, inplace=True)
-        dfmod.drop(["Unnamed: 0.1.1"], axis=1, inplace=True)
+
         suffix = str(df).zfill(3)
         if combineImputations == True:
             filename = "dfWarfarin001allPatients"
@@ -494,14 +524,11 @@ def main():
         elif combinedata == True:
             dfmod = dfmod.sample(frac=1)
             dfIWPC = dfIWPC.sample(frac=1)
-            #frames = [dfmod, dfIWPC]
-            #dfmod = pd.concat(frames)
-            #dfmod = dfmod.sample(frac=1)
-            #combfilename = "comb" + suffix
-            filename = "dfIWPC" + suffix
-            dfmod.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\PreProcessed\\" + filename + ".csv", ";")
-            filename = "dfWarfarin" + suffix
-            dfmod.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\PreProcessed\\" + filename + ".csv", ";")
+            frames = [dfmod, dfIWPC]
+            dfmod = pd.concat(frames)
+            dfmod = dfmod.sample(frac=1)
+            combfilename = "comb" + suffix
+            dfmod.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\combinedata\\" + combfilename + ".csv", ";")
         else:
             filename = "dfWarfarin" + suffix
             dfmod.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\PreProcessed\\" + filename + ".csv", ";")
@@ -510,28 +537,39 @@ def main():
             data = dfmod
             data.index = data.index + 1
             print(data.shape)
-            #data['Dose_mg_week'] = data['Dose_mg_week'].apply(np.sqrt)
+            data['Dose_mg_week'] = data['Dose_mg_week'].apply(np.sqrt)
             estimates = []
             target_column = 'Dose_mg_week'
             status_column = "Status"
             # unnamed_column = "Unnamed: 0.1.1"
             #train = data.loc[data["Status"] == "train"]
             #test = data.loc[data["Status"] == "test"]
-            train, test = train_test_split(data, test_size=test_size,random_state=2)
+            train, test = train_test_split(data, test_size=test_size, random_state=200)
             traindf = pd.DataFrame(train)
-            if combinedata == True:
-                frames = (traindf, dfIWPC)
-                traindf = pd.concat(frames)
             testdf = pd.DataFrame(test)
             traindf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Train"+suffix+ ".csv", ";")
             testdf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Test"+suffix+".csv", ";")
-            squaring = True
-            train = traindf
-            test = testdf
-            train['Dose_mg_week'] = train['Dose_mg_week'].apply(np.sqrt)
-            test['Dose_mg_week'] = test['Dose_mg_week'].apply(np.sqrt)
-            #train = train.drop([status_column], axis=1)
-            #test = test.drop([status_column], axis=1)
+            if newimputation == False:
+               testdf['Status'] = 'test'
+               traindf['Status'] = 'train'
+               frames = (traindf, testdf)
+               if newimputation == False:
+                  combdf = pd.concat(frames)
+               combdf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\TrainPlusTest" + suffix + ".csv", ";")
+               combID = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\TrainPlusTest" + suffix + ".csv", ";")
+               combID.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\TrainTestStatus" + suffix + ".csv", ";")
+               combID['NewStatus'] = 'train'
+               combID['NewStatus'] = combID.apply(lambda x:TrainOrTest(x["Unnamed: 0"],trainID[".id"].tolist(), testID[".id"].tolist()), axis=1)
+               combID.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\TrainTestStatus" + suffix + ".csv", ";")
+               squaring = True
+               combIDcopy = combID
+               train = combID[combID.NewStatus == "train"]
+               test = combID[combID.NewStatus == "test"]
+               train = train.drop([status_column], axis=1)
+               test = test.drop([status_column], axis=1)
+               train = train.drop(['NewStatus'], axis=1)
+               test = test.drop(['NewStatus'], axis=1)
+
             x_cols = list(train.columns)
             # _cols_notarg = x_cols.remove(target_column)
             targ_col = list(target_column)
@@ -701,21 +739,6 @@ def main():
              #estimates.append(Estimator(ABRF,'ABRF'))
              # estimates.append(Estimator(ABRF2, 'ABRF2'))
              model = Lasso()
-             #pipeline_LASSO_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
-             #estimates.append(Estimator(pipeline_LASSO_scaled, 'LASSO'))
-             #model = Ridge()
-             #pipeline_Ridge_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
-             #estimates.append(Estimator(pipeline_Ridge_scaled, 'RIDGE'))
-             #model = ElasticNet()
-             #pipeline_ELNET_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
-             #estimates.append(Estimator(pipeline_ELNET_scaled, 'ELNET'))
-             #model = sklearn.svm.SVR()
-             #pipeline_SVREG_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
-             #estimates.append(Estimator(pipeline_SVREG_scaled,"SVREG"))
-             #RF = RandomForestRegressor()
-             #estimates.append(Estimator(RF, 'RF'))
-             #estimates.append(Estimator(RF, 'RF2'))
-             model = Lasso()
              pipeline_LASSO_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
              estimates.append(Estimator(pipeline_LASSO_scaled, 'LASSO'))
              model = Ridge()
@@ -726,7 +749,10 @@ def main():
              estimates.append(Estimator(pipeline_ELNET_scaled, 'ELNET'))
              model = sklearn.svm.SVR()
              pipeline_SVREG_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
-             estimates.append(Estimator(pipeline_SVREG_scaled, "SVREG"))
+             estimates.append(Estimator(pipeline_SVREG_scaled,"SVREG"))
+             #RF = RandomForestRegressor()
+             #estimates.append(Estimator(RF, 'RF'))
+             #estimates.append(Estimator(RF, 'RF2'))
              for _, est in enumerate(estimates):
                 resultsdict = traineval(est, x_train, y_train, x_test, y_test, squaring=squaring, df=df)
                 #print("Accuracy: %.3f%% (%.3f%%)" % (results2.mean() * 100.0, results2.std() * 100.0))
@@ -951,3 +977,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
