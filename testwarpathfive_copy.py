@@ -341,6 +341,7 @@ def main():
     filesImp = []
     combineImputations = False
     test_size = 0.2
+    trainSize = 291
     if combineImputations == True and os.path.exists(
             r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\CombinedWarImputations\AllImputations" + ".csv"):
         if os.path.exists(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\CombinedWarImputations\TRAINSPLIT" + ".csv"):
@@ -446,19 +447,22 @@ def main():
         dfnew = pd.read_csv(file, ";")
         fileindex = filesImp.index(file)
         if combinedata == True:
-            trainSize = 291
             rootIWPC = root.replace("WarImputations", "MICESTATSMODELHIV\\")
             IWPC_csv = rootIWPC + filesIWPC[fileindex]
             IWPCDF = pd.read_csv(IWPC_csv, ';')
-            sampleSize = int(round(trainSize * 0.5))
-            dfIWPC = IWPCDF.sample(n=sampleSize)
+            sampleSize = int(round(trainSize))
+            trainIWPC, testIWPC = train_test_split(IWPCDF, train_size= 0.107, random_state=66)
+            #trainIWPC, testIWPC = train_test_split(IWPCDF, train_size= 0.212, random_state=200)
+            #trainIWPC, testIWPC = train_test_split(IWPCDF, train_size=0.318, random_state=200)
+            #trainIWPC, testIWPC = train_test_split(IWPCDF, train_size=0.423, random_state=200)
+            dfIWPC = trainIWPC
             #dfIWPC["Status"] = "train"
             dfIWPC.drop(["Unnamed: 0"], axis=1, inplace=True)
         df = fileindex + 1
         dfmod = dfnew
         dfmod.drop(['Gender', 'Country_recruitment'], axis=1, inplace=True)
-        # dfIWPC.drop(['AgeDecades'], axis =1, inplace = True)
-        # dfIWPC.drop(['INR_Three'], axis=1, inplace=True)
+        dfIWPC.drop(['AgeDecades'], axis =1, inplace = True)
+        dfIWPC.drop(['INR_Three'], axis=1, inplace=True)
         # dfmod["INR_Three"] = np.where(dfmod["Target_INR"] == "Three", 1, 0)
         dfmod["Target_INR"] = np.where(dfmod["Target_INR"] == "Three", 3.0,
                                        np.where(dfmod["Target_INR"] == "aTwo_point_five", 2.5, 2.0))
@@ -478,8 +482,8 @@ def main():
         dfmod['AgeYears'] = np.where((dfmod['AgeYears'] <= 18), 18, dfmod['AgeYears'])
         dfmod["HIVPositive"] = np.where(dfmod["HIV_status"] == "Positive", 1, 0)
         dfmod["HIVUnknown"] = np.where(dfmod["HIV_status"] == "Unknown", 1, 0)
-        # dfIWPC["HIVPositive"]=0
-        # dfIWPC["HIVUnknown"] = 0
+        dfIWPC["HIVPositive"]=0
+        dfIWPC["HIVUnknown"] = 0
         dfmod.drop(["HIV_status"], axis=1, inplace=True)
         dfmod.drop(["Unnamed: 0"], axis=1, inplace=True)
         dfmod.drop(["Unnamed: 0.1"], axis=1, inplace=True)
@@ -517,7 +521,7 @@ def main():
             # unnamed_column = "Unnamed: 0.1.1"
             #train = data.loc[data["Status"] == "train"]
             #test = data.loc[data["Status"] == "test"]
-            train, test = train_test_split(data, test_size=test_size,random_state=2)
+            train, test = train_test_split(data, test_size=test_size,random_state=66)
             traindf = pd.DataFrame(train)
             if combinedata == True:
                 frames = (traindf, dfIWPC)
@@ -925,6 +929,7 @@ def main():
     dfSummary = dfResults.groupby('Estimator').apply(np.mean)
     stddev = []
     confinterval = []
+    metric_columns = ['MAE', 'PW20', 'R2']
 
     for i in range(len(metric_columns)):
         for _, est in enumerate(estimates):

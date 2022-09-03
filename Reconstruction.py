@@ -1,8 +1,24 @@
 import pandas as pd
 import numpy as np
+import sklearn
 from warfit_learn.estimators import Estimator
 from sklearn.ensemble import RandomForestRegressor, AdaBoostRegressor
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LinearRegression, Ridge
+from sklearn.linear_model import RidgeCV, ElasticNetCV, LassoLarsCV, Lasso, ElasticNet
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.pipeline import make_pipeline
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler, RobustScaler, MaxAbsScaler, MinMaxScaler, FunctionTransformer, Normalizer
+def ExitSquareBracket(variable):
+    stringvar = str(variable)
+    if stringvar.find('[') >= 0 and stringvar.find(']') >= 0:
+        var1 = stringvar.replace('[', '')
+        var2 = var1.replace(']', '')
+        var2 = var2.replace("'", "")
+        return var2
+    else:
+        return stringvar
+
 
 def variance(metric):
     meanvalue = np.mean(metric)
@@ -19,25 +35,40 @@ def confintlimit95(metric):
 
 metric_columns = ['MAE', 'PW20', 'R2']
 estimates = []
-RF = RandomForestRegressor(max_depth=120, max_features=3, min_samples_leaf=4,
-                                       min_samples_split=12, n_estimators=100)
+#RF = RandomForestRegressor(max_depth=120, max_features=3, min_samples_leaf=4,
+#                                       min_samples_split=12, n_estimators=100)
 
 LR = LinearRegression()
 estimates.append(Estimator(LR,'LR'))
-RF = RandomForestRegressor(max_depth=80, max_features='sqrt', min_samples_leaf=5,
-                                       min_samples_split=12, n_estimators=2000)
-ABRF = AdaBoostRegressor(base_estimator=RandomForestRegressor(max_depth=80,
-                                                                   max_features='sqrt',
-                                                                   min_samples_leaf=5,
-                                                                   min_samples_split=12,
-                                                                   n_estimators=2000),
-                                                                   n_estimators=1, random_state=42)
-ABRF2 = ABRF
+KNNR = KNeighborsRegressor()
+pipeline_KNNR_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', KNNR)])
+estimates.append(Estimator(pipeline_KNNR_scaled, 'KNN'))
+model = Lasso()
+pipeline_LASSO_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
+estimates.append(Estimator(pipeline_LASSO_scaled, 'LASSO'))
+model = Ridge()
+pipeline_Ridge_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
+estimates.append(Estimator(pipeline_Ridge_scaled, 'RIDGE'))
+model = ElasticNet()
+pipeline_ELNET_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
+estimates.append(Estimator(pipeline_ELNET_scaled, 'ELNET'))
+model = sklearn.svm.SVR()
+pipeline_SVREG_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
+estimates.append(Estimator(pipeline_SVREG_scaled, "SVREG"))
 
-estimates.append(Estimator(RF,'RF'))
-estimates.append(Estimator(ABRF,'ABRF'))
-estimates.append(Estimator(ABRF2,'ABRF2'))
 
+#RF = RandomForestRegressor(max_depth=80, max_features='sqrt', min_samples_leaf=5,
+#                                       min_samples_split=12, n_estimators=2000)
+#ABRF = AdaBoostRegressor(base_estimator=RandomForestRegressor(max_depth=80,
+ #                                                                  max_features='sqrt',
+ #                                                                  min_samples_leaf=5,
+ #                                                                  min_samples_split=12,
+ #                                                                  n_estimators=2000),
+ #                                                                  n_estimators=1, random_state=42)
+#ABRF2 = ABRF
+#estimates.append(Estimator(RF,'RF'))
+#estimates.append(Estimator(ABRF,'ABRF'))
+#estimates.append(Estimator(ABRF2,'ABRF2'))
 
 dfResults = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfResults" + ".csv", ";")
 #dfSummary = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfSummary" + ".csv", ";")
@@ -57,7 +88,7 @@ for i in range(len(metric_columns)):
                              '95% CI lower bound': current_mean - current_stddev,
                              '95% CI upper bound': current_mean + current_stddev})
 dfConfidence = pd.DataFrame(confinterval,
-                            columns=['estimator', 'metric', 'mean', '95% CI lower bound', '95% CI upper bound'])
+              columns=['estimator', 'metric', 'mean', '95% CI lower bound', '95% CI upper bound'])
 dfConfidence.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfConfidence" + ".csv", ";")
 #dfResults.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfResults" + ".csv", ";")
 #dfSummary.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfSummary" + ".csv", ";")
