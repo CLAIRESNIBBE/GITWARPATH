@@ -17,6 +17,7 @@ from yellowbrick.features import ParallelCoordinates
 from yellowbrick.regressor import AlphaSelection, PredictionError, ResidualsPlot
 from warfit_learn import datasets, preprocessing
 from sklearn.linear_model import LinearRegression, Ridge
+from sklearn.tree import DecisionTreeRegressor
 from sklearn.metrics import mean_absolute_error
 from sklearn.metrics import make_scorer
 from sklearn.svm import LinearSVR, SVR

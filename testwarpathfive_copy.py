@@ -452,9 +452,9 @@ def main():
             IWPCDF = pd.read_csv(IWPC_csv, ';')
             sampleSize = int(round(trainSize))
             trainIWPC, testIWPC = train_test_split(IWPCDF, train_size= 0.107, random_state=66)
-            #trainIWPC, testIWPC = train_test_split(IWPCDF, train_size= 0.212, random_state=200)
-            #trainIWPC, testIWPC = train_test_split(IWPCDF, train_size=0.318, random_state=200)
-            #trainIWPC, testIWPC = train_test_split(IWPCDF, train_size=0.423, random_state=200)
+            #trainIWPC, testIWPC = train_test_split(IWPCDF, train_size= 0.212, random_state=66)
+            #trainIWPC, testIWPC = train_test_split(IWPCDF, train_size=0.318, random_state=66)
+            #trainIWPC, testIWPC = train_test_split(IWPCDF, train_size=0.423, random_state=66)
             dfIWPC = trainIWPC
             #dfIWPC["Status"] = "train"
             dfIWPC.drop(["Unnamed: 0"], axis=1, inplace=True)
