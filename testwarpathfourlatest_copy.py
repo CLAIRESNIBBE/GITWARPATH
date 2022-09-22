@@ -1,8 +1,11 @@
 import sklearn
+import time
 import csv
 import os
 import os.path
 import pandas as pd
+from pandas.api.types import is_string_dtype
+from pandas.api.types import is_numeric_dtype
 import numpy as np
 from tabulate import tabulate
 from itertools import combinations, permutations, product
@@ -12,6 +15,9 @@ from warfit_learn import datasets, preprocessing
 from lineartree import LinearForestRegressor
 from lineartree import LinearTreeRegressor
 from lineartree import LinearBoostRegressor
+import optuna
+from optuna import Trial, visualization
+from optuna.samplers import TPESampler
 from sklearn.linear_model import LinearRegression, Ridge, Perceptron
 from sklearn.metrics import mean_absolute_error
 from sklearn.metrics import make_scorer
@@ -19,7 +25,8 @@ from sklearn.svm import LinearSVR, SVR
 from sklearn.neural_network import MLPRegressor
 from sklearn.ensemble import GradientBoostingRegressor, AdaBoostRegressor
 from sklearn.ensemble import StackingRegressor
-from sklearn.model_selection import GridSearchCV, RepeatedKFold
+from sklearn.model_selection import RandomizedSearchCV
+from sklearn.model_selection import GridSearchCV, RepeatedKFold, RepeatedStratifiedKFold
 from sklearn.model_selection import cross_val_score, cross_validate
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.pipeline import Pipeline
@@ -27,6 +34,12 @@ import xgboost
 from xgboost import XGBClassifier  # for extreme gradient boosting model
 from xgboost import XGBRFRegressor
 from xgboost import XGBRegressor
+from hyperopt import tpe, hp, fmin, STATUS_OK,Trials
+from hyperopt.pyll.base import scope
+from hpsklearn import HyperoptEstimator
+from hpsklearn import any_classifier
+from hpsklearn import any_preprocessing
+from hpsklearn import any_regressor
 from warfit_learn.estimators import Estimator
 from warfit_learn.evaluation import evaluate_estimators
 from warfit_learn.metrics.scoring import confidence_interval
@@ -242,28 +255,67 @@ def evaluate_models(models, x_train, x_test, y_train, y_test):
 
 
 def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df):
-    resultsdict = {'PW20': 0, 'MAE': 0, 'R2': 0}
+    resultsdict = {'PW20': 0, 'MAE': 0, 'R2': 0, 'Time':''}
     ml_learner = est.identifier
     model = est.estimator
+    gridFit = True
     print(f'\n{est.identifier}...')
     modelID = est.identifier
     if est.identifier != "LR":  # tuning is not required for LR
 
         if est.identifier == "RF":
-            kcv = KFold(n_splits=5, random_state=1, shuffle=True)
-            param_grid = {
-                'min_weight_fraction_leaf': [0.0,0.0025, 0.005, 0.0075, 0.01, 0.05],
-                'min_samples_split': [2,0.01,0.02,0.03, 0.04, 0.06, 0.08,0.1],
-                'min_samples_leaf':[1,2,4,6,8,10,20,30],
-                'min_impurity_decrease':[0.0, 0.01,0.05, 0.10, 0.15, 0.2],
-                'max_leaf_nodes': [10, 15, 20, 25, 30, 35, 40, 45, 50, None],
-                'max_features': ['auto',0.8, 0.7,0.6, 0.5,0.4],
-                'max_depth': [None, 2, 4, 6, 8, 10, 20]}
+            #kcv = RepeatedKFold(n_splits=2, n_repeats=10,random_state=66)
+
+            kcv=KFold(n_splits=10, shuffle= True, random_state=2)
+            param_grid = {'min_samples_leaf':[2,4,6,10],
+                          'min_impurity_decrease':[0.10, 0.15],
+                          'max_features':[0.7, 0.6,0.4],
+                          'max_depth':[4,6,10,20],
+                          'n_estimators': [50,100,300]
+                          }
+            gridFit = True
 
         else:
             if est.identifier == 'DTR':
-                kcv = RepeatedKFold(n_splits=2, n_repeats=10, random_state=66)
-                param_grid = {'max_depth': [None, 2, 3, 4, 6, 8, 10],
+                # define parameter space
+                start = time.time()
+                splitters = ["random","best"]
+
+
+
+
+                space = {
+                    "min_samples_leaf": hp.choice("min_samples_leaf", np.arange(1,30,1)),
+                    "max_depth": hp.choice('max_depth', np.arange(2, 10, 1)),
+                    'min_impurity_decrease': hp.choice("min_impurity_decrease",np.arange(0.0, 0.2, 0.005)),
+                    'max_features':hp.choice('max_features', range(0, 11)),
+                    'min_samples_split': hp.choice("min_samples_split", np.arange(2,10,1)),
+                    'max_leaf_nodes': hp.choice("max_leaf_nodes",np.arange(2,50,10)),
+                    'min_weight_fraction_leaf': hp.uniform("min_weight_fraction_leaf",0.0, 0.5)}
+                # define objective function
+                def hyperparameter_tuning(params):
+                    clf = DecisionTreeRegressor(**params)
+                    acc = cross_val_score(clf, xtrain, ytrain, scoring="neg_mean_absolute_error").mean()
+                    return {"loss": -acc, "status": STATUS_OK}
+                trials = Trials()
+                best = fmin(
+                    fn=hyperparameter_tuning,
+                    space=space,
+                    algo=tpe.suggest,
+                    max_evals=100,
+                    trials=trials
+                )
+                end = time.time()
+                print("Best: {}".format(best))
+                model = DecisionTreeRegressor(**best)
+                #fitted = final.fit(xtrain,ytrain)
+                #ypred = fitted.predict(xtest)
+                #mae = mean_absolute_error(ytest,ypred)
+
+                if False:
+                    kcv = KFold(n_splits=5, shuffle=True, random_state=66)
+                    gridFit = False
+                    param_grid = {'max_depth': [None, 2, 3, 4, 6, 8, 10],
                           'min_samples_leaf': [1, 2, 4, 6, 8, 10, 20, 30],
                           'max_features': ['auto', 0.95, 0.90, 0.85, 0.80, 0.75, 0.70],
                           'min_weight_fraction_leaf': [0.0, 0.0025, 0.005, 0.0075, 0.01, 0.05],
@@ -288,89 +340,26 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df):
                      param_grid = [{'alg__kernel': ['rbf'],
                                     'alg__gamma': ['auto','scale'],
                                     'alg__C': [1,100]}]
-                 elif est.identifier == "ADABR":
-                     kcv = KFold(n_splits=10, shuffle=True, random_state=2)
-                     param_grid = [{'n_estimators': [100,150,200,500,1000],
-                         'learning_rate': [0.1, 0.15, 0.2, 0.25, 0.3],
-                         'loss': ['linear']}]
+                 elif est.identifier == "ABRF":
+                     kcv = KFold(n_splits=5, shuffle=True, random_state=66)
+                     param_grid = [{'n_estimators': [10, 50, 100, 500], 'learning_rate': [0.0001, 0.001, 0.01, 0.1] }]
+                 elif est.identifier == "GBR":
+                     kcv = KFold(n_splits=5, shuffle=True, random_state=66)
+                     param_grid = [{'subsample': [1, 0.9, 0.8, 0.7, 0.6, 0.5],
+                               'n_estimators': [30, 300, 3000],
+                               'learning_rate': [0.001, 0.01, 0.05, 0.1, 0.15, 0.2, 0.3, 0.5, 1.0],
+                               'max_depth': [None, 1, 2, 3, 4] }]
+        if est.identifier != "DTR":
+            start = time.time()
+            if gridFit == False:
+                runs = 16
+                grid = RandomizedSearchCV(model, param_grid, n_iter=runs,scoring='neg_mean_absolute_error',cv=kcv, n_jobs=-1,verbose=2)
+            else:
+                grid = GridSearchCV(model, param_grid=param_grid, scoring='neg_mean_absolute_error', cv=kcv, n_jobs=-1,verbose=2)
 
-        maxparam = len(param_grid)
-        counter = 1
-        minMAE = 99
-        if squaring:
-            ytest = np.square(ytest)
-
-        while counter <= len(param_grid):
-            suffix = str(counter).zfill(3)
-            paramdict = {k: [] for k in param_grid.keys()}
-            dfResults = pd.DataFrame()
-            dfResults = pd.DataFrame(paramdict)
-            dfColumns = dfResults.columns
-            comb = combinations(param_grid.keys(), counter)
-            comb_number = 0
-            for i in list(comb):
-                comb_number = comb_number + 1
-                currentkeys = i
-                currentparams = {}
-                currentvals = [param_grid[key] for key in currentkeys]
-                for j in range(len(currentkeys)):
-                    currentparams[currentkeys[j]] = currentvals[j]
-                grid_reg3 = GridSearchCV(model, currentparams, scoring='neg_mean_absolute_error', cv=kcv, n_jobs=-1,
-                                         verbose=2)
-                gridresult3 = grid_reg3.fit(xtrain, ytrain)
-                predict = grid_reg3.predict(xtest)
-                if squaring:
-                    predict = np.square(predict)
-                PW20 = PercIn20(ytest, predict)
-                MAE = mean_absolute_error(ytest, predict)
-                R2 = RSquared(ytest, predict)
-                resultsdict['PW20'] = [PW20]
-                resultsdict['MAE'] = [MAE]
-                resultsdict['R2'] = [R2]
-
-                if MAE < minMAE:
-                    minMAE = MAE
-                    resultsdict['PW20'] = [PW20]
-                    resultsdict['MAE'] = [MAE]
-                    resultsdict['R2'] = [R2]
-                best3 = grid_reg3.best_score_
-                best3p = grid_reg3.best_params_
-                paramdict = best3p
-                paramdict = {k: [v] for k, v in paramdict.items()}
-                if counter == maxparam:
-                    dfHyperCurrent = pd.DataFrame(paramdict)
-                    dfHyperCurrent['model'] = est.identifier
-                    dfHyperCurrent['imputation'] = df
-                    dfHyperCurrent['score'] = best3
-
-                    if df == 1:
-                        dfHyper = pd.DataFrame()
-                    else:
-                        dfpre = df - 1
-                        suffixpre = str(dfpre).zfill(3)
-                        dfHyper = pd.read_csv(
-                            r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPERPARAMETERS\model_" + ml_learner + suffixpre + ".csv",";")
-                    frames = (dfHyper, dfHyperCurrent)
-                    dfHyper = pd.concat(frames)
-                    suffix = str(df).zfill(3)
-                    dfHyper.to_csv(
-                        r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPERPARAMETERS\model_" + ml_learner + suffix + ".csv", ";")
-                dfParam = pd.DataFrame(paramdict)
-                for k in dfColumns:
-                    if k not in dfParam.columns:
-                        dfParam[k] = ''
-                dfParam['counter'] = counter
-                dfParam['model'] = est.identifier
-                dfParam['bestscore'] = best3
-                dfParam['combination'] = comb_number
-                dfParam['MAE'] = MAE
-                frames = (dfResults, dfParam)
-                dfResults = pd.concat(frames)
-            dfResults.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Tuning\model_" + ml_learner + suffix + ".csv", ";")
-            counter = counter + 1
-        if False:
-            grid = GridSearchCV(model, param_grid=param_grid, scoring='neg_mean_absolute_error', cv=kcv, verbose=2)
             gridresult = grid.fit(xtrain, ytrain)
+            end = time.time()
+            timeElapsed = end - start
             model = gridresult.best_estimator_
             paramdict = gridresult.best_params_
             paramdict = {k: [v] for k, v in paramdict.items()}
@@ -378,32 +367,35 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df):
             dfHyperCurrent['model'] = est.identifier
             dfHyperCurrent['imputation'] = df
             dfHyperCurrent['score'] = gridresult.best_score_
-
             ml_learner = est.identifier
             if df == 1:
                 dfHyper = pd.DataFrame()
             else:
                 dfpre = df - 1
-            suffixpre = str(dfpre).zfill(3)
-            dfHyper = pd.read_csv(
-                r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPERPARAMETERS\model_" + ml_learner + suffixpre + ".csv", ";")
-            frames = (dfHyper, dfHyperCurrent)
-            dfHyper = pd.concat(frames)
-            suffix = str(df).zfill(3)
-            dfHyper.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPERPARAMETERS\model_" + ml_learner + suffix + ".csv",";")
-    else:
-        fitted = model.fit(xtrain, ytrain)
-        predict = fitted.predict(xtest)
-        if squaring:
-            ytest = np.square(ytest)
-            predict = np.square(predict)
-        PW20 = PercIn20(ytest, predict)
-        MAE = mean_absolute_error(ytest, predict)
-        R2 = RSquared(ytest, predict)
-        resultsdict['PW20'] = [PW20]
-        resultsdict['MAE'] = [MAE]
-        resultsdict['R2'] = [R2]
+                suffixpre = str(dfpre).zfill(3)
+                dfHyper = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPERPARAMETERS\model_" + ml_learner + suffixpre + ".csv", ";")
+                frames = (dfHyper, dfHyperCurrent)
+                dfHyper = pd.concat(frames)
+                suffix = str(df).zfill(3)
+                dfHyper.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPERPARAMETERS\model_" + ml_learner + suffix + ".csv",";")
 
+    if est.identifier == "LR":
+      start = time.time()
+    fitted = model.fit(xtrain, ytrain)
+    if est.identifier == "LR":
+       end = time.time()
+    timeElapsed = end-start
+    ypred = fitted.predict(xtest)
+    if squaring:
+       ytest = np.square(ytest)
+       ypred = np.square(ypred)
+    PW20 = PercIn20(ytest, ypred)
+    MAE = mean_absolute_error(ytest, ypred)
+    R2 = RSquared(ytest, ypred)
+    resultsdict['PW20'] = [PW20]
+    resultsdict['MAE'] = [MAE]
+    resultsdict['R2'] = [R2]
+    resultsdict['Time'] = [timeElapsed]
     return resultsdict
 
 def main():
@@ -464,7 +456,7 @@ def main():
                         testID.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TESTSPLIT" + ".csv",
                                       ";")
                         #fixedtraintest = True
-    metric_columns = ['MAE', 'PW20', 'R2']
+    metric_columns = ['MAE', 'PW20', 'R2','Time']
     if False:
         # for imp in range(impNumber):
         patients_train = []
@@ -609,22 +601,25 @@ def main():
             # unnamed_column = "Unnamed: 0.1.1"
             #train = data.loc[data["Status"] == "train"]
             #test = data.loc[data["Status"] == "test"]
+            test_size=0.2
             train, test = train_test_split(data, test_size=test_size, random_state=66)
             traindf = pd.DataFrame(train)
             testdf = pd.DataFrame(test)
+
             traindf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Train"+suffix+ ".csv", ";")
             testdf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Test"+suffix+".csv", ";")
             testdf['Status'] = 'test'
             traindf['Status'] = 'train'
-            frames = (traindf, testdf)
+            frames = (traindf,  testdf)
             combdf = pd.concat(frames)
             #combdf.index = combdf.index + 1
             combdf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\TrainPlusTest" + suffix + ".csv", ";")
             combID = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\TrainPlusTest" + suffix + ".csv", ";")
             #combID.index = combID.index+1
             combID.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\TrainTestStatus" + suffix + ".csv", ";")
-            combID['NewStatus'] = 'train'
-            combID['NewStatus'] = combID.apply(lambda x:TrainOrTest(x["Unnamed: 0"],trainID[".id"].tolist(), testID[".id"].tolist()), axis=1)
+            combID['NewStatus'] = combID['Status']
+            #combID['NewStatus'] = 'train'
+            #combID['NewStatus'] = combID.apply(lambda x:TrainOrTest(x["Unnamed: 0"],trainID[".id"].tolist(), testID[".id"].tolist()), axis=1)
             combID.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\TrainTestStatus" + suffix + ".csv", ";")
             squaring = True
             combIDcopy = combID
@@ -634,8 +629,6 @@ def main():
             test = test.drop([status_column], axis=1)
             train = train.drop(['NewStatus'], axis=1)
             test = test.drop(['NewStatus'], axis=1)
-
-
             x_cols = list(train.columns)
             # _cols_notarg = x_cols.remove(target_column)
             targ_col = list(target_column)
@@ -816,11 +809,54 @@ def main():
              #model = sklearn.svm.SVR()
              #pipeline_SVREG_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
              #estimates.append(Estimator(pipeline_SVREG_scaled,"SVREG"))
-             #RF = RandomForestRegressor()
+             suffix = str(df).zfill(3)
+             ml_weak_learner = 'RF'
+             dfHyper = pd.read_csv(
+                 r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPERPARAMETERS\model_" + ml_weak_learner + suffix + ".csv",
+                 ";")
+             listCols = dfHyper.columns.to_list()
+             for i in listCols:
+                 if "Unnamed:" in i:
+                     dfHyper.drop([i], axis=1, inplace=True)
+             dfHyper["MAE"] = -dfHyper["score"]
+             dfSort = dfHyper.sort_values(by='MAE', ascending=True)
+             dfSort = dfSort.reset_index(drop=True)
+             param_max_depth = dfSort['max_depth'][0]
+             param_max_features = dfSort['max_features'][0]
+             param_min_impurity_decrease = dfSort['min_impurity_decrease'][0]
+             param_min_samples_leaf = dfSort['min_samples_leaf'][0]
+             param_n_estimators = dfSort['n_estimators'][0]
+             RF = RandomForestRegressor(n_estimators=param_n_estimators, max_depth=param_max_depth,max_features=param_max_features,
+                                        min_samples_leaf=param_min_samples_leaf, min_impurity_decrease=param_min_impurity_decrease)
+
+             ABRF = AdaBoostRegressor(base_estimator=RF)
              #estimates.append(Estimator(RF, 'RF'))
              #estimates.append(Estimator(RF, 'RF2'))
+             #DTR = DecisionTreeRegressor()
+             #estimates.append(Estimator(DTR,'DTR'))
+             #estimates.append(Estimator(ABRF,'ABRF'))
              DTR = DecisionTreeRegressor()
              estimates.append(Estimator(DTR,'DTR'))
+
+             if False:
+                minmae = 99
+                learning_rate_values = [0.001, 0.01, 0.05, 0.1, 0.15, 0.2, 0.3, 0.5, 1.0]
+                estimator_values = [30,300,3000]
+                depths = [None, 1, 2, 3, 4]
+                samples = [1, 0.9, 0.8, 0.7, 0.6, 0.5]
+                for value in learning_rate_values:
+                  for estimator in estimator_values:
+                     for depth in depths:
+                        for sample in samples:
+                            gbr = GradientBoostingRegressor(max_depth=depth, subsample = sample, n_estimators = estimator,random_state=66,learning_rate=value)
+                            gbr_result = gbr.fit(x_train, y_train)
+                            y_pred = gbr.predict(x_test)
+                            mae = mean_absolute_error(y_test, y_pred)
+                            if mae < minmae:
+                                minmae = mae
+                            print('Estimator:', estimator,'Depth:', depth, 'Sample:', sample, 'LearningRate:', value, ', Score:', mae)
+                print('smallest mae is ', minmae)
+
              for _, est in enumerate(estimates):
                 resultsdict = traineval(est, x_train, y_train, x_test, y_test, squaring=squaring, df=df)
                 #print("Accuracy: %.3f%% (%.3f%%)" % (results2.mean() * 100.0, results2.std() * 100.0))
@@ -828,7 +864,8 @@ def main():
                                'Estimator': [est.identifier for x in range(len(resultsdict['PW20']))],
                                'PW20': resultsdict['PW20'],
                                'MAE': resultsdict['MAE'],
-                              'R2': resultsdict['R2']}
+                               'R2': resultsdict['R2'],
+                               'Time':resultsdict['Time']}
                 results.append(res_dict)
 
              df_res = pd.DataFrame()
@@ -1015,6 +1052,7 @@ def main():
     dfResults["PW20"] = dfResults.apply(lambda x: ExitSquareBracket(x["PW20"]), axis=1).astype(float)
     dfResults["MAE"] = dfResults.apply(lambda x: ExitSquareBracket(x["MAE"]), axis=1).astype(float)
     dfResults["R2"] = dfResults.apply(lambda x: ExitSquareBracket(x["R2"]), axis=1).astype(float)
+    dfResults["Time"] = dfResults.apply(lambda x: ExitSquareBracket(x["Time"]), axis=1).astype(float)
     dfResults["Estimator"] = dfResults.apply(lambda x: ExitSquareBracket(x["Estimator"]), axis=1)
     dfSummary = dfResults.groupby('Estimator').apply(np.mean)
     stddev = []

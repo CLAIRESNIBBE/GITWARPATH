@@ -13,6 +13,7 @@ from matplotlib import pyplot as plt
 from sklearn.svm import SVR
 from IPython.display import display
 from sklearn_evaluation.plot import grid_search
+from itertools import combinations, permutations, product
 from yellowbrick.features import ParallelCoordinates
 from yellowbrick.regressor import AlphaSelection, PredictionError, ResidualsPlot
 from warfit_learn import datasets, preprocessing
@@ -66,7 +67,6 @@ from sklearn.neighbors import KNeighborsRegressor
 from sklearn.preprocessing import StandardScaler, RobustScaler, MaxAbsScaler, \
     MinMaxScaler, FunctionTransformer, Normalizer
 from sklearn.linear_model import RidgeCV, ElasticNetCV, LassoLarsCV, Lasso, ElasticNet, SGDRegressor
-from sklearn.tree import DecisionTreeRegressor
 from sklearn.svm import LinearSVR
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import GradientBoostingRegressor, ExtraTreesRegressor
@@ -674,6 +674,8 @@ def main():
             train = dfmod.loc[dfmod["Status"] == "train"]
             test = dfmod.loc[dfmod["Status"] == "test"]
             squaring = True
+            test_size=0.2
+            train, test = train_test_split(data, test_size=test_size, random_state=66)
             train = train.drop([status_column], axis=1)
             test = test.drop([status_column], axis=1)
             y_train = train[target_column].values
@@ -683,6 +685,82 @@ def main():
             x_test = test.drop([target_column], axis=1)
             x_test = sc.fit_transform(x_test)
             # define model
+            reg = DecisionTreeRegressor(random_state=2)
+            if False:
+                regfit = reg.fit(x_train,y_train)
+                y_pred = regfit.predict(x_test)
+                y_pred = np.square(y_pred)
+                y_test = np.square(y_test)
+                checkmae = mean_absolute_error(y_pred, y_test)
+                print("untuned decision tree regressor mae is ", checkmae)
+                gridresult3=reg.fit(x_train, y_train)
+                params = {'max_depth': [None, 2, 3, 4, 6, 8, 10, 20]}
+                grid_reg = GridSearchCV(reg, params, scoring='neg_mean_absolute_error', cv=5, n_jobs=-1, verbose=2)
+                gridresult1=grid_reg.fit(x_train, y_train)
+                best1=grid_reg.best_score_
+                bestp = grid_reg.best_params_
+                print(best1)
+                print(bestp)
+                params = {'max_depth': [None, 2, 3, 4, 6, 8, 10, 20], 'min_samples_leaf':[1,2,4,6,8,10,20,30]}
+                grid_reg2 = GridSearchCV(reg, params, scoring='neg_mean_absolute_error', cv=5, n_jobs=-1, verbose = 2)
+                gridresult2=grid_reg2.fit(x_train, y_train)
+                best2 = grid_reg2.best_score_
+                best2p = grid_reg2.best_params_
+                print('with 2 hyperparams ',best2)
+                print('with 2 hyperparams ',best2p)
+            params = {'max_depth': [None, 2, 3, 4, 6, 8, 10, 20],
+                      'min_samples_leaf': [1, 2, 4, 6, 8, 10, 20, 30],
+                      'max_features':['auto', 0.95, 0.90, 0.85, 0.80, 0.75,0.70],
+                      'min_weight_fraction_leaf': [0.0, 0.0025, 0.005, 0.0075, 0.01,0.05],
+                      'splitter':['random', 'best'],
+                      'min_impurity_decrease': [0.0, 0.0005, 0.005, 0.05, 0.10, 0.15, 0.2],
+                      'min_samples_split':[2, 3, 4, 5, 6, 8, 10],
+                      'criterion': ['entropy','gini'],
+                      'max_leaf_nodes': [10, 15, 20, 25, 30, 35, 40, 45, 50, None]
+                      }
+            counter = 1
+            while counter <= len(params):
+               suffix = str(counter).zfill(3)
+               paramdict = {k: [] for k in params.keys()}
+               dfResults = pd.DataFrame()
+               dfResults = pd.DataFrame(paramdict)
+               dfColumns = dfResults.columns
+               comb=combinations(params.keys(),counter)
+               comb_number = 0
+               for i in list(comb):
+                  comb_number = comb_number + 1
+                  currentkeys = i
+                  currentparams = {}
+                  currentvals = [params[key] for key in currentkeys]
+                  for j in range(len(currentkeys)):
+                    currentparams[currentkeys[j]] = currentvals[j]
+                  grid_reg3 = GridSearchCV(reg, currentparams, scoring='neg_mean_absolute_error', cv=2, n_jobs=-1, verbose=2)
+                  gridresult3 = grid_reg3.fit(x_train, y_train)
+                  predict = grid_reg3.predict(x_test)
+                  predict = np.square(predict)
+                  y_test = np.square(y_test)
+                  best3 = grid_reg3.best_score_
+                  best3p = grid_reg3.best_params_
+                  paramdict = best3p
+                  paramdict = {k: [v] for k, v in paramdict.items()}
+                  dfParam = pd.DataFrame(paramdict)
+                  for k in dfColumns:
+                    if k not in dfParam.columns:
+                      dfParam[k] = ''
+                  #row = dfParam.iloc[paramdict[paramkey]
+                  dfParam['counter'] = counter
+                  dfParam['model'] = 'DTR'
+                  dfParam['bestscore'] = best3
+                  dfParam['combination'] = comb_number
+                  frames = (dfResults, dfParam)
+                  dfResults = pd.concat(frames)
+
+               dfResults.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Tuning\model_" + "DTR" + suffix + ".csv", ";")
+               counter = counter + 1
+
+
+            print("end of DecisionTreeRegressor")
+
             space = {'kernel': {'linear': {'C': [0, 100]},
                                 'rbf': {'gamma': ['scale'], 'C': [1, 100]},
                                 'poly': {'degree': [2, 5], 'C': [1000, 20000], 'coef0': [0, 1]}

@@ -35,6 +35,7 @@ from mlxtend.regressor import StackingCVRegressor
 import warnings
 import statistics
 
+
 def fxn():
     warnings.warn("deprecated", DeprecationWarning)
 
@@ -77,6 +78,7 @@ from tpot.builtins import StackingEstimator, ZeroCount
 from numpy import loadtxt
 from copy import copy
 
+
 def ExitSquareBracket(variable):
     stringvar = str(variable)
     if stringvar.find('[') >= 0 and stringvar.find(']') >= 0:
@@ -86,6 +88,7 @@ def ExitSquareBracket(variable):
         return var2
     else:
         return stringvar
+
 
 def collect_Metrics(metrics, model, metric):
     container = []
@@ -126,7 +129,8 @@ def SList(series):
 def confintlimit95(metric):
     return 1.96 * np.sqrt(variance(metric) / len(metric))
 
-def TrainOrTest(patientID,TrainList, TestList):
+
+def TrainOrTest(patientID, TrainList, TestList):
     TrainDF = pd.DataFrame(TrainList.sort())
     TestDF = pd.DataFrame(TestList.sort())
     if (patientID in TrainList):
@@ -134,9 +138,8 @@ def TrainOrTest(patientID,TrainList, TestList):
     elif (patientID in TestList):
         return 'test'
 
-
-    #newList = []
-    #for patient in patientIDList:
+    # newList = []
+    # for patient in patientIDList:
     #  currpatient = patient
     #  for fixedpatient in TrainList:
     #    if (fixedpatient == currpatient):
@@ -144,7 +147,8 @@ def TrainOrTest(patientID,TrainList, TestList):
     #  for fixedpatient in TestList:
     #    if (fixedpatient == currpatient):
     #      newList.append('test')
-    #return newList
+    # return newList
+
 
 def format_summary(df_res):
     df_summary = df_res.groupby(['Estimator']).mean()
@@ -207,6 +211,7 @@ def ConvertYesNo(variable):
     elif variable == "No":
         return 0
 
+
 def MAEScore(true, predicted):
     return mean_absolute_error(true, predicted)
 
@@ -252,47 +257,48 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df):
         if est.identifier == "RF":
             kcv = KFold(n_splits=5, random_state=1, shuffle=True)
             param_grid = {
-                'min_weight_fraction_leaf': [0.0,0.0025, 0.005, 0.0075, 0.01, 0.05],
-                'min_samples_split': [2,0.01,0.02,0.03, 0.04, 0.06, 0.08,0.1],
-                'min_samples_leaf':[1,2,4,6,8,10,20,30],
-                'min_impurity_decrease':[0.0, 0.01,0.05, 0.10, 0.15, 0.2],
+                'min_weight_fraction_leaf': [0.0, 0.0025, 0.005, 0.0075, 0.01, 0.05],
+                'min_samples_split': [2, 0.01, 0.02, 0.03, 0.04, 0.06, 0.08, 0.1],
+                'min_samples_leaf': [1, 2, 4, 6, 8, 10, 20, 30],
+                'min_impurity_decrease': [0.0, 0.01, 0.05, 0.10, 0.15, 0.2],
                 'max_leaf_nodes': [10, 15, 20, 25, 30, 35, 40, 45, 50, None],
-                'max_features': ['auto',0.8, 0.7,0.6, 0.5,0.4],
+                'max_features': ['auto', 0.8, 0.7, 0.6, 0.5, 0.4],
                 'max_depth': [None, 2, 4, 6, 8, 10, 20]}
 
         else:
             if est.identifier == 'DTR':
                 kcv = RepeatedKFold(n_splits=2, n_repeats=10, random_state=66)
                 param_grid = {'max_depth': [None, 2, 3, 4, 6, 8, 10],
-                          'min_samples_leaf': [1, 2, 4, 6, 8, 10, 20, 30],
-                          'max_features': ['auto', 0.95, 0.90, 0.85, 0.80, 0.75, 0.70],
-                          'min_weight_fraction_leaf': [0.0, 0.0025, 0.005, 0.0075, 0.01, 0.05],
-                          'splitter': ['random', 'best'],
-                          'min_impurity_decrease': [0.0, 0.0005, 0.005, 0.05, 0.10, 0.15, 0.2],
-                          'min_samples_split': [2, 3, 4, 5, 6, 8, 10],
-                          'max_leaf_nodes': [10, 15, 20, 25, 30, 35, 40, 45, 50, None]
-                          }
+                              'min_samples_leaf': [1, 2, 4, 6, 8, 10, 20, 30],
+                              'max_features': ['auto', 0.95, 0.90, 0.85, 0.80, 0.75, 0.70],
+                              'min_weight_fraction_leaf': [0.0, 0.0025, 0.005, 0.0075, 0.01, 0.05],
+                              'splitter': ['random', 'best'],
+                              'min_impurity_decrease': [0.0, 0.0005, 0.005, 0.05, 0.10, 0.15, 0.2],
+                              'min_samples_split': [2, 3, 4, 5, 6, 8, 10],
+                              'max_leaf_nodes': [10, 15, 20, 25, 30, 35, 40, 45, 50, None]
+                              }
             elif est.identifier == "KNN":
                 kcv = RepeatedKFold(n_splits=10, n_repeats=3, random_state=1)
                 param_grid = [
                     {'alg__n_neighbors': [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 20, 30, 50, 100, 150, 200]}]
             else:
-                 if est.identifier in ("LASSO","RIDGE","ELNET"):
-                     kcv = RepeatedKFold(n_splits=10, n_repeats=3, random_state=1)
-                     param_grid = [{'alg__alpha' : np.logspace(-4, -2, 9)}]
-                     if est.identifier == "ELNET":
-                         param_grid = [{'alg__alpha': np.logspace(-4, -2, 9),
-                                        'alg__l1_ratio': [0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99]}]
-                 elif est.identifier == "SVREG":
-                     kcv = RepeatedKFold(n_splits=10, n_repeats=3, random_state=1)
-                     param_grid = [{'alg__kernel': ['rbf'],
-                                    'alg__gamma': ['auto','scale'],
-                                    'alg__C': [1,100]}]
-                 elif est.identifier == "ADABR":
-                     kcv = KFold(n_splits=10, shuffle=True, random_state=2)
-                     param_grid = [{'n_estimators': [100,150,200,500,1000],
-                         'learning_rate': [0.1, 0.15, 0.2, 0.25, 0.3],
-                         'loss': ['linear']}]
+                if est.identifier in ("LASSO", "RIDGE", "ELNET"):
+                    kcv = RepeatedKFold(n_splits=10, n_repeats=3, random_state=1)
+                    param_grid = [{'alg__alpha': np.logspace(-4, -2, 9)}]
+                    if est.identifier == "ELNET":
+                        param_grid = [{'alg__alpha': np.logspace(-4, -2, 9),
+                                       'alg__l1_ratio': [0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95,
+                                                         0.99]}]
+                elif est.identifier == "SVREG":
+                    kcv = RepeatedKFold(n_splits=10, n_repeats=3, random_state=1)
+                    param_grid = [{'alg__kernel': ['rbf'],
+                                   'alg__gamma': ['auto', 'scale'],
+                                   'alg__C': [1, 100]}]
+                elif est.identifier == "ADABR":
+                    kcv = KFold(n_splits=10, shuffle=True, random_state=2)
+                    param_grid = [{'n_estimators': [100, 150, 200, 500, 1000],
+                                   'learning_rate': [0.1, 0.15, 0.2, 0.25, 0.3],
+                                   'loss': ['linear']}]
 
         maxparam = len(param_grid)
         counter = 1
@@ -349,12 +355,14 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df):
                         dfpre = df - 1
                         suffixpre = str(dfpre).zfill(3)
                         dfHyper = pd.read_csv(
-                            r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPERPARAMETERS\model_" + ml_learner + suffixpre + ".csv",";")
+                            r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPERPARAMETERS\model_" + ml_learner + suffixpre + ".csv",
+                            ";")
                     frames = (dfHyper, dfHyperCurrent)
                     dfHyper = pd.concat(frames)
                     suffix = str(df).zfill(3)
                     dfHyper.to_csv(
-                        r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPERPARAMETERS\model_" + ml_learner + suffix + ".csv", ";")
+                        r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPERPARAMETERS\model_" + ml_learner + suffix + ".csv",
+                        ";")
                 dfParam = pd.DataFrame(paramdict)
                 for k in dfColumns:
                     if k not in dfParam.columns:
@@ -366,7 +374,8 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df):
                 dfParam['MAE'] = MAE
                 frames = (dfResults, dfParam)
                 dfResults = pd.concat(frames)
-            dfResults.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Tuning\model_" + ml_learner + suffix + ".csv", ";")
+            dfResults.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Tuning\model_" + ml_learner + suffix + ".csv",
+                             ";")
             counter = counter + 1
         if False:
             grid = GridSearchCV(model, param_grid=param_grid, scoring='neg_mean_absolute_error', cv=kcv, verbose=2)
@@ -390,7 +399,8 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df):
             frames = (dfHyper, dfHyperCurrent)
             dfHyper = pd.concat(frames)
             suffix = str(df).zfill(3)
-            dfHyper.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPERPARAMETERS\model_" + ml_learner + suffix + ".csv",";")
+            dfHyper.to_csv(
+                r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPERPARAMETERS\model_" + ml_learner + suffix + ".csv", ";")
     else:
         fitted = model.fit(xtrain, ytrain)
         predict = fitted.predict(xtest)
@@ -405,6 +415,7 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df):
         resultsdict['R2'] = [R2]
 
     return resultsdict
+
 
 def main():
     # dfHyper = pd.DataFrame()
@@ -442,19 +453,21 @@ def main():
                 testID = pd.read_csv(
                     r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\CombinedWarImputations\TESTSPLIT" + ".csv")
         if False:
-         if os.path.exists(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TRAINSPLIT" + ".csv"):
-            if os.path.exists(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TESTSPLIT" + ".csv"):
-                trainID = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TRAINSPLIT" + ".csv", ";")
-                testID = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TESTSPLIT" + ".csv", ";")
-                trainDF = pd.DataFrame(trainID)
-                trainSize = len(trainDF)
+            if os.path.exists(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TRAINSPLIT" + ".csv"):
+                if os.path.exists(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TESTSPLIT" + ".csv"):
+                    trainID = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TRAINSPLIT" + ".csv",
+                                          ";")
+                    testID = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TESTSPLIT" + ".csv",
+                                         ";")
+                    trainDF = pd.DataFrame(trainID)
+                    trainSize = len(trainDF)
 
     else:
-        #fixedtraintest = False
+        # fixedtraintest = False
         if False:
             for root, dirs, files in os.walk(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations"):
                 for file in files:
-                    if  file.endswith('.csv') and 'TEST' not in file and 'TRAIN' not in file and "SPLIT" not in file:
+                    if file.endswith('.csv') and 'TEST' not in file and 'TRAIN' not in file and "SPLIT" not in file:
                         # filesImp.append(file)
                         filedf = pd.read_csv(root + '\\' + file, ";")
                         trainID, testID = train_test_split(filedf, test_size=0.2)
@@ -463,7 +476,7 @@ def main():
                                        ";")
                         testID.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TESTSPLIT" + ".csv",
                                       ";")
-                        #fixedtraintest = True
+                        # fixedtraintest = True
     metric_columns = ['MAE', 'PW20', 'R2']
     if False:
         # for imp in range(impNumber):
@@ -507,29 +520,31 @@ def main():
                                     filedf.loc[rowindex, 'Status'] = 'train'
                                 elif checkID in patients_test:
                                     filedf.loc[rowindex, 'Status'] = 'test'
-                        counter = counter+1
+                        counter = counter + 1
                         suffix = str(counter).zfill(3)
                         filedf.to_csv(
-                            r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Split\ImpWarPATHSPLIT_" + suffix + ".csv",";")
+                            r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Split\ImpWarPATHSPLIT_" + suffix + ".csv",
+                            ";")
                         filesImp.append(
                             r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Split\ImpWarPATHSPLIT_" + suffix + ".csv")
                         runImp = runImp + 1
     else:
-      counter = 0
-      for root, dirs, files in os.walk(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations"):
-        if root == 'C:\\Users\\Claire\\GIT_REPO_1\\CSCthesisPY\\WarImputations':
-          for file in files:
-            if runImp < maxImp and file.endswith('.csv') and (
-              "train_" not in file and "test_" not in file and "SPLIT" not in file and "TRAIN" not in file and "TEST" not in file) and "ImpWarPATH" in file:
-              filedf = pd.read_csv(root + '\\' + file, ";")
-              counter = counter + 1
-              suffix = str(counter).zfill(3)
-              filedf.to_csv(
-              r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Split\ImpWarPATHSPLIT_" + suffix + ".csv", ";")
-              filesImp.append(
-              r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Split\ImpWarPATHSPLIT_" + suffix + ".csv")
-              runImp = runImp + 1
-        #filesImp.append(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\CombinedWarImputations\AllImputations" + ".csv")
+        counter = 0
+        for root, dirs, files in os.walk(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations"):
+            if root == 'C:\\Users\\Claire\\GIT_REPO_1\\CSCthesisPY\\WarImputations':
+                for file in files:
+                    if runImp < maxImp and file.endswith('.csv') and (
+                            "train_" not in file and "test_" not in file and "SPLIT" not in file and "TRAIN" not in file and "TEST" not in file) and "ImpWarPATH" in file:
+                        filedf = pd.read_csv(root + '\\' + file, ";")
+                        counter = counter + 1
+                        suffix = str(counter).zfill(3)
+                        filedf.to_csv(
+                            r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Split\ImpWarPATHSPLIT_" + suffix + ".csv",
+                            ";")
+                        filesImp.append(
+                            r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Split\ImpWarPATHSPLIT_" + suffix + ".csv")
+                        runImp = runImp + 1
+            # filesImp.append(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\CombinedWarImputations\AllImputations" + ".csv")
     results = []
 
     if os.path.exists(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TRAINSPLIT" + ".csv"):
@@ -607,24 +622,25 @@ def main():
             target_column = 'Dose_mg_week'
             status_column = "Status"
             # unnamed_column = "Unnamed: 0.1.1"
-            #train = data.loc[data["Status"] == "train"]
-            #test = data.loc[data["Status"] == "test"]
+            # train = data.loc[data["Status"] == "train"]
+            # test = data.loc[data["Status"] == "test"]
             train, test = train_test_split(data, test_size=test_size, random_state=66)
             traindf = pd.DataFrame(train)
             testdf = pd.DataFrame(test)
-            traindf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Train"+suffix+ ".csv", ";")
-            testdf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Test"+suffix+".csv", ";")
+            traindf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Train" + suffix + ".csv", ";")
+            testdf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Test" + suffix + ".csv", ";")
             testdf['Status'] = 'test'
             traindf['Status'] = 'train'
             frames = (traindf, testdf)
             combdf = pd.concat(frames)
-            #combdf.index = combdf.index + 1
+            # combdf.index = combdf.index + 1
             combdf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\TrainPlusTest" + suffix + ".csv", ";")
             combID = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\TrainPlusTest" + suffix + ".csv", ";")
-            #combID.index = combID.index+1
+            # combID.index = combID.index+1
             combID.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\TrainTestStatus" + suffix + ".csv", ";")
             combID['NewStatus'] = 'train'
-            combID['NewStatus'] = combID.apply(lambda x:TrainOrTest(x["Unnamed: 0"],trainID[".id"].tolist(), testID[".id"].tolist()), axis=1)
+            combID['NewStatus'] = combID.apply(
+                lambda x: TrainOrTest(x["Unnamed: 0"], trainID[".id"].tolist(), testID[".id"].tolist()), axis=1)
             combID.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\TrainTestStatus" + suffix + ".csv", ";")
             squaring = True
             combIDcopy = combID
@@ -634,7 +650,6 @@ def main():
             test = test.drop([status_column], axis=1)
             train = train.drop(['NewStatus'], axis=1)
             test = test.drop(['NewStatus'], axis=1)
-
 
             x_cols = list(train.columns)
             # _cols_notarg = x_cols.remove(target_column)
@@ -649,16 +664,16 @@ def main():
             y_test = test[target_column].values
             x_test = test.drop([target_column], axis=1)
 
-            #LAS = Lasso(alpha=0.009)
-            #LAS2 = Lasso()
-            #RF = RandomForestRegressor(max_depth=80, max_features='sqrt', min_samples_leaf=5,
+            # LAS = Lasso(alpha=0.009)
+            # LAS2 = Lasso()
+            # RF = RandomForestRegressor(max_depth=80, max_features='sqrt', min_samples_leaf=5,
             #                           min_samples_split=12, n_estimators=2000)
             # ADB = AdaBoostRegressor(RF, n_estimators=6, random_state=42)
             # estimates.append(Estimator(RF, 'RF'))
             # estimates.append(Estimator(ADB, 'AdaBoostRF'))
             LR = LinearRegression()
             estimates.append(Estimator(LR, 'LR'))
-            #estimates.append(Estimator(LAS2, 'LAS2'))
+            # estimates.append(Estimator(LAS2, 'LAS2'))
             # XGB
             # modelX2 = XGBRegressor()
             # modelX = XGBRegressor(booster='gblinear',
@@ -725,11 +740,11 @@ def main():
             # estimates.append(Estimator(NN, 'NN'))
             # estimates.append(Estimator(NN, 'NN2'))
         estimates = []
-        estimates.append(Estimator(LR,'LR'))
-        #XGBR = XGBRegressor(n_estimators=400, max_depth=3, learning_rate=0.01, colsample_bytree=0.5, subsample=0.9)
-        #estimates.append(Estimator(LR, 'LR'))
-        #estimates.append(Estimator(pipeline_scaled, 'MLPR1'))
-        #estimates.append(Estimator(XGBR,'XGBR'))
+        estimates.append(Estimator(LR, 'LR'))
+        # XGBR = XGBRegressor(n_estimators=400, max_depth=3, learning_rate=0.01, colsample_bytree=0.5, subsample=0.9)
+        # estimates.append(Estimator(LR, 'LR'))
+        # estimates.append(Estimator(pipeline_scaled, 'MLPR1'))
+        # estimates.append(Estimator(XGBR,'XGBR'))
 
         # MLPR = MLPRegressor(alpha=0.05, hidden_layer_sizes=(100, 50, 30), learning_rate='adaptive', max_iter=100,
         #                    solver='sgd')
@@ -741,268 +756,269 @@ def main():
             x_train = sc_X.fit_transform(x_train)
             x_test = sc_X.transform(x_test)
         if True:
-          # MLPR1 = MLPRegressor(hidden_layer_sizes=(90,5,), activation="relu", learning_rate='adaptive', max_iter=1000,learning_rate_init=0.001)
-          MLPR2 = MLPRegressor(hidden_layer_sizes=(196,), learning_rate='adaptive', learning_rate_init=0.002,
-                               max_iter=2000, activation="relu")
-          # MLPR2A = MLPRegressor(hidden_layer_sizes=(15, 3,), learning_rate='adaptive', learning_rate_init=0.0039, max_iter=1500,activation="relu")
-          # MLPR2B = MLPRegressor(hidden_layer_sizes=(15, 3,), learning_rate='adaptive', learning_rate_init=0.0034,max_iter=2600,activation="relu")
-          # MLPR2C = MLPRegressor(hidden_layer_sizes=(15, 3,), learning_rate='adaptive', learning_rate_init=0.0031,max_iter=3100,activation="relu")
-          # MLPR2D = MLPRegressor(hidden_layer_sizes=(15, 3,), learning_rate='adaptive', learning_rate_init=0.0026,max_iter=2800,activation="relu")
-          # MLPR3 = MLPRegressor(hidden_layer_sizes=(85,3,), activation="relu", learning_rate='adaptive', max_iter=2000, learning_rate_init=0.003)
-          # MLPR4 = MLPRegressor(hidden_layer_sizes=(30,), activation="relu", learning_rate='adaptive',max_iter=3000, learning_rate_init=0.0022)
-          #MLPR4B = MLPRegressor(hidden_layer_sizes=(30,), activation="relu", learning_rate='adaptive',max_iter=3400, learning_rate_init=0.0031)
-          #MLPR4C = MLPRegressor(hidden_layer_sizes=(30,), activation="relu", learning_rate='adaptive',max_iter=3000, learning_rate_init=0.005)
-          #MLPR4D = MLPRegressor(hidden_layer_sizes=(30,), activation="relu", learning_rate='adaptive',max_iter=1800, learning_rate_init=0.0029)
+            # MLPR1 = MLPRegressor(hidden_layer_sizes=(90,5,), activation="relu", learning_rate='adaptive', max_iter=1000,learning_rate_init=0.001)
+            MLPR2 = MLPRegressor(hidden_layer_sizes=(196,), learning_rate='adaptive', learning_rate_init=0.002,
+                                 max_iter=2000, activation="relu")
+            # MLPR2A = MLPRegressor(hidden_layer_sizes=(15, 3,), learning_rate='adaptive', learning_rate_init=0.0039, max_iter=1500,activation="relu")
+            # MLPR2B = MLPRegressor(hidden_layer_sizes=(15, 3,), learning_rate='adaptive', learning_rate_init=0.0034,max_iter=2600,activation="relu")
+            # MLPR2C = MLPRegressor(hidden_layer_sizes=(15, 3,), learning_rate='adaptive', learning_rate_init=0.0031,max_iter=3100,activation="relu")
+            # MLPR2D = MLPRegressor(hidden_layer_sizes=(15, 3,), learning_rate='adaptive', learning_rate_init=0.0026,max_iter=2800,activation="relu")
+            # MLPR3 = MLPRegressor(hidden_layer_sizes=(85,3,), activation="relu", learning_rate='adaptive', max_iter=2000, learning_rate_init=0.003)
+            # MLPR4 = MLPRegressor(hidden_layer_sizes=(30,), activation="relu", learning_rate='adaptive',max_iter=3000, learning_rate_init=0.0022)
+            # MLPR4B = MLPRegressor(hidden_layer_sizes=(30,), activation="relu", learning_rate='adaptive',max_iter=3400, learning_rate_init=0.0031)
+            # MLPR4C = MLPRegressor(hidden_layer_sizes=(30,), activation="relu", learning_rate='adaptive',max_iter=3000, learning_rate_init=0.005)
+            # MLPR4D = MLPRegressor(hidden_layer_sizes=(30,), activation="relu", learning_rate='adaptive',max_iter=1800, learning_rate_init=0.0029)
 
-          #MLPR5 = MLPRegressor(hidden_layer_sizes=(40,), learning_rate='adaptive', learning_rate_init=0.003,max_iter=2500, activation="relu")
-          #MLPR6 = MLPRegressor(hidden_layer_sizes=(65,), activation="relu", learning_rate='adaptive', max_iter=2500, learning_rate_init=0.003)
+            # MLPR5 = MLPRegressor(hidden_layer_sizes=(40,), learning_rate='adaptive', learning_rate_init=0.003,max_iter=2500, activation="relu")
+            # MLPR6 = MLPRegressor(hidden_layer_sizes=(65,), activation="relu", learning_rate='adaptive', max_iter=2500, learning_rate_init=0.003)
 
-          #pipeline1_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', MLPR1)])
-          #pipeline2_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', MLPR2)])
-          # pipeline2A_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', MLPR2A)])
-          # pipeline2B_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', MLPR2B)])
-          # pipeline2C_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', MLPR2C)])
-          # pipeline2D_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', MLPR2D)])
-          # pipeline3_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', MLPR3)])
-          # pipeline4_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', MLPR4)])
-          # pipeline4A_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', MLPR4A)])
-          # pipeline4B_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', MLPR4B)])
-          # pipeline4C_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', MLPR4C)])
-          # pipeline4D_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', MLPR4D)])
-          # pipeline5_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', MLPR5)])
-          # pipeline6_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', MLPR6)])
-          # estimates.append(Estimator(pipeline1_scaled,'MLPR1'))
-          # estimates.append(Estimator(pipeline3_scaled,'MLPR3'))
-          # estimates.append(Estimator(pipeline4_scaled,'MLPR4'))
-          # estimates.append(Estimator(pipeline4A_scaled, 'MLPR4A'))
-          # estimates.append(Estimator(pipeline4B_scaled, 'MLPR4B'))
-          # estimates.append(Estimator(pipeline4C_scaled, 'MLPR4C'))
-          # estimates.append(Estimator(pipeline4D_scaled, 'MLPR4D'))
-          # estimates.append(Estimator(pipeline2_scaled, 'MLPR2'))
-          # estimates.append(Estimator(pipeline2A_scaled, 'MLPR2A'))
-          # estimates.append(Estimator(pipeline2B_scaled, 'MLPR2B'))
-          # estimates.append(Estimator(pipeline2C_scaled, 'MLPR2C'))
-          # estimates.append(Estimator(pipeline2D_scaled, 'MLPR2D'))
-          # estimates.append(Estimator(pipeline5_scaled,'MLPR5'))
-          # estimates.append(Estimator(pipeline6_scaled,'MLPR6'))
+            # pipeline1_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', MLPR1)])
+            # pipeline2_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', MLPR2)])
+            # pipeline2A_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', MLPR2A)])
+            # pipeline2B_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', MLPR2B)])
+            # pipeline2C_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', MLPR2C)])
+            # pipeline2D_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', MLPR2D)])
+            # pipeline3_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', MLPR3)])
+            # pipeline4_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', MLPR4)])
+            # pipeline4A_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', MLPR4A)])
+            # pipeline4B_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', MLPR4B)])
+            # pipeline4C_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', MLPR4C)])
+            # pipeline4D_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', MLPR4D)])
+            # pipeline5_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', MLPR5)])
+            # pipeline6_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', MLPR6)])
+            # estimates.append(Estimator(pipeline1_scaled,'MLPR1'))
+            # estimates.append(Estimator(pipeline3_scaled,'MLPR3'))
+            # estimates.append(Estimator(pipeline4_scaled,'MLPR4'))
+            # estimates.append(Estimator(pipeline4A_scaled, 'MLPR4A'))
+            # estimates.append(Estimator(pipeline4B_scaled, 'MLPR4B'))
+            # estimates.append(Estimator(pipeline4C_scaled, 'MLPR4C'))
+            # estimates.append(Estimator(pipeline4D_scaled, 'MLPR4D'))
+            # estimates.append(Estimator(pipeline2_scaled, 'MLPR2'))
+            # estimates.append(Estimator(pipeline2A_scaled, 'MLPR2A'))
+            # estimates.append(Estimator(pipeline2B_scaled, 'MLPR2B'))
+            # estimates.append(Estimator(pipeline2C_scaled, 'MLPR2C'))
+            # estimates.append(Estimator(pipeline2D_scaled, 'MLPR2D'))
+            # estimates.append(Estimator(pipeline5_scaled,'MLPR5'))
+            # estimates.append(Estimator(pipeline6_scaled,'MLPR6'))
 
-          if True:
-             #RF = RandomForestRegressor()
-             KNNR = KNeighborsRegressor()
-             pipeline_KNNR_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', KNNR)])
-             #RF = RandomForestRegressor(max_depth=100, max_features=2, min_samples_leaf=60,min_samples_split=8, n_estimators=100)
-             #RF = RandomForestRegressor(max_depth=125, max_features=2, min_samples_leaf=3,min_samples_split=8, n_estimators=200)
-             #RF = RandomForestRegressor(max_depth=120, max_features=3, min_samples_leaf=4,min_samples_split=12, n_estimators=100)
-             #RF = RandomForestRegressor(){'bootstrap': True, 'max_depth': 120, 'max_features': 3, 'min_samples_leaf': 4, 'min_samples_split': 12,
-             # 'n_estimators': 100}
-             # ................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................,,,,,,,,,,,
-             # ABRF = AdaBoostRegressor(base_estimator=RF,  learning_rate=0.015, n_estimators=15)
-             # ABRF2 = AdaBoostRegressor(base_estimator=RF, learning_rate=0.01, n_estimators=10)
-             #RF = RandomForestRegressor()
-             #estimates.append(Estimator(RF,'RF'))
-             #estimates.append(Estimator(pipeline_KNNR_scaled, 'KNN'))
-             #estimates.append(Estimator(KNNR, 'KNN'))
-             #estimates.append(Estimator(ABRF,'ABRF'))
-             # estimates.append(Estimator(ABRF2, 'ABRF2'))
-             #model = Lasso()
-             #pipeline_LASSO_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
-             #estimates.append(Estimator(pipeline_LASSO_scaled, 'LASSO'))
-             #model = Ridge()
-             #pipeline_Ridge_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
-             #estimates.append(Estimator(pipeline_Ridge_scaled, 'RIDGE'))
-             #model = ElasticNet()
-             #pipeline_ELNET_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
-             #estimates.append(Estimator(pipeline_ELNET_scaled, 'ELNET'))
-             #model = sklearn.svm.SVR()
-             #pipeline_SVREG_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
-             #estimates.append(Estimator(pipeline_SVREG_scaled,"SVREG"))
-             #RF = RandomForestRegressor()
-             #estimates.append(Estimator(RF, 'RF'))
-             #estimates.append(Estimator(RF, 'RF2'))
-             DTR = DecisionTreeRegressor()
-             estimates.append(Estimator(DTR,'DTR'))
-             for _, est in enumerate(estimates):
-                resultsdict = traineval(est, x_train, y_train, x_test, y_test, squaring=squaring, df=df)
-                #print("Accuracy: %.3f%% (%.3f%%)" % (results2.mean() * 100.0, results2.std() * 100.0))
-                res_dict = {
-                               'Estimator': [est.identifier for x in range(len(resultsdict['PW20']))],
-                               'PW20': resultsdict['PW20'],
-                               'MAE': resultsdict['MAE'],
-                              'R2': resultsdict['R2']}
-                results.append(res_dict)
+            if True:
+                # RF = RandomForestRegressor()
+                KNNR = KNeighborsRegressor()
+                pipeline_KNNR_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', KNNR)])
+                # RF = RandomForestRegressor(max_depth=100, max_features=2, min_samples_leaf=60,min_samples_split=8, n_estimators=100)
+                # RF = RandomForestRegressor(max_depth=125, max_features=2, min_samples_leaf=3,min_samples_split=8, n_estimators=200)
+                # RF = RandomForestRegressor(max_depth=120, max_features=3, min_samples_leaf=4,min_samples_split=12, n_estimators=100)
+                # RF = RandomForestRegressor(){'bootstrap': True, 'max_depth': 120, 'max_features': 3, 'min_samples_leaf': 4, 'min_samples_split': 12,
+                # 'n_estimators': 100}
+                # ................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................,,,,,,,,,,,
+                # ABRF = AdaBoostRegressor(base_estimator=RF,  learning_rate=0.015, n_estimators=15)
+                # ABRF2 = AdaBoostRegressor(base_estimator=RF, learning_rate=0.01, n_estimators=10)
+                # RF = RandomForestRegressor()
+                # estimates.append(Estimator(RF,'RF'))
+                # estimates.append(Estimator(pipeline_KNNR_scaled, 'KNN'))
+                # estimates.append(Estimator(KNNR, 'KNN'))
+                # estimates.append(Estimator(ABRF,'ABRF'))
+                # estimates.append(Estimator(ABRF2, 'ABRF2'))
+                # model = Lasso()
+                # pipeline_LASSO_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
+                # estimates.append(Estimator(pipeline_LASSO_scaled, 'LASSO'))
+                # model = Ridge()
+                # pipeline_Ridge_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
+                # estimates.append(Estimator(pipeline_Ridge_scaled, 'RIDGE'))
+                # model = ElasticNet()
+                # pipeline_ELNET_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
+                # estimates.append(Estimator(pipeline_ELNET_scaled, 'ELNET'))
+                # model = sklearn.svm.SVR()
+                # pipeline_SVREG_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
+                # estimates.append(Estimator(pipeline_SVREG_scaled,"SVREG"))
+                # RF = RandomForestRegressor()
+                # estimates.append(Estimator(RF, 'RF'))
+                # estimates.append(Estimator(RF, 'RF2'))
+                DTR = DecisionTreeRegressor()
+                estimates.append(Estimator(DTR, 'DTR'))
+                for _, est in enumerate(estimates):
+                    resultsdict = traineval(est, x_train, y_train, x_test, y_test, squaring=squaring, df=df)
+                    # print("Accuracy: %.3f%% (%.3f%%)" % (results2.mean() * 100.0, results2.std() * 100.0))
+                    res_dict = {
+                        'Estimator': [est.identifier for x in range(len(resultsdict['PW20']))],
+                        'PW20': resultsdict['PW20'],
+                        'MAE': resultsdict['MAE'],
+                        'R2': resultsdict['R2']}
+                    results.append(res_dict)
 
-             df_res = pd.DataFrame()
-             for res in results:
-                 df_res = df_res.append(pd.DataFrame.from_dict(res))
-                 print(f"\n\n{df_res.groupby(['Estimator']).agg(np.mean)}\n")
-                 if False:
-                    ab_EL = AdaBoostRegressor(EL, n_estimators=400, random_state=7)
-                    SGD = SGDRegressor(penalty="l2")
-                    KNN = KNeighborsRegressor(weights="uniform", p=1, n_neighbors=14, algorithm="brute")
-                    NN = MLPRegressor(hidden_layer_sizes=(100,), activation="relu", random_state=1, max_iter=2000)
-                    NN = MLPRegressor(hidden_layer_sizes=(100,), activation="relu", random_state=1, max_iter=2000)
-                    NN = MLPRegressor(hidden_layer_sizes=(100,), activation='relu', solver='lbfgs', max_iter=1000)
-                    # SV = SVR(kernel='linear', cache_size=1000)
-                    # SVReg = SVR(epsilon=1.5, kernel='sigmoid',C=2.0)
-
-                    # SVR = LinearSVR(C=9.59, epsilon=0.42, fit_intercept=True)
-                    # DTR = DecisionTreeRegressor(criterion="friedman_mse",max_depth=11, max_features='sqrt', max_leaf_nodes=40, min_impurity_decrease=0.8,min_samples_leaf=7,min_weight_fraction_leaf=0.1,splitter='best')
-                    # DTR = DecisionTreeRegressor(max_depth=4)
-                    # ab_regressor = AdaBoostRegressor(DecisionTreeRegressor(max_depth=4), n_estimators=400, random_state=7)
-                    # BRT = GradientBoostingRegressor(loss='ls', learning_rate=0.1, n_estimators=100)
-                    # XGBR = XGBRegressor(learning_rate=0.01, colsample_bytree=0.3, max_depth=3, n_estimators=500,
-                    #                   objective='reg:squarederror')
-                    # RandomForestRegressor(max_depth=40, max_features=2, min_samples_leaf=4, min_samples_split=12)
-
-                    # RF = RandomForestRegressor(max_features='sqrt', bootstrap=True, n_estimators=500, max_depth=10,
-                    #                       min_samples_split=2, min_samples_leaf=5)
-                    # ab_RF = AdaBoostRegressor(RF, n_estimators=400, random_state=7)
-                    # CUBE = Cubist()
-                    # XGB = XGBRegressor(max_depth=10, n_estimators=1000, min_child_weight=5, subsample=0.6,
-                    #               alpha=0.1, eta=0.1, seed=42)
-                    # n_trees = 100
-                    # mdepth = 6
-                    # gamma = 1
-                    # lam = 1
-                    # XG = XGBClassifier(
-                    # learning_rate=0.1,
-                    # n_estimators=1000,
-                    # max_depth=5,
-                    # min_child_weight=1,
-                    # gamma=0,
-                    #subsample=0.8,
-                    # colsample_bytree=0.8,
-                    # objective='multi:softmax',
-                    # nthread=4,
-                    # scale_pos_weight=1,
-                    # seed=27,
-                    # num_class=3,
-                    # )
-                    # BAG = BaggingClassifier(KNeighborsClassifier(),max_samples=0.5, max_features=0.5)
-                    # XG = XGBClassifier(use_label_encoder=False,
-                    #                      booster='gbtree',  # boosting algorithm to use, default gbtree, othera: gblinear, dart
-                    #                      n_estimators=n_trees,  # number of trees, default = 100
-                    #                      eta=0.3,  # this is learning rate, default = 0.3
-                    #                      max_depth=mdepth,  # maximum depth of the tree, default = 6
-                    #                      gamma=gamma,
-                    #                      # used for pruning, if gain < gamma the branch will be pruned, default = 0
-                    #                      reg_lambda=lam,  # regularization parameter, defautl = 1
-                    #                      # min_child_weight=0 # this refers to Cover which is also responsible for pruning if not set to 0
-                    #                      )
-                    estimates.append(Estimator(LR, 'LR'))
-                    estimates.append(Estimator(BRT, 'BRT'))
-                    # estimates.append(Estimator(GBT, 'GBT'))
-                    estimates.append(Estimator(RF, 'RF'))
-                    estimates.append(Estimator(CUBE, 'Cubist'))
-                    estimates.append(Estimator(XG, 'XGB'))
-                    estimates.append(Estimator(NN, 'NN'))
-                    estimates.append(Estimator(RR, 'RR'))
-                    # estimates.append(Estimator(SV, 'SV'))
-                    estimates.append(Estimator(EL, 'EL'))
-                    # models = list()
-                    # models.append(('KNN', KNeighborsRegressor(weights="uniform", p=1, n_neighbors= 14,algorithm = "brute")))
-                    # models.append(('DTR', DecisionTreeRegressor(max_depth=4)))
-                    # models.append(('SVR', SVR(epsilon=1.5, kernel='sigmoid',C=2.0)))
-                    # scores = evaluate_models(models, x_train, x_test, y_train, y_test)
-                    # ensemble1 = VotingRegressor(estimators = models,weights = scores)
-                    estimates.append(
-                    Estimator(LinearSVR(epsilon=0.0, tol=0.0001, C=1.0, loss='epsilon_insensitive'), 'SVR'))
-                    estimates.append(
-                    Estimator(StackingCVRegressor(regressors=[SVR, KNN, BRT], meta_regressor=SVR, cv=5, ),
-                              'Stacked_SVR'))
-                    estimates.append(
-                    Estimator(StackingCVRegressor(regressors=[XGB, SVR, NN], meta_regressor=SVR, cv=5, ), 'Stacked_SV'))
-                    # estimates.append(Estimator(BAG, 'Bag'))
-                    estimates.append(Estimator(LAS, 'Lasso'))
-                    tpot2 = make_pipeline(
-                    StackingEstimator(
-                        estimator=LinearSVR(
-                            C=1.0,
-                            dual=True,
-                            epsilon=0.01,
-                            loss="epsilon_insensitive",
-                            tol=0.001, )),
-                    StackingEstimator(
-                        estimator=ElasticNetCV(l1_ratio=0.6000000000000001, tol=0.01, cv=5)),
-                    RobustScaler(),
-                    StackingEstimator(estimator=RidgeCV()),
-                    ExtraTreesRegressor(
-                        bootstrap=True,
-                        max_features=1.0,
-                        min_samples_leaf=20,
-                        min_samples_split=2,
-                        n_estimators=100, )
-                )
-                    tpot10 = make_pipeline(
-                    StackingEstimator(estimator=ExtraTreesRegressor(
-                        bootstrap=True, max_features=0.05,
-                        min_samples_leaf=18, min_samples_split=10,
-                        n_estimators=100)),
-                    MaxAbsScaler(),
-                    StackingEstimator(estimator=ExtraTreesRegressor(
-                        bootstrap=True, max_features=0.05,
-                        min_samples_leaf=18, min_samples_split=10, n_estimators=100)),
-                    LassoLarsCV(normalize=True, cv=3)
-                )
-                    tpot17 = make_pipeline(
-                    make_union(
-                        FunctionTransformer(copy, validate=True),
-                        MaxAbsScaler()
-                    ),
-                    StackingEstimator(estimator=RidgeCV()),
-                    ZeroCount(),
-                    GradientBoostingRegressor(alpha=0.9, learning_rate=0.1, loss="lad",
-                                              max_depth=3, max_features=0.9000000000000001,
-                                              n_estimators=100, subsample=0.55)
-                )
-                    estimates.append(Estimator(tpot2, 'TPOT2'))
-                    estimates.append(Estimator(tpot10, 'TPOT10'))
-                    estimates.append(Estimator(tpot17, 'TPOT17'))
-                    estimates = []
-                    #
-                    # estimates.append(Estimator(DTR,'DTR'))
-                    # estimates.append(Estimator(ab_regressor,'ABDTR'))
-                    # estimates.append(Estimator(LR, 'LR'))
-                    # estimates.append(Estimator(ab_RR,'ABRR'))
-                    # estimates.append(Estimator(ab_RF, 'ABRF'))
-                    # estimates.append(Estimator(ab_EL, 'ABEL'))
-                    # estimates.append(Estimator(ab_LAS, 'ABLasso'))
-                    # estimates.append(Estimator(XGBR, 'XGBR'))
-                    # estimates.append(Estimator(RR, 'RR'))
-                    # estimates.append(Estimator(RF, 'RF'))
-                    # estimates.append(Estimator(EL, 'EL'))
-                    # estimates.append(Estimator(LAS, 'Lasso'))
-                    # estimates.append(Estimator(SGD, 'SGD'))
-                    # estimates.append(Estimator(SVReg, 'SVR'))
-                    # estimates.append(Estimator(NN, 'NN'))
-                    # estimates.append(Estimator(KNN,"KNN"))
-                    # estimates.append(Estimator(ensemble1,'Ensemble1')) #KNN,DTR,SVR
-                    warpath_results = evaluate_estimators(estimates,
-                                                      data,
-                                                      target_column='Dose_mg_week'
-                                                      , scale=True
-                                                      , test_size=0.1
-                                                      , squaring=True
-                                                      , technique='mccv'
-                                                      , parallelism=0.8
-                                                      )
-                    print(warpath_results)
-                    summary = warpath_results.groupby('Estimator').apply(np.mean)
-                    print(summary)
-                    dftemplate = dftemplate.append(summary)
-                    warpath_formatted = format_summary(warpath_results)
-                    dfWarPath = dfWarPath.append(warpath_results)
-                    df_final = pd.concat([warpath_formatted], axis=1, keys=['WARPATH'])
-                    print(df_final)
-                    suffix = str(df).zfill(3)
-                    df_final.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_" + suffix + ".csv", ";")
+                df_res = pd.DataFrame()
+                for res in results:
+                    df_res = df_res.append(pd.DataFrame.from_dict(res))
+                    print(f"\n\n{df_res.groupby(['Estimator']).agg(np.mean)}\n")
                     if False:
-                     model.fit(X, y, epochs=150, batch_size=10, verbose=0)
-                     # make class predictions with the model
-                     predictions = (model.predict(X) > 0.5).astype(int)
-                     # summarize the first 50 cases
-                     for i in range(50):
-                        print('%s => %d (expected %d)' % (X[i].tolist(), predictions[i], y[i]))
+                        ab_EL = AdaBoostRegressor(EL, n_estimators=400, random_state=7)
+                        SGD = SGDRegressor(penalty="l2")
+                        KNN = KNeighborsRegressor(weights="uniform", p=1, n_neighbors=14, algorithm="brute")
+                        NN = MLPRegressor(hidden_layer_sizes=(100,), activation="relu", random_state=1, max_iter=2000)
+                        NN = MLPRegressor(hidden_layer_sizes=(100,), activation="relu", random_state=1, max_iter=2000)
+                        NN = MLPRegressor(hidden_layer_sizes=(100,), activation='relu', solver='lbfgs', max_iter=1000)
+                        # SV = SVR(kernel='linear', cache_size=1000)
+                        # SVReg = SVR(epsilon=1.5, kernel='sigmoid',C=2.0)
+
+                        # SVR = LinearSVR(C=9.59, epsilon=0.42, fit_intercept=True)
+                        # DTR = DecisionTreeRegressor(criterion="friedman_mse",max_depth=11, max_features='sqrt', max_leaf_nodes=40, min_impurity_decrease=0.8,min_samples_leaf=7,min_weight_fraction_leaf=0.1,splitter='best')
+                        # DTR = DecisionTreeRegressor(max_depth=4)
+                        # ab_regressor = AdaBoostRegressor(DecisionTreeRegressor(max_depth=4), n_estimators=400, random_state=7)
+                        # BRT = GradientBoostingRegressor(loss='ls', learning_rate=0.1, n_estimators=100)
+                        # XGBR = XGBRegressor(learning_rate=0.01, colsample_bytree=0.3, max_depth=3, n_estimators=500,
+                        #                   objective='reg:squarederror')
+                        # RandomForestRegressor(max_depth=40, max_features=2, min_samples_leaf=4, min_samples_split=12)
+
+                        # RF = RandomForestRegressor(max_features='sqrt', bootstrap=True, n_estimators=500, max_depth=10,
+                        #                       min_samples_split=2, min_samples_leaf=5)
+                        # ab_RF = AdaBoostRegressor(RF, n_estimators=400, random_state=7)
+                        # CUBE = Cubist()
+                        # XGB = XGBRegressor(max_depth=10, n_estimators=1000, min_child_weight=5, subsample=0.6,
+                        #               alpha=0.1, eta=0.1, seed=42)
+                        # n_trees = 100
+                        # mdepth = 6
+                        # gamma = 1
+                        # lam = 1
+                        # XG = XGBClassifier(
+                        # learning_rate=0.1,
+                        # n_estimators=1000,
+                        # max_depth=5,
+                        # min_child_weight=1,
+                        # gamma=0,
+                        # subsample=0.8,
+                        # colsample_bytree=0.8,
+                        # objective='multi:softmax',
+                        # nthread=4,
+                        # scale_pos_weight=1,
+                        # seed=27,
+                        # num_class=3,
+                        # )
+                        # BAG = BaggingClassifier(KNeighborsClassifier(),max_samples=0.5, max_features=0.5)
+                        # XG = XGBClassifier(use_label_encoder=False,
+                        #                      booster='gbtree',  # boosting algorithm to use, default gbtree, othera: gblinear, dart
+                        #                      n_estimators=n_trees,  # number of trees, default = 100
+                        #                      eta=0.3,  # this is learning rate, default = 0.3
+                        #                      max_depth=mdepth,  # maximum depth of the tree, default = 6
+                        #                      gamma=gamma,
+                        #                      # used for pruning, if gain < gamma the branch will be pruned, default = 0
+                        #                      reg_lambda=lam,  # regularization parameter, defautl = 1
+                        #                      # min_child_weight=0 # this refers to Cover which is also responsible for pruning if not set to 0
+                        #                      )
+                        estimates.append(Estimator(LR, 'LR'))
+                        estimates.append(Estimator(BRT, 'BRT'))
+                        # estimates.append(Estimator(GBT, 'GBT'))
+                        estimates.append(Estimator(RF, 'RF'))
+                        estimates.append(Estimator(CUBE, 'Cubist'))
+                        estimates.append(Estimator(XG, 'XGB'))
+                        estimates.append(Estimator(NN, 'NN'))
+                        estimates.append(Estimator(RR, 'RR'))
+                        # estimates.append(Estimator(SV, 'SV'))
+                        estimates.append(Estimator(EL, 'EL'))
+                        # models = list()
+                        # models.append(('KNN', KNeighborsRegressor(weights="uniform", p=1, n_neighbors= 14,algorithm = "brute")))
+                        # models.append(('DTR', DecisionTreeRegressor(max_depth=4)))
+                        # models.append(('SVR', SVR(epsilon=1.5, kernel='sigmoid',C=2.0)))
+                        # scores = evaluate_models(models, x_train, x_test, y_train, y_test)
+                        # ensemble1 = VotingRegressor(estimators = models,weights = scores)
+                        estimates.append(
+                            Estimator(LinearSVR(epsilon=0.0, tol=0.0001, C=1.0, loss='epsilon_insensitive'), 'SVR'))
+                        estimates.append(
+                            Estimator(StackingCVRegressor(regressors=[SVR, KNN, BRT], meta_regressor=SVR, cv=5, ),
+                                      'Stacked_SVR'))
+                        estimates.append(
+                            Estimator(StackingCVRegressor(regressors=[XGB, SVR, NN], meta_regressor=SVR, cv=5, ),
+                                      'Stacked_SV'))
+                        # estimates.append(Estimator(BAG, 'Bag'))
+                        estimates.append(Estimator(LAS, 'Lasso'))
+                        tpot2 = make_pipeline(
+                            StackingEstimator(
+                                estimator=LinearSVR(
+                                    C=1.0,
+                                    dual=True,
+                                    epsilon=0.01,
+                                    loss="epsilon_insensitive",
+                                    tol=0.001, )),
+                            StackingEstimator(
+                                estimator=ElasticNetCV(l1_ratio=0.6000000000000001, tol=0.01, cv=5)),
+                            RobustScaler(),
+                            StackingEstimator(estimator=RidgeCV()),
+                            ExtraTreesRegressor(
+                                bootstrap=True,
+                                max_features=1.0,
+                                min_samples_leaf=20,
+                                min_samples_split=2,
+                                n_estimators=100, )
+                        )
+                        tpot10 = make_pipeline(
+                            StackingEstimator(estimator=ExtraTreesRegressor(
+                                bootstrap=True, max_features=0.05,
+                                min_samples_leaf=18, min_samples_split=10,
+                                n_estimators=100)),
+                            MaxAbsScaler(),
+                            StackingEstimator(estimator=ExtraTreesRegressor(
+                                bootstrap=True, max_features=0.05,
+                                min_samples_leaf=18, min_samples_split=10, n_estimators=100)),
+                            LassoLarsCV(normalize=True, cv=3)
+                        )
+                        tpot17 = make_pipeline(
+                            make_union(
+                                FunctionTransformer(copy, validate=True),
+                                MaxAbsScaler()
+                            ),
+                            StackingEstimator(estimator=RidgeCV()),
+                            ZeroCount(),
+                            GradientBoostingRegressor(alpha=0.9, learning_rate=0.1, loss="lad",
+                                                      max_depth=3, max_features=0.9000000000000001,
+                                                      n_estimators=100, subsample=0.55)
+                        )
+                        estimates.append(Estimator(tpot2, 'TPOT2'))
+                        estimates.append(Estimator(tpot10, 'TPOT10'))
+                        estimates.append(Estimator(tpot17, 'TPOT17'))
+                        estimates = []
+                        #
+                        # estimates.append(Estimator(DTR,'DTR'))
+                        # estimates.append(Estimator(ab_regressor,'ABDTR'))
+                        # estimates.append(Estimator(LR, 'LR'))
+                        # estimates.append(Estimator(ab_RR,'ABRR'))
+                        # estimates.append(Estimator(ab_RF, 'ABRF'))
+                        # estimates.append(Estimator(ab_EL, 'ABEL'))
+                        # estimates.append(Estimator(ab_LAS, 'ABLasso'))
+                        # estimates.append(Estimator(XGBR, 'XGBR'))
+                        # estimates.append(Estimator(RR, 'RR'))
+                        # estimates.append(Estimator(RF, 'RF'))
+                        # estimates.append(Estimator(EL, 'EL'))
+                        # estimates.append(Estimator(LAS, 'Lasso'))
+                        # estimates.append(Estimator(SGD, 'SGD'))
+                        # estimates.append(Estimator(SVReg, 'SVR'))
+                        # estimates.append(Estimator(NN, 'NN'))
+                        # estimates.append(Estimator(KNN,"KNN"))
+                        # estimates.append(Estimator(ensemble1,'Ensemble1')) #KNN,DTR,SVR
+                        warpath_results = evaluate_estimators(estimates,
+                                                              data,
+                                                              target_column='Dose_mg_week'
+                                                              , scale=True
+                                                              , test_size=0.1
+                                                              , squaring=True
+                                                              , technique='mccv'
+                                                              , parallelism=0.8
+                                                              )
+                        print(warpath_results)
+                        summary = warpath_results.groupby('Estimator').apply(np.mean)
+                        print(summary)
+                        dftemplate = dftemplate.append(summary)
+                        warpath_formatted = format_summary(warpath_results)
+                        dfWarPath = dfWarPath.append(warpath_results)
+                        df_final = pd.concat([warpath_formatted], axis=1, keys=['WARPATH'])
+                        print(df_final)
+                        suffix = str(df).zfill(3)
+                        df_final.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_" + suffix + ".csv", ";")
+                        if False:
+                            model.fit(X, y, epochs=150, batch_size=10, verbose=0)
+                            # make class predictions with the model
+                            predictions = (model.predict(X) > 0.5).astype(int)
+                            # summarize the first 50 cases
+                            for i in range(50):
+                                print('%s => %d (expected %d)' % (X[i].tolist(), predictions[i], y[i]))
     if False:
         dftemplate.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dftemplate" + ".csv", ";")
         dfSummary = dftemplate.groupby('Estimator').apply(np.mean)

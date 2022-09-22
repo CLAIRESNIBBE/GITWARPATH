@@ -293,20 +293,16 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df):
         frames = (dfHyper, dfHyperCurrent)
         dfHyper = pd.concat(frames)
         suffix = str(df).zfill(3)
-        dfHyper.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPERPARAMSIWPCADD\model_" + ml_learner + suffix + ".csv",
-                       ";")
+        dfHyper.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPERPARAMSIWPCADD\model_" + ml_learner + suffix + ".csv",";")
 
     fitted = model.fit(xtrain, ytrain)
     predict = fitted.predict(xtest)
-    # redicts = search.best_estimator_.predict(xtest)
     if squaring:
         ytest = np.square(ytest)
         predict = np.square(predict)
     PW20 = PercIn20(ytest, predict)
     MAE = mean_absolute_error(ytest, predict)
     R2 = RSquared(ytest, predict)
-    # results2 = cross_val_score(model, xtrain, ytrain, cv=kcv, scoring='neg_mean_absolute_error')
-    # print("Accuracy: %.3f%% (%.3f%%)" % (results2.mean() * 100.0, results2.std() * 100.0))
     resultsdict['PW20'] = [PW20]
     resultsdict['MAE'] = [MAE]
     resultsdict['R2'] = [R2]
