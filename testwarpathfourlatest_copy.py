@@ -18,12 +18,12 @@ from lineartree import LinearBoostRegressor
 import optuna
 from optuna import Trial, visualization
 from optuna.samplers import TPESampler
-from sklearn.linear_model import LinearRegression, Ridge, Perceptron
+from sklearn.linear_model import LinearRegression, Ridge, Perceptron, SGDRegressor
 from sklearn.metrics import mean_absolute_error
 from sklearn.metrics import make_scorer
 from sklearn.svm import LinearSVR, SVR
 from sklearn.neural_network import MLPRegressor
-from sklearn.ensemble import GradientBoostingRegressor, AdaBoostRegressor
+from sklearn.ensemble import GradientBoostingRegressor, AdaBoostRegressor, ExtraTreesRegressor
 from sklearn.ensemble import StackingRegressor
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.model_selection import GridSearchCV, RepeatedKFold, RepeatedStratifiedKFold
@@ -39,7 +39,9 @@ from hyperopt.pyll.base import scope
 from hpsklearn import HyperoptEstimator
 from hpsklearn import any_classifier
 from hpsklearn import any_preprocessing
-from hpsklearn import any_regressor
+from hpsklearn import any_regressor, random_forest_regressor, xgboost_regression, k_neighbors_regressor, linear_regression,gradient_boosting_regressor
+from hpsklearn import ada_boost_regressor, decision_tree_regressor
+
 from warfit_learn.estimators import Estimator
 from warfit_learn.evaluation import evaluate_estimators
 from warfit_learn.metrics.scoring import confidence_interval
@@ -258,6 +260,86 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df):
     resultsdict = {'PW20': 0, 'MAE': 0, 'R2': 0, 'Time':''}
     ml_learner = est.identifier
     model = est.estimator
+    if False:
+      modelcurrent= XGBRegressor(base_score=0.5, booster=None, colsample_bylevel=0.923596850741766,
+             colsample_bynode=None, colsample_bytree=0.7528910862529711,
+             gamma=2.7635973942572454e-06, gpu_id=None, importance_type='gain',
+             interaction_constraints=None, learning_rate=0.0021314518057749554,
+             max_delta_step=0, max_depth=3, min_child_weight=6,
+             monotone_constraints=None, n_estimators=600, n_jobs=1,
+             num_parallel_tree=None, random_state=None,
+             reg_alpha=0.17092774449366366, reg_lambda=2.0763616638462876,
+             scale_pos_weight=1, seed=2, subsample=0.8221857637435452,
+             tree_method=None, validate_parameters=None, verbosity=None)
+    modelcurrent = XGBRegressor(base_score=0.5, booster=None, colsample_bylevel=0.7343388875432671,
+                 colsample_bynode=None, colsample_bytree=0.6678414814225948,
+                 gamma=0.1320248511704085, gpu_id=None, importance_type='gain',
+                 interaction_constraints=None, learning_rate=0.0019401936845091616,
+                 max_delta_step=0, max_depth=7, min_child_weight=85,
+                 monotone_constraints=None, n_estimators=800, n_jobs=1,
+                 num_parallel_tree=None, random_state=None,
+                 reg_alpha=0.004848729283749238, reg_lambda=1.6145670668948622,
+                 scale_pos_weight=1, seed=3, subsample=0.8332884198620754,
+                 tree_method=None, validate_parameters=None, verbosity=None)
+    modelcurrent = SGDRegressor(alpha=2.141794946428298e-06, eta0=0.0026237052413176044,
+             l1_ratio=3.2178035232122793e-06, loss='huber', max_iter=938,
+             n_iter_no_change=4, penalty='l1', power_t=0.007102548260377817,
+             random_state=2, tol=0.0003015517484579612)
+    modelcurrent = XGBRegressor(base_score=0.5, booster=None, colsample_bylevel=0.8411027051686797,
+                 colsample_bynode=None, colsample_bytree=0.6053937609582134,
+                 gamma=0.0016260157868793134, gpu_id=None, importance_type='gain',
+                 interaction_constraints=None, learning_rate=0.0011046337942350092,
+                 max_delta_step=0, max_depth=7, min_child_weight=3,
+                 monotone_constraints=None, n_estimators=5000, n_jobs=1,
+                 num_parallel_tree=None, random_state=None,
+                 reg_alpha=0.2964978610243763, reg_lambda=2.0612960467277857,
+                 scale_pos_weight=1, seed=3, subsample=0.788037848548828,
+                 tree_method=None, validate_parameters=None, verbosity=None)
+    modelcurrent = KNeighborsRegressor(algorithm='brute', leaf_size=29, metric='manhattan',
+                    n_jobs=1, n_neighbors=11, p=4.291136006136445)
+    modelcurrent=GradientBoostingRegressor(alpha=0.882818565887107,
+                              learning_rate=0.00030715301514675056,
+                              loss='absolute_error',
+                              max_features=0.6411130767389466,
+                              min_impurity_decrease=0.05, n_estimators=132,
+                              random_state=2, verbose=False)
+    modelcurrent=XGBRegressor(base_score=0.5, booster=None, colsample_bylevel=0.5464381335393744,
+                 colsample_bynode=None, colsample_bytree=0.6269846733079176,
+                 gamma=0.07061113363399532, gpu_id=None, importance_type='gain',
+                 interaction_constraints=None, learning_rate=0.3982666102018647,
+                 max_delta_step=0, max_depth=8, min_child_weight=5,
+                 monotone_constraints=None, n_estimators=600, n_jobs=1,
+                 num_parallel_tree=None, random_state=None,
+                 reg_alpha=0.5253575860701303, reg_lambda=1.5055118915159293,
+                 scale_pos_weight=1, seed=4, subsample=0.945389293710135,
+                 tree_method=None, validate_parameters=None, verbosity=None)
+    modelcurrent=sklearn.tree.ExtraTreeRegressor(max_features='sqrt', random_state=2)
+    modelcurrent= AdaBoostRegressor(learning_rate=0.007661703150816017, loss='square',
+                      n_estimators=94, random_state=3)
+
+    modelcurrent=sklearn.tree.ExtraTreeRegressor(criterion='friedman_mse', max_features=0.1672509322547041,
+                       random_state=2, splitter='best')
+
+    modelcurrent=SVR(C=1.4728965076824427, coef0=0.45432565212309073, degree=5,
+        epsilon=0.13684365212031036, gamma='auto', kernel='linear',
+        tol=1.4750813428474515e-05)
+    modelcurrent = HyperoptEstimator(regressor=random_forest_regressor(),loss_fn=mean_absolute_error,verbose=True)
+    modelcurrent.fit(xtrain, ytrain)
+    print(modelcurrent.best_model())
+
+
+    predict = modelcurrent.predict(xtest)
+    predict2 = np.square(predict)
+    ytest2 = np.square(ytest)
+    mae = mean_absolute_error(ytest2, predict2)
+
+
+
+    model = HyperoptEstimator(regressor=any_regressor('reg'),loss_fn=mean_absolute_error, algo=tpe.suggest, max_evals=50, trial_timeout=30,verbose=True)
+    model.fit(xtrain, ytrain)
+    # summarize performance
+    mae = model.score(xtest, ytest)
+    # perform the search
     gridFit = True
     print(f'\n{est.identifier}...')
     modelID = est.identifier
@@ -280,10 +362,6 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df):
                 # define parameter space
                 start = time.time()
                 splitters = ["random","best"]
-
-
-
-
                 space = {
                     "min_samples_leaf": hp.choice("min_samples_leaf", np.arange(1,30,1)),
                     "max_depth": hp.choice('max_depth', np.arange(2, 10, 1)),

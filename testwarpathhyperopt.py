@@ -18,19 +18,12 @@ from lineartree import LinearBoostRegressor
 import optuna
 from optuna import Trial, visualization
 from optuna.samplers import TPESampler
-from optuna.visualization import plot_contour
-from optuna.visualization import plot_edf
-from optuna.visualization import plot_intermediate_values
-from optuna.visualization import plot_optimization_history
-from optuna.visualization import plot_parallel_coordinate
-from optuna.visualization import plot_param_importances
-from optuna.visualization import plot_slice
-from sklearn.linear_model import LinearRegression, Ridge, Perceptron
+from sklearn.linear_model import LinearRegression, Ridge, Perceptron, SGDRegressor
 from sklearn.metrics import mean_absolute_error
 from sklearn.metrics import make_scorer
 from sklearn.svm import LinearSVR, SVR
 from sklearn.neural_network import MLPRegressor
-from sklearn.ensemble import GradientBoostingRegressor, AdaBoostRegressor
+from sklearn.ensemble import GradientBoostingRegressor, AdaBoostRegressor, ExtraTreesRegressor
 from sklearn.ensemble import StackingRegressor
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.model_selection import GridSearchCV, RepeatedKFold, RepeatedStratifiedKFold
@@ -46,7 +39,9 @@ from hyperopt.pyll.base import scope
 from hpsklearn import HyperoptEstimator
 from hpsklearn import any_classifier
 from hpsklearn import any_preprocessing
-from hpsklearn import any_regressor
+from hpsklearn import any_regressor, random_forest_regressor, xgboost_regression, k_neighbors_regressor, linear_regression,gradient_boosting_regressor
+from hpsklearn import ada_boost_regressor, decision_tree_regressor, svr, mlp_regressor
+
 from warfit_learn.estimators import Estimator
 from warfit_learn.evaluation import evaluate_estimators
 from warfit_learn.metrics.scoring import confidence_interval
@@ -94,7 +89,6 @@ from sklearn.feature_selection import chi2, f_classif
 from sklearn.feature_selection import SelectPercentile
 from sklearn.kernel_approximation import RBFSampler, Nystroem
 from tpot.builtins import StackingEstimator, ZeroCount
-from tpot import TPOTRegressor
 from numpy import loadtxt
 from copy import copy
 
@@ -261,228 +255,197 @@ def evaluate_models(models, x_train, x_test, y_train, y_test):
     # report model performance
     return scores
 
-def tune(objective,df,model):
-    ntrials = 50
-    study = optuna.create_study(direction="maximize")
-    study.optimize(objective, n_trials=ntrials)
-    params = study.best_params
-    best_score = study.best_value
-    paramdict = {k: [v] for k, v in params.items()}
-    dfHyperCurrent = pd.DataFrame(paramdict)
-    dfHyperCurrent['model'] = model
-    dfHyperCurrent['imputation'] = df
-    dfHyperCurrent['score']=best_score
-    dfHyperCurrent['trials'] = ntrials
-    suffix = str(df).zfill(3)
-    if df == 1:
-       dfHyper = pd.DataFrame()
+
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    fxn()
+
+
+def ExitSquareBracket(variable):
+    stringvar = str(variable)
+    if stringvar.find('[') >= 0 and stringvar.find(']') >= 0:
+        var1 = stringvar.replace('[', '')
+        var2 = var1.replace(']', '')
+        var2 = var2.replace("'", "")
+        return var2
     else:
-       dfpre = df - 1
-       suffixpre = str(dfpre).zfill(3)
-       dfHyper = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OPTUNAHYPERPARAMETERS\model_" + model + suffixpre + ".csv", ";")
-    frames = (dfHyper, dfHyperCurrent)
-    dfHyper = pd.concat(frames)
-    if df > 1:
-        dfHyper.drop(["Unnamed: 0"], axis=1, inplace=True)
-    dfHyper.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OPTUNAHYPERPARAMETERS\model_" + model + suffix + ".csv",";")
-    print(f"Best score: {best_score} \nOptimized parameters: {params}")
-    return params
+        return stringvar
 
-def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df):
+def collect_Metrics(metrics, model, metric):
+    container = []
+    for i in range(len(metrics)):
+        if metrics[metric][metrics['Estimator'].any() == model]:
+            container.append(metrics[metric][metrics['Estimator'] == model].values)
+    return container
+
+
+def collect_Results(model, metric):
+    container = []
+    if Estimator == model:
+        container.append(metric)
+    return container
+
+
+def variance(metric):
+    meanvalue = np.mean(metric)
+    sumsquares = 0
+    for i in range(len(metric)):
+        core = abs(metric[i] - meanvalue)
+        sumsquares += np.square(core)
+    if len(metric) == 1:
+        variance = 0
+    else:
+        variance = sumsquares / ((len(metric) - 1))
+    return variance
+
+
+def std_deviation(metric):
+    return np.sqrt(variance(metric))
+
+
+def SList(series):
+    return np.array(series.values.tolist())
+
+
+def confintlimit95(metric):
+    return 1.96 * np.sqrt(variance(metric) / len(metric))
+
+def TrainOrTest(patientID,TrainList, TestList):
+    TrainDF = pd.DataFrame(TrainList.sort())
+    TestDF = pd.DataFrame(TestList.sort())
+    if (patientID in TrainList):
+        return 'train'
+    elif (patientID in TestList):
+        return 'test'
+
+4
+    #newList = []
+    #for patient in patientIDList:
+    #  currpatient = patient
+    #  for fixedpatient in TrainList:
+    #    if (fixedpatient == currpatient):
+    #      newList.append('train')
+    #  for fixedpatient in TestList:
+    #    if (fixedpatient == currpatient):
+    #      newList.append('test')
+    #return newList
+
+def format_summary(df_res):
+    df_summary = df_res.groupby(['Estimator']).mean()
+    df_summary.reset_index(inplace=True)
+    for alg in df_res['Estimator'].unique():
+        for metric in ['PW20', 'MAE']:
+            data = df_res[metric][df_res['Estimator'] == alg].values
+            np.sort(data)
+            df = pd.DataFrame(data, columns=[metric])
+            lo1 = np.percentile(data, 2.5)
+            lo, hi = confidence_interval(df_res[metric][df_res['Estimator'] == alg].values)
+            mean = df_res[metric][df_res['Estimator'] == alg].mean()
+            lo2 = mean - confintlimit95(data)
+            hi2 = mean + confintlimit95(data)
+            conf2 = f"{mean:.2f}({lo2:.2f}-{hi2:.2f})"
+            print("new method", alg, metric, lo2, hi2, mean, conf2)
+            for v in [mean, lo, hi]:
+                if not (-10000 < v < 10000):
+                    print('nan applied: ', alg, metric, lo, hi, mean)
+                    mean, lo, hi = np.nan, np.nan, np.nan
+                conf = f"{mean:.2f}({lo:.2f}-{hi:.2f})"
+                print(alg, metric, lo, hi, mean, conf)
+                df_summary[metric][df_summary['Estimator'] == alg] = conf
+    return df_summary
+
+
+def MLAR(trueval, predval):
+    # mean log of accuracy ratio
+    sum = 0
+    for i in range(len(trueval)):
+        sum += np.log(predval[i] / trueval[i])
+    return (np.exp(sum / len(trueval)) - 1) * 100
+
+def MALAR(trueval, predval):
+    # mean absolute log of accuracy ratio
+    sum = 0
+    for i in range(len(trueval)):
+        sum += abs(np.log(predval[i] / trueval[i]))
+    return (np.exp(sum / len(trueval)) - 1) * 100
+
+def RSquared(trueval, predval):
+    true_mean = np.mean(trueval)
+    topsum = 0
+    lowersum = 0
+    for i in range(len(trueval)):
+        topsum += np.square((predval[i] - true_mean))
+        lowersum += np.square(trueval[i] - true_mean)
+    return topsum / lowersum * 100
+
+def BSA(height, weight):
+    return 0.007184 * height ** 0.725 * weight ** 0.425
+
+def ConvertYesNo(variable):
+    if variable == "Yes":
+        return 1
+    elif variable == "No":
+        return 0
+
+def MAEScore(true, predicted):
+    return mean_absolute_error(true, predicted)
+
+
+def PercIn20(true, predicted):
+    patients_in_20 = 0
+    for i in range(len(true)):
+        if abs(true[i] - predicted[i]) < 0.2 * true[i]:
+            patients_in_20 += 1
+    return 100 * patients_in_20 / len(true)
+
+
+def INRThree(targetINR):
+    if (targetINR >= 2.5) & (targetINR <= 3.5):
+        return 1
+    else:
+        return 0
+
+
+def evaluate_models(models, x_train, x_test, y_train, y_test):
+    # fit and evaluate the models
+    scores = list()
+    for _, model in models:
+        # fit the model
+        model.fit(x_train, y_train)
+        # evaluate the model
+        yhat = model.predict(x_test)
+        mae = mean_absolute_error(y_test, yhat)
+        # store the performance
+        scores.append(-mae)
+    # report model performance
+    return scores
+
+
+def traineval(est, estimates, xtrain, ytrain, xtest, ytest, squaring, df):
     resultsdict = {'PW20': 0, 'MAE': 0, 'R2': 0, 'Time':''}
-    ml_learner = est.identifier
-    RANDOM_SEED = 66
+    ml_learner = est
+    print(f'\n{ml_learner}...')
+    modelID = ml_learner
+    model = estimates[est]
+    modelcurrent = HyperoptEstimator(regressor=model,loss_fn=mean_absolute_error,verbose=True)
+    start = time.time()
+    modelcurrent.fit(xtrain, ytrain)
+    end = time.time()
+    timeElapsed = end - start
+    best = modelcurrent.best_model()
+    fitted = best['learner'].fit(xtrain,ytrain)
+    ypred = fitted.predict(xtest)
+    if squaring:
+       ypred2 = np.square(ypred)
+       ytest2 = np.square(ytest)
 
-    # 10-fold CV
-    kfolds = KFold(n_splits=10, shuffle=True, random_state=RANDOM_SEED)
-    model = est.estimator
-    gridFit = True
-    print(f'\n{est.identifier}...')
-    modelID = est.identifier
-    if est.identifier != "LR":  # tuning is not required for LR
+    #model = HyperoptEstimator(regressor=any_regressor('reg'),loss_fn=mean_absolute_error, algo=tpe.suggest, max_evals=50, trial_timeout=30,verbose=True)
+    #model.fit(xtrain, ytrain)
+    # summarize performance
+    #mae = model.score(xtest, ytest)
+    # perform the search
 
-        if est.identifier == "RF":
-            start = time.time()
-
-            def RF_Objective(trial):
-                _min_samples_leaf = trial.suggest_int('min_samples_leaf',2,10,step=2)
-                _min_impurity_decrease = trial.suggest_float('min_impurity_decrease',0.10,0.15,step=0.05)
-                _max_features = trial.suggest_int('max_features',1,11,step=1)
-                _max_depth = trial.suggest_int('max_depth',4,20,step=2)
-                _n_estimators = trial.suggest_int('n_estimators',50,300,step=50)
-                RF_model = RandomForestRegressor(min_samples_leaf=_min_samples_leaf, min_impurity_decrease=_min_impurity_decrease,
-                                                 max_features=_max_features, max_depth=_max_depth,n_estimators=_n_estimators)
-                score = cross_val_score(
-                    RF_model, xtrain, ytrain, cv=kfolds, scoring="neg_mean_absolute_error").mean()
-                return score
-
-            RF_params = tune(RF_Objective,df,est.identifier)
-            end = time.time()
-            model = RandomForestRegressor(**RF_params)
-        else:
-            if est.identifier == 'DTR':
-                # define parameter space
-                start = time.time()
-                def DTR_objective(trial):
-                        _min_samples_leaf= trial.suggest_int("min_samples_leaf", 1,30, step=1)
-                        _max_depth= trial.suggest_int('max_depth', 2, 10)
-                        _min_impurity_decrease = trial.suggest_float("min_impurity_decrease", 0.0, 0.2, step=0.005)
-                        _max_features = trial.suggest_int('max_features', 0,11)
-                        _min_samples_split= trial.suggest_int("min_samples_split", 2, 10, step=1)
-                        _max_leaf_nodes= trial.suggest_int("max_leaf_nodes", 2, 50, step=10)
-                        _min_weight_fraction_leaf = trial.suggest_float("min_weight_fraction_leaf", 0.0, 0.5, step=0.05)
-                        _splitter = trial.suggest_categorical('splitter',["best", "random"])
-
-                        DTR_model = DecisionTreeRegressor(min_samples_leaf=_min_samples_leaf, max_depth=_max_depth,
-                            min_impurity_decrease=_min_impurity_decrease, max_features=_max_features,min_samples_split=_min_samples_split,
-                            max_leaf_nodes=_max_leaf_nodes,min_weight_fraction_leaf=_min_weight_fraction_leaf,splitter=_splitter)
-
-                        score = cross_val_score(DTR_model, xtrain, ytrain, cv=kfolds, scoring="neg_mean_absolute_error").mean()
-                        return score
-
-                DTR_params = tune(DTR_objective,df,modelID)
-                end = time.time()
-                model = DecisionTreeRegressor(**DTR_params)
-
-                if False:
-                    kcv = KFold(n_splits=5, shuffle=True, random_state=66)
-                    gridFit = False
-                    param_grid = {'max_depth': [None, 2, 3, 4, 6, 8, 10],
-                          'min_samples_leaf': [1, 2, 4, 6, 8, 10, 20, 30],
-                          'max_features': ['auto', 0.95, 0.90, 0.85, 0.80, 0.75, 0.70],
-                          'min_weight_fraction_leaf': [0.0, 0.0025, 0.005, 0.0075, 0.01, 0.05],
-                          'splitter': ['random', 'best'],
-                          'min_impurity_decrease': [0.0, 0.0005, 0.005, 0.05, 0.10, 0.15, 0.2],
-                          'min_samples_split': [2, 3, 4, 5, 6, 8, 10],
-                          'max_leaf_nodes': [10, 15, 20, 25, 30, 35, 40, 45, 50, None]
-                          }
-            elif est.identifier == "KNN":
-                start = time.time()
-                def KNN_Objective(trial):
-                    scaler = MinMaxScaler()
-                    knn_n_neighbors = trial.suggest_int("n_neighbors", 2, 200, step=1)
-                    KNN_Model = KNeighborsRegressor(n_neighbors=knn_n_neighbors)
-                    pipeline = make_pipeline(scaler, KNN_Model)
-                    score = cross_val_score(pipeline, xtrain, ytrain, cv=kfolds, scoring="neg_mean_absolute_error").mean()
-                    return score
-
-                KNN_params = tune(KNN_Objective, df, modelID)
-                end = time.time()
-                model = KNeighborsRegressor(**KNN_params)
-
-                #param_grid = [
-                #    {'alg__n_neighbors': [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 20, 30, 50, 100, 150, 200]}]
-            else:
-                 if est.identifier in ("LASSO"):
-                     start = time.time()
-                     def LASSO_Objective(trial):
-                        scaler = MinMaxScaler()
-                        #_alpha = trial.suggest_float('alpha',0,0.05,step=0.001)
-                        LASSO_model = Lasso(alpha = 0.01)
-                        pipeline = make_pipeline(scaler,LASSO_model)
-                        score = cross_val_score(pipeline, xtrain, ytrain, cv=kfolds, scoring="neg_mean_absolute_error").mean()
-                        return score
-
-                     LASSO_params = tune(LASSO_Objective,df,modelID)
-                     end = time.time()
-                     model = Lasso(**LASSO_params)
-                 elif est.identifier == "RIDGE":
-                     start = time.time()
-                     def RIDGE_Objective(trial):
-                         scaler = MinMaxScaler()
-                         #_alpha = trial.suggest_float('alpha', 0,0.05,step=0.001)
-                         RIDGE_model = Ridge(alpha=0.01)
-                         pipeline = make_pipeline(scaler, RIDGE_model)
-                         score = cross_val_score(pipeline, xtrain, ytrain, cv=kfolds,
-                                                 scoring="neg_mean_absolute_error").mean()
-                         return score
-
-                     RIDGE_params = tune(RIDGE_Objective, df, modelID)
-                     end = time.time()
-                     model = Ridge(**RIDGE_params)
-
-                 elif est.identifier == "ELNET":
-                     start = time.time()
-                     def ELNET_Objective(trial):
-                         scaler = MinMaxScaler()
-                         #_alpha = trial.suggest_float('alpha', 0,0.05,step=0.001)
-
-                         _l1_ratio=trial.suggest_float('l1_ratio',0.01,0.99,step = 0.01)
-                         ELNET_model = ElasticNet(alpha=0.01, l1_ratio=_l1_ratio)
-                         pipeline = make_pipeline(scaler, ELNET_model)
-                         score = cross_val_score(pipeline, xtrain, ytrain, cv=kfolds, scoring="neg_mean_absolute_error").mean()
-                         return score
-
-                     ELNET_params = tune(ELNET_Objective, df, modelID)
-                     end = time.time()
-                     model = ElasticNet( **ELNET_params)
-                     #param_grid = [{'alg__alpha' : np.logspace(-4, -2, 9)}]
-                     #if est.identifier == "ELNET":
-                     #    param_grid = [{'alg__alpha': np.logspace(-4, -2, 9),
-                     #                   'alg__l1_ratio': [0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99]}]
-                 elif est.identifier == "SVREG":
-                     start = time.time()
-                     def SVREG_Objective(trial):
-                         scaler=MinMaxScaler()
-                         _gamma = trial.suggest_categorical('gamma',['auto','scale'])
-                         _regParam = trial.suggest_int('C',1,100,step=10)
-                         SVREG_model = sklearn.svm.SVR(kernel="rbf", gamma=_gamma, C=_regParam)
-                         pipeline=make_pipeline(scaler,SVREG_model)
-                         score = cross_val_score(pipeline, xtrain, ytrain, cv=kfolds,scoring="neg_mean_absolute_error").mean()
-                         return score
-                     SVREG_params = tune(SVREG_Objective, df, modelID)
-                     end = time.time()
-                     model = sklearn.svm.SVR(**SVREG_params)
-
-                 elif est.identifier == "ABRF":
-
-                     param_grid = [{'n_estimators': [10, 50, 100, 500], 'learning_rate': [0.0001, 0.001, 0.01, 0.1] }]
-                 elif est.identifier == "GBR":
-                     start = time.time()
-                     def GBR_Objective(trial):
-                         _subsample = trial.suggest_float('subsample',0.5,1.0,step=0.1)
-                         _n_estimators = trial.suggest_int('n_estimators', 50,3000,step=100)
-                         _learning_rate = trial.suggest_float('learning_rate',0.001,1.0,step=0.01)
-                         _max_depth = trial.suggest_int('max_depth',1,10,step = 1)
-                         GBR_model = GradientBoostingRegressor(subsample=_subsample,n_estimators=_n_estimators,learning_rate=_learning_rate,
-                                                               max_depth=_max_depth)
-                         score = cross_val_score(GBR_model, xtrain, ytrain, cv=kfolds, scoring="neg_mean_absolute_error").mean()
-                         return score
-                     GBR_params = tune(GBR_Objective,df,modelID)
-                     end = time.time()
-                     model = GradientBoostingRegressor(**GBR_params)
-
-                     #param_grid = [{'subsample': [1, 0.9, 0.8, 0.7,# 0.6, 0.5],
-                     #          'n_estimators': [30, 300, 3000],
-                     #          'learning_rate': [0.001, 0.01, 0.05, 0.1, 0.15, 0.2, 0.3, 0.5, 1.0],
-                     #          'max_depth': [None, 1, 2, 3, 4] }]
-                 elif est.identifier == "XGB":
-                     def XGB_objective(trial):
-                         param = {
-                             "n_estimators": trial.suggest_int('n_estimators', 0, 500),
-                             'max_depth': trial.suggest_int('max_depth', 3, 5),
-                             'reg_alpha': trial.suggest_uniform('reg_alpha', 0, 6),
-                             'reg_lambda': trial.suggest_uniform('reg_lambda', 0, 2),
-                             'min_child_weight': trial.suggest_int('min_child_weight', 0, 5),
-                             'gamma': trial.suggest_uniform('gamma', 0, 4),
-                             'learning_rate': trial.suggest_loguniform('learning_rate', 0.05, 0.5),
-                             'colsample_bytree': trial.suggest_uniform('colsample_bytree', 0.4, 0.9),
-                             'subsample': trial.suggest_uniform('subsample', 0.4, 0.9),
-                             'nthread': -1
-                         }
-                         return (return_score(param))  # this will return the rmse score
-        if est.identifier not in ["DTR","RF","LASSO","RIDGE","ELNET","KNN","SVREG","GBR"]:
-            start = time.time()
-            if gridFit == False:
-                runs = 16
-                grid = RandomizedSearchCV(model, param_grid, n_iter=runs,scoring='neg_mean_absolute_error',cv=kcv, n_jobs=-1,verbose=2)
-            else:
-                grid = GridSearchCV(model, param_grid=param_grid, scoring='neg_mean_absolute_error', cv=kcv, n_jobs=-1,verbose=2)
-
-            gridresult = grid.fit(xtrain, ytrain)
-            end = time.time()
-            timeElapsed = end - start
-            model = gridresult.best_estimator_
+    if False:
             paramdict = gridresult.best_params_
             paramdict = {k: [v] for k, v in paramdict.items()}
             dfHyperCurrent = pd.DataFrame(paramdict)
@@ -496,24 +459,15 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df):
                 dfpre = df - 1
                 suffixpre = str(dfpre).zfill(3)
                 dfHyper = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPERPARAMETERS\model_" + ml_learner + suffixpre + ".csv", ";")
-                frames = (dfHyper, dfHyperCurrent)
-                dfHyper = pd.concat(frames)
-                suffix = str(df).zfill(3)
-                dfHyper.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPERPARAMETERS\model_" + ml_learner + suffix + ".csv",";")
 
-    if est.identifier == "LR":
-      start = time.time()
-    fitted = model.fit(xtrain, ytrain)
-    if est.identifier == "LR":
-       end = time.time()
-    timeElapsed = end-start
-    ypred = fitted.predict(xtest)
-    if squaring:
-       ytest = np.square(ytest)
-       ypred = np.square(ypred)
-    PW20 = PercIn20(ytest, ypred)
-    MAE = mean_absolute_error(ytest, ypred)
-    R2 = RSquared(ytest, ypred)
+            frames = (dfHyper, dfHyperCurrent)
+            dfHyper = pd.concat(frames)
+            suffix = str(df).zfill(3)
+            dfHyper.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPERPARAMETERS\model_" + ml_learner + suffix + ".csv",";")
+
+    PW20 = PercIn20(ytest2, ypred2)
+    MAE = mean_absolute_error(ytest2, ypred2)
+    R2 = RSquared(ytest2, ypred2)
     resultsdict['PW20'] = [PW20]
     resultsdict['MAE'] = [MAE]
     resultsdict['R2'] = [R2]
@@ -904,7 +858,7 @@ def main():
           if True:
              #RF = RandomForestRegressor()
              KNNR = KNeighborsRegressor()
-             #pipeline_KNNR_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', KNNR)])
+             pipeline_KNNR_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', KNNR)])
              #RF = RandomForestRegressor(max_depth=100, max_features=2, min_samples_leaf=60,min_samples_split=8, n_estimators=100)
              #RF = RandomForestRegressor(max_depth=125, max_features=2, min_samples_leaf=3,min_samples_split=8, n_estimators=200)
              #RF = RandomForestRegressor(max_depth=120, max_features=3, min_samples_leaf=4,min_samples_split=12, n_estimators=100)
@@ -919,21 +873,18 @@ def main():
              #estimates.append(Estimator(KNNR, 'KNN'))
              #estimates.append(Estimator(ABRF,'ABRF'))
              # estimates.append(Estimator(ABRF2, 'ABRF2'))
-             model = Lasso()
+             #model = Lasso()
              #pipeline_LASSO_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
-             #estimates.append(Estimator(model, 'LASSO'))
-             model = Ridge()
-             #ipeline_Ridge_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
+             #estimates.append(Estimator(pipeline_LASSO_scaled, 'LASSO'))
+             #model = Ridge()
+             #pipeline_Ridge_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
              #estimates.append(Estimator(pipeline_Ridge_scaled, 'RIDGE'))
-             #estimates.append(Estimator(model,'RIDGE'))
-             model = ElasticNet()
+             #model = ElasticNet()
              #pipeline_ELNET_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
              #estimates.append(Estimator(pipeline_ELNET_scaled, 'ELNET'))
-             #estimates.append(Estimator(model,'ELNET'))
-             model = sklearn.svm.SVR()
+             #model = sklearn.svm.SVR()
              #pipeline_SVREG_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
              #estimates.append(Estimator(pipeline_SVREG_scaled,"SVREG"))
-             #estimates.append(Estimator(model,'SVREG'))
              suffix = str(df).zfill(3)
              ml_weak_learner = 'RF'
              dfHyper = pd.read_csv(
@@ -960,10 +911,9 @@ def main():
              #DTR = DecisionTreeRegressor()
              #estimates.append(Estimator(DTR,'DTR'))
              #estimates.append(Estimator(ABRF,'ABRF'))
-             #DTR = DecisionTreeRegressor()
-             #estimates.append(Estimator(DTR,'DTR'))
-             #RF = RandomForestRegressor()
-             #estimates.append(Estimator(RF,'RF'))
+             DTR = DecisionTreeRegressor()
+             estimates.append(Estimator(DTR,'DTR'))
+
              if False:
                 minmae = 99
                 learning_rate_values = [0.001, 0.01, 0.05, 0.1, 0.15, 0.2, 0.3, 0.5, 1.0]
@@ -982,13 +932,29 @@ def main():
                                 minmae = mae
                             print('Estimator:', estimator,'Depth:', depth, 'Sample:', sample, 'LearningRate:', value, ', Score:', mae)
                 print('smallest mae is ', minmae)
-             GBR = GradientBoostingRegressor()
-             estimates.append(Estimator(GBR,'GBR'))
-             for _, est in enumerate(estimates):
-                resultsdict = traineval(est, x_train, y_train, x_test, y_test, squaring=squaring, df=df)
+             LR = linear_regression("mylinear")
+             GBR = gradient_boosting_regressor("mygbr")
+             XGB = xgboost_regression("myxgb")
+             KNN = k_neighbors_regressor("myknn")
+             DTR = decision_tree_regressor("mydtr")
+             RF = random_forest_regressor("myrf")
+             estimates = {'LR':LR, 'GBR':GBR, 'XGB':XGB, 'KNN':KNN, 'DTR':DTR,'RF':RF}
+             #estlist = ['LR','GBR','XGB','KNN','DTR','RF']
+             estlist = ['LR','KNN','XGB']
 
+             if False:
+                estimates.append(Estimator(LR,'LR'))
+                estimates.append(Estimator(GBR,'GBR'))
+                estimates.append(Estimator(XGB,'XGB'))
+                estimates,append(Estimator(KNN,'KNN'))
+                estimates.append(Estimator(DTR,'DTR'))
+                estimates.append(Estimator(RF,'RF'))
+
+             for est in estlist:
+                resultsdict = traineval(est, estimates, x_train, y_train, x_test, y_test, squaring=squaring, df=df)
+                #print("Accuracy: %.3f%% (%.3f%%)" % (results2.mean() * 100.0, results2.std() * 100.0))
                 res_dict = {
-                               'Estimator': [est.identifier for x in range(len(resultsdict['PW20']))],
+                               'Estimator': [est for x in range(len(resultsdict['PW20']))],
                                'PW20': resultsdict['PW20'],
                                'MAE': resultsdict['MAE'],
                                'R2': resultsdict['R2'],
@@ -1186,8 +1152,8 @@ def main():
     confinterval = []
 
     for i in range(len(metric_columns)):
-        for _, est in enumerate(estimates):
-            current_estimator = est.identifier
+        for est in estimates:
+            current_estimator = est
             current_metric = metric_columns[i]
             current_mean = dfSummary.loc[current_estimator][current_metric]
             # metric_values = dfResults.apply(lambda x:collect_Results(x['Estimator'],current_metric,axis=1))
