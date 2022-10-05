@@ -262,7 +262,7 @@ def evaluate_models(models, x_train, x_test, y_train, y_test):
     return scores
 
 def tune(objective,df,model):
-    ntrials = 25
+    ntrials = 10
     study = optuna.create_study(direction="maximize")
     study.optimize(objective, n_trials=ntrials)
     params = study.best_params
@@ -281,13 +281,12 @@ def tune(objective,df,model):
         suffixpre = str(dfpre).zfill(3)
         dfHyper = pd.read_csv(
             r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OPTUNAHYPERPARAMETERS\model_" + model + suffixpre + ".csv", ";")
-        if "Unnamed: 0" in dfHyper.columns:
-            dfHyper.drop(["Unnamed: 0"], axis=1, inplace=True)
-        if "Unnamed: 0.1" in dfHyper.columns:
-            dfHyper.drop(["Unnamed: 0.1"], axis=1, inplace=True)
     frames = (dfHyper, dfHyperCurrent)
     dfHyper = pd.concat(frames)
-    dfHyper.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OPTUNAHYPERPARAMETERS\model_" + model + suffix + ".csv",";")
+    if df > 1:
+        dfHyper.drop(["Unnamed: 0"], axis=1, inplace=True)
+    dfHyper.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OPTUNAHYPERPARAMETERS\model_" + model + suffix + ".csv",
+                   ";")
     print(f"Best score: {best_score} \nOptimized parameters: {params}")
     return params
 
@@ -304,29 +303,6 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df):
     print(f'\n{est.identifier}...')
     modelID = est.identifier
     if est.identifier != "LR":  # tuning is not required for LR
-        if est.identifier == "XGBR":
-            start=time.time()
-            def XGBR_Objective(trial):
-               _booster = trial.suggest_categorical('booster',["gbtree"])
-               _max_depth = trial.suggest_int('max_depth',1,4,step=1)
-               _colsample_bynode = trial.suggest_int('colsample_bynode',1,2, step=1)
-               _learning_rate = trial.suggest_float('learning_rate',0.01, 0.05, step=0.01)
-               _n_estimators = trial.suggest_int('n_estimators',400,800,step = 200)
-               _min_child_weight = trial.suggest_int('min_child_weight',21,51,step=10)
-               _subsample = trial.suggest_float('subsample',0.677056,0.989780165,step=0.02)
-               _colsample_bytree =trial.suggest_float('colsample_bytree',0.510084,0.982148,step=0.02)
-               _colsample_bylevel=trial.suggest_float('colsample_bylevel',0.58163511,0.977710641,step=0.02)
-               _gamma = trial.suggest_float('gamma',0.000,3.308368474,step=0.002)
-               XGBR_model = XGBRegressor(max_depth = _max_depth, min_child_weight=_min_child_weight,
-                                         colsample_bytree=_colsample_bytree,colsample_bylevel=_colsample_bylevel,
-                                         colsample_bynode= _colsample_bynode,subsample=_subsample, n_estimators=_n_estimators)
-               score = cross_val_score(XGBR_model, xtrain, ytrain, cv=kfolds, scoring="neg_mean_absolute_error").mean()
-               return score
-
-            XGBR_params = tune(XGBR_Objective, df, est.identifier)
-            end = time.time()
-            model = XGBRegressor(**XGBR_params)
-
 
         if est.identifier == "RF":
             start = time.time()
@@ -502,29 +478,73 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df):
                     end = time.time()
                     model = GradientBoostingRegressor(**GBR_params)
 
+                    # param_grid = [{'subsample': [1, 0.9, 0.8, 0.7,# 0.6, 0.5],
+                    #          'n_estimators': [30, 300, 3000],
+                    #          'learning_rate': [0.001, 0.01, 0.05, 0.1, 0.15, 0.2, 0.3, 0.5, 1.0],
+                    #          'max_depth': [None, 1, 2, 3, 4] }]
+                elif est.identifier == "XGB":
+                    def XGB_objective(trial):
+                        param = {
+                            "n_estimators": trial.suggest_int('n_estimators', 0, 500),
+                            'max_depth': trial.suggest_int('max_depth', 3, 5),
+                            'reg_alpha': trial.suggest_uniform('reg_alpha', 0, 6),
+                            'reg_lambda': trial.suggest_uniform('reg_lambda', 0, 2),
+                            'min_child_weight': trial.suggest_int('min_child_weight', 0, 5),
+                            'gamma': trial.suggest_uniform('gamma', 0, 4),
+                            'learning_rate': trial.suggest_loguniform('learning_rate', 0.05, 0.5),
+                            'colsample_bytree': trial.suggest_uniform('colsample_bytree', 0.4, 0.9),
+                            'subsample': trial.suggest_uniform('subsample', 0.4, 0.9),
+                            'nthread': -1
+                        }
+                        return (return_score(param))  # this will return the rmse score
+        if est.identifier not in ["DTR", "RF", "LASSO", "RIDGE", "ELNET", "KNN", "SVREG", "GBR"]:
+            start = time.time()
+            if gridFit == False:
+                runs = 16
+                grid = RandomizedSearchCV(model, param_grid, n_iter=runs, scoring='neg_mean_absolute_error', cv=kcv,
+                                          n_jobs=-1, verbose=2)
+            else:
+                grid = GridSearchCV(model, param_grid=param_grid, scoring='neg_mean_absolute_error', cv=kcv, n_jobs=-1,
+                                    verbose=2)
+
+            gridresult = grid.fit(xtrain, ytrain)
+            end = time.time()
+            timeElapsed = end - start
+            model = gridresult.best_estimator_
+            paramdict = gridresult.best_params_
+            paramdict = {k: [v] for k, v in paramdict.items()}
+            dfHyperCurrent = pd.DataFrame(paramdict)
+            dfHyperCurrent['model'] = est.identifier
+            dfHyperCurrent['imputation'] = df
+            dfHyperCurrent['score'] = gridresult.best_score_
+            ml_learner = est.identifier
+            if df == 1:
+                dfHyper = pd.DataFrame()
+            else:
+                dfpre = df - 1
+                suffixpre = str(dfpre).zfill(3)
+                dfHyper = pd.read_csv(
+                    r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPERPARAMETERS\model_" + ml_learner + suffixpre + ".csv",
+                    ";")
+                frames = (dfHyper, dfHyperCurrent)
+                dfHyper = pd.concat(frames)
+                suffix = str(df).zfill(3)
+                dfHyper.to_csv(
+                    r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPERPARAMETERS\model_" + ml_learner + suffix + ".csv",
+                    ";")
+
     if est.identifier == "LR":
-      start = time.time()
+        start = time.time()
     fitted = model.fit(xtrain, ytrain)
     if est.identifier == "LR":
-       end = time.time()
+        end = time.time()
     timeElapsed = end - start
     ypred = fitted.predict(xtest)
     if squaring:
-       ytest = np.square(ytest)
-       ypred = np.square(ypred)
+        ytest = np.square(ytest)
+        ypred = np.square(ypred)
     PW20 = PercIn20(ytest, ypred)
     MAE = mean_absolute_error(ytest, ypred)
-    if ml_learner != "LR":
-      suffix = str(df).zfill(3)
-      dfHyper = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OPTUNAHYPERPARAMETERS\model_" + ml_learner + suffix + ".csv", ";")
-      dfHyper.loc[df-1,"mae"]=MAE
-      dfHyper.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OPTUNAHYPERPARAMETERS\model_" + ml_learner + suffix + ".csv", ";")
-      dfHyper = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OPTUNAHYPERPARAMETERS\model_" + ml_learner + suffix + ".csv", ";")
-      if "Unnamed: 0" in dfHyper.columns:
-          dfHyper.drop(["Unnamed: 0"], axis=1, inplace=True)
-      if "Unnamed: 0.1" in dfHyper.columns:
-          dfHyper.drop(["Unnamed: 0.1"], axis=1, inplace=True)
-      dfHyper.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OPTUNAHYPERPARAMETERS\model_" + ml_learner + suffix + ".csv", ";")
     R2 = RSquared(ytest, ypred)
     resultsdict['PW20'] = [PW20]
     resultsdict['MAE'] = [MAE]
@@ -981,8 +1001,8 @@ def main():
                 # estimates.append(Estimator(ABRF,'ABRF'))
                 # DTR = DecisionTreeRegressor()
                 # estimates.append(Estimator(DTR,'DTR'))
-                #RF = RandomForestRegressor()
-                #estimates.append(Estimator(RF, 'RF'))
+                RF = RandomForestRegressor()
+                estimates.append(Estimator(RF, 'RF'))
                 if False:
                     minmae = 99
                     learning_rate_values = [0.001, 0.01, 0.05, 0.1, 0.15, 0.2, 0.3, 0.5, 1.0]
@@ -1006,8 +1026,6 @@ def main():
                     print('smallest mae is ', minmae)
                 # GBR = GradientBoostingRegressor()
                 # estimates.append(Estimator(GBR,'GBR'))
-                XGBR = XGBRegressor()
-                estimates.append(Estimator(XGBR,'XGBR'))
                 for _, est in enumerate(estimates):
                     resultsdict = traineval(est, x_train, y_train, x_test, y_test, squaring=squaring, df=df)
 

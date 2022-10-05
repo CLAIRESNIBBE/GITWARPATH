@@ -258,11 +258,11 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df):
             #kcv = RepeatedKFold(n_splits=2, n_repeats=10,random_state=66)
 
             kcv=KFold(n_splits=10, shuffle= True, random_state=2)
-            param_grid = {'min_samples_leaf':[2,4,6,10],
+            param_grid = {'min_samples_leaf':[1,2,3,5,6,8,9,13,18,24],
                           'min_impurity_decrease':[0.10, 0.15],
-                          'max_features':[0.7, 0.6,0.4],
-                          'max_depth':[4,6,10,20],
-                          'n_estimators': [50,100,300]
+                          'max_features':['sqrt',0.231921389, 0.31545350158196,0.3270273536923972,0.51121008192637868,0.9140916130787694],
+                          'max_depth':[2,4],
+                          'n_estimators': [12, 14, 38, 40, 53, 77, 83, 322, 405, 414, 691, 1340, 1866]
                           }
             gridFit = True
 
@@ -790,9 +790,9 @@ def main():
              #estimates.append(Estimator(RF, 'RF2'))
              #DTR = DecisionTreeRegressor()
              #estimates.append(Estimator(DTR,'DTR'))
-             GBR = GradientBoostingRegressor(max_depth=3, random_state = 66)
+             RF = RandomForestRegressor()
              #estimates.append(Estimator(ABRF,'ABRF'))
-             estimates.append(Estimator(GBR,'GBR'))
+             estimates.append(Estimator(RF,'RF'))
              for _, est in enumerate(estimates):
                 resultsdict = traineval(est, x_train, y_train, x_test, y_test, squaring=squaring, df=df)
                 #print("Accuracy: %.3f%% (%.3f%%)" % (results2.mean() * 100.0, results2.std() * 100.0))

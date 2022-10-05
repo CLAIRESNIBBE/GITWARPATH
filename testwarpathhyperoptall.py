@@ -40,7 +40,7 @@ from hpsklearn import HyperoptEstimator
 from hpsklearn import any_classifier
 from hpsklearn import any_preprocessing
 from hpsklearn import any_regressor, random_forest_regressor, xgboost_regression, k_neighbors_regressor, linear_regression,gradient_boosting_regressor
-from hpsklearn import ada_boost_regressor, decision_tree_regressor
+from hpsklearn import ada_boost_regressor, decision_tree_regressor, svr, mlp_regressor
 
 from warfit_learn.estimators import Estimator
 from warfit_learn.evaluation import evaluate_estimators
@@ -256,144 +256,262 @@ def evaluate_models(models, x_train, x_test, y_train, y_test):
     return scores
 
 
-def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df):
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    fxn()
+
+
+def ExitSquareBracket(variable):
+    stringvar = str(variable)
+    if stringvar.find('[') >= 0 and stringvar.find(']') >= 0:
+        var1 = stringvar.replace('[', '')
+        var2 = var1.replace(']', '')
+        var2 = var2.replace("'", "")
+        return var2
+    else:
+        return stringvar
+
+def collect_Metrics(metrics, model, metric):
+    container = []
+    for i in range(len(metrics)):
+        if metrics[metric][metrics['Estimator'].any() == model]:
+            container.append(metrics[metric][metrics['Estimator'] == model].values)
+    return container
+
+
+def collect_Results(model, metric):
+    container = []
+    if Estimator == model:
+        container.append(metric)
+    return container
+
+
+def variance(metric):
+    meanvalue = np.mean(metric)
+    sumsquares = 0
+    for i in range(len(metric)):
+        core = abs(metric[i] - meanvalue)
+        sumsquares += np.square(core)
+    if len(metric) == 1:
+        variance = 0
+    else:
+        variance = sumsquares / ((len(metric) - 1))
+    return variance
+
+
+def std_deviation(metric):
+    return np.sqrt(variance(metric))
+
+
+def SList(series):
+    return np.array(series.values.tolist())
+
+
+def confintlimit95(metric):
+    return 1.96 * np.sqrt(variance(metric) / len(metric))
+
+def TrainOrTest(patientID,TrainList, TestList):
+    TrainDF = pd.DataFrame(TrainList.sort())
+    TestDF = pd.DataFrame(TestList.sort())
+    if (patientID in TrainList):
+        return 'train'
+    elif (patientID in TestList):
+        return 'test'
+
+
+    #newList = []
+    #for patient in patientIDList:
+    #  currpatient = patient
+    #  for fixedpatient in TrainList:
+    #    if (fixedpatient == currpatient):
+    #      newList.append('train')
+    #  for fixedpatient in TestList:
+    #    if (fixedpatient == currpatient):
+    #      newList.append('test')
+    #return newList
+
+def format_summary(df_res):
+    df_summary = df_res.groupby(['Estimator']).mean()
+    df_summary.reset_index(inplace=True)
+    for alg in df_res['Estimator'].unique():
+        for metric in ['PW20', 'MAE']:
+            data = df_res[metric][df_res['Estimator'] == alg].values
+            np.sort(data)
+            df = pd.DataFrame(data, columns=[metric])
+            lo1 = np.percentile(data, 2.5)
+            lo, hi = confidence_interval(df_res[metric][df_res['Estimator'] == alg].values)
+            mean = df_res[metric][df_res['Estimator'] == alg].mean()
+            lo2 = mean - confintlimit95(data)
+            hi2 = mean + confintlimit95(data)
+            conf2 = f"{mean:.2f}({lo2:.2f}-{hi2:.2f})"
+            print("new method", alg, metric, lo2, hi2, mean, conf2)
+            for v in [mean, lo, hi]:
+                if not (-10000 < v < 10000):
+                    print('nan applied: ', alg, metric, lo, hi, mean)
+                    mean, lo, hi = np.nan, np.nan, np.nan
+                conf = f"{mean:.2f}({lo:.2f}-{hi:.2f})"
+                print(alg, metric, lo, hi, mean, conf)
+                df_summary[metric][df_summary['Estimator'] == alg] = conf
+    return df_summary
+
+
+def MLAR(trueval, predval):
+    # mean log of accuracy ratio
+    sum = 0
+    for i in range(len(trueval)):
+        sum += np.log(predval[i] / trueval[i])
+    return (np.exp(sum / len(trueval)) - 1) * 100
+
+def MALAR(trueval, predval):
+    # mean absolute log of accuracy ratio
+    sum = 0
+    for i in range(len(trueval)):
+        sum += abs(np.log(predval[i] / trueval[i]))
+    return (np.exp(sum / len(trueval)) - 1) * 100
+
+def RSquared(trueval, predval):
+    true_mean = np.mean(trueval)
+    topsum = 0
+    lowersum = 0
+    for i in range(len(trueval)):
+        topsum += np.square((predval[i] - true_mean))
+        lowersum += np.square(trueval[i] - true_mean)
+    return topsum / lowersum * 100
+
+def BSA(height, weight):
+    return 0.007184 * height ** 0.725 * weight ** 0.425
+
+def ConvertYesNo(variable):
+    if variable == "Yes":
+        return 1
+    elif variable == "No":
+        return 0
+
+def MAEScore(true, predicted):
+    return mean_absolute_error(true, predicted)
+
+
+def PercIn20(true, predicted):
+    patients_in_20 = 0
+    for i in range(len(true)):
+        if abs(true[i] - predicted[i]) < 0.2 * true[i]:
+            patients_in_20 += 1
+    return 100 * patients_in_20 / len(true)
+
+
+def INRThree(targetINR):
+    if (targetINR >= 2.5) & (targetINR <= 3.5):
+        return 1
+    else:
+        return 0
+
+
+def evaluate_models(models, x_train, x_test, y_train, y_test):
+    # fit and evaluate the models
+    scores = list()
+    for _, model in models:
+        # fit the model
+        model.fit(x_train, y_train)
+        # evaluate the model
+        yhat = model.predict(x_test)
+        mae = mean_absolute_error(y_test, yhat)
+        # store the performance
+        scores.append(-mae)
+    # report model performance
+    return scores
+
+
+def traineval(est, estimates, xtrain, ytrain, xtest, ytest, squaring, df):
+    suffix = str(df).zfill(3)
     resultsdict = {'PW20': 0, 'MAE': 0, 'R2': 0, 'Time':''}
-    ml_learner = est.identifier
-    model = est.estimator
-    gridFit = True
-    print(f'\n{est.identifier}...')
-    modelID = est.identifier
-    if est.identifier != "LR":  # tuning is not required for LR
-
-        if est.identifier == "RF":
-            #kcv = RepeatedKFold(n_splits=2, n_repeats=10,random_state=66)
-            kcv=KFold(n_splits=10, shuffle= True, random_state=2)
-            param_grid = {'min_samples_leaf': [1,2,3,5,6,8,9,13,18,24],               ,
-                          'min_impurity_decrease': [0.10, 0.15],
-                          'max_features':['sqrt',0.231921389, 0.31545350158196,0.3270273536923972,0.51121008192637868,0.9140916130787694],
-                          'max_depth':[2,4],
-                          'n_estimators': [12, 14, 38, 40, 53, 77, 83, 322, 405, 414, 691, 1340, 1866]}
-
-            gridFit = True
-
-        else:
-            if est.identifier == 'DTR':
-                # define parameter space
-                start = time.time()
-                splitters = ["random","best"]
-                space = {
-                    "min_samples_leaf": hp.choice("min_samples_leaf", np.arange(1,30,1)),
-                    "max_depth": hp.choice('max_depth', np.arange(2, 10, 1)),
-                    'min_impurity_decrease': hp.choice("min_impurity_decrease",np.arange(0.0, 0.2, 0.005)),
-                    'max_features':hp.choice('max_features', range(0, 11)),
-                    'min_samples_split': hp.choice("min_samples_split", np.arange(2,10,1)),
-                    'max_leaf_nodes': hp.choice("max_leaf_nodes",np.arange(2,50,10)),
-                    'min_weight_fraction_leaf': hp.uniform("min_weight_fraction_leaf",0.0, 0.5)}
-                # define objective function
-                def hyperparameter_tuning(params):
-                    clf = DecisionTreeRegressor(**params)
-                    acc = cross_val_score(clf, xtrain, ytrain, scoring="neg_mean_absolute_error").mean()
-                    return {"loss": -acc, "status": STATUS_OK}
-                trials = Trials()
-                best = fmin(
-                    fn=hyperparameter_tuning,
-                    space=space,
-                    algo=tpe.suggest,
-                    max_evals=100,
-                    trials=trials
-                )
-                end = time.time()
-                print("Best: {}".format(best))
-                model = DecisionTreeRegressor(**best)
-                #fitted = final.fit(xtrain,ytrain)
-                #ypred = fitted.predict(xtest)
-                #mae = mean_absolute_error(ytest,ypred)
-
-                if False:
-                    kcv = KFold(n_splits=5, shuffle=True, random_state=66)
-                    gridFit = False
-                    param_grid = {'max_depth': [None, 2, 3, 4, 6, 8, 10],
-                          'min_samples_leaf': [1, 2, 4, 6, 8, 10, 20, 30],
-                          'max_features': ['auto', 0.95, 0.90, 0.85, 0.80, 0.75, 0.70],
-                          'min_weight_fraction_leaf': [0.0, 0.0025, 0.005, 0.0075, 0.01, 0.05],
-                          'splitter': ['random', 'best'],
-                          'min_impurity_decrease': [0.0, 0.0005, 0.005, 0.05, 0.10, 0.15, 0.2],
-                          'min_samples_split': [2, 3, 4, 5, 6, 8, 10],
-                          'max_leaf_nodes': [10, 15, 20, 25, 30, 35, 40, 45, 50, None]
-                          }
-            elif est.identifier == "KNN":
-                kcv = RepeatedKFold(n_splits=10, n_repeats=3, random_state=1)
-                param_grid = [
-                    {'alg__n_neighbors': [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 20, 30, 50, 100, 150, 200]}]
-            else:
-                 if est.identifier in ("LASSO","RIDGE","ELNET"):
-                     kcv = RepeatedKFold(n_splits=10, n_repeats=3, random_state=1)
-                     param_grid = [{'alg__alpha' : np.logspace(-4, -2, 9)}]
-                     if est.identifier == "ELNET":
-                         param_grid = [{'alg__alpha': np.logspace(-4, -2, 9),
-                                        'alg__l1_ratio': [0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99]}]
-                 elif est.identifier == "SVREG":
-                     kcv = RepeatedKFold(n_splits=10, n_repeats=3, random_state=1)
-                     param_grid = [{'alg__kernel': ['rbf'],
-                                    'alg__gamma': ['auto','scale'],
-                                    'alg__C': [1,100]}]
-                 elif est.identifier == "ABRF":
-                     kcv = KFold(n_splits=5, shuffle=True, random_state=66)
-                     param_grid = [{'n_estimators': [10, 50, 100, 500], 'learning_rate': [0.0001, 0.001, 0.01, 0.1] }]
-                 elif est.identifier == "GBR":
-                     kcv = KFold(n_splits=5, shuffle=True, random_state=66)
-                     param_grid = [{'subsample': [1, 0.9, 0.8, 0.7, 0.6, 0.5],
-                               'n_estimators': [30, 300, 3000],
-                               'learning_rate': [0.001, 0.01, 0.05, 0.1, 0.15, 0.2, 0.3, 0.5, 1.0],
-                               'max_depth': [None, 1, 2, 3, 4] }]
-        if est.identifier != "DTR":
-            start = time.time()
-            if gridFit == False:
-                runs = 16
-                grid = RandomizedSearchCV(model, param_grid, n_iter=runs,scoring='neg_mean_absolute_error',cv=kcv, n_jobs=-1,verbose=2)
-            else:
-                grid = GridSearchCV(model, param_grid=param_grid, scoring='neg_mean_absolute_error', cv=kcv, n_jobs=-1,verbose=2)
-
-            gridresult = grid.fit(xtrain, ytrain)
-            end = time.time()
-            timeElapsed = end - start
-            model = gridresult.best_estimator_
-            paramdict = gridresult.best_params_
-            paramdict = {k: [v] for k, v in paramdict.items()}
-            dfHyperCurrent = pd.DataFrame(paramdict)
-            dfHyperCurrent['model'] = est.identifier
-            dfHyperCurrent['imputation'] = df
-            dfHyperCurrent['score'] = gridresult.best_score_
-            ml_learner = est.identifier
-            if df == 1:
-                dfHyper = pd.DataFrame()
-            else:
-                dfpre = df - 1
-                suffixpre = str(dfpre).zfill(3)
-                dfHyper = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPERPARAMETERS\model_" + ml_learner + suffixpre + ".csv", ";")
-                frames = (dfHyper, dfHyperCurrent)
-                dfHyper = pd.concat(frames)
-                suffix = str(df).zfill(3)
-                dfHyper.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPERPARAMETERS\model_" + ml_learner + suffix + ".csv",";")
-
-    if est.identifier == "LR":
-      start = time.time()
-    fitted = model.fit(xtrain, ytrain)
-    if est.identifier == "LR":
-       end = time.time()
-    timeElapsed = end-start
+    ml_learner = est
+    print(f'\n{ml_learner}...')
+    modelID = ml_learner
+    model = estimates[est]
+    xtraindf = pd.DataFrame(xtrain)
+    #xtrain = np.any(np.isnan(xtrain))
+    #xtrain = np.all(np.isfinite(xtrain))
+    #xtraindf = pd.DataFrame(xtrain)
+    #ytrain = np.any(np.isnan(ytrain))
+    #ytrain = np.all(np.isfinite(ytrain))
+    ytraindf = pd.DataFrame(ytrain)
+    #xtest = np.any(np.isnan(xtest))
+#inite(xtest))
+    xtestdf = pd.DataFrame(xtest)
+    #ytest = np.any(np.isnan(ytest))
+    #ytest = np.all(np.isfinite(ytest))
+    ytestdf = pd.DataFrame(ytest)
+    xtraindf.to_csv(
+        r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPERBASEDATA\xtrain_" + ml_learner + suffix + ".csv", ";")
+    xtestdf.to_csv(
+        r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPERBASEDATA\xtest_" + ml_learner + suffix + ".csv", ";")
+    ytraindf.to_csv(
+        r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPERBASEDATA\ytrain_" + ml_learner + suffix + ".csv", ";")
+    ytestdf.to_csv(
+        r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPERBASEDATA\ytest_" + ml_learner + suffix + ".csv", ";")
+    #
+    if est == "BST":
+        modelcurrent = HyperoptEstimator(regressor=any_regressor('reg'), preprocessing=any_preprocessing('pre'), algo=tpe.suggest, max_evals=50, trial_timeout=30)
+    else:
+        modelcurrent = HyperoptEstimator(regressor=model, verbose=True)
+    start = time.time()
+    modelcurrent.fit(xtrain, ytrain)
+    end = time.time()
+    timeElapsed = end - start
+    best = modelcurrent.best_model()
+    string = str(best['learner'])
+    bracketpos = string.rfind("(")
+    if est == "BST":
+        modelstring = string[0:bracketpos]
+    else:
+        modelstring = est
+    fitted = best['learner'].fit(xtrain, ytrain)
     ypred = fitted.predict(xtest)
     if squaring:
-       ytest = np.square(ytest)
-       ypred = np.square(ypred)
-    PW20 = PercIn20(ytest, ypred)
-    MAE = mean_absolute_error(ytest, ypred)
-    R2 = RSquared(ytest, ypred)
+        ypred2 = np.square(ypred)
+        ytest2 = np.square(ytest)
+    paramdict = best['learner'].get_params()
+    paramdict = {k: [v] for k, v in paramdict.items()}
+    dfHyperCurrent = pd.DataFrame(paramdict)
+    dfHyperCurrent['model'] = modelstring
+    dfHyperCurrent['imputation'] = df
+    dfHyperCurrent['mae'] = mean_absolute_error(ytest2, ypred2)
+    ml_learner = modelID
+    suffix = str(df).zfill(3)
+    if df == 1:
+        dfHyper = pd.DataFrame()
+    else:
+        dfpre = df - 1
+        suffixpre = str(dfpre).zfill(3)
+        dfHyper = pd.read_csv(
+            r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPEROPTHYPERPARAMETERS\model_" + ml_learner + suffixpre + ".csv",
+            ";")
+    frames = (dfHyper, dfHyperCurrent)
+    dfHyper = pd.concat(frames)
+    if df > 1:
+        dfHyper.drop(["Unnamed: 0"], axis=1, inplace=True)
+    dfHyper.to_csv(
+        r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPEROPTHYPERPARAMETERS\model_" + ml_learner + suffix + ".csv", ";")
+
+    PW20 = PercIn20(ytest2, ypred2)
+    MAE = mean_absolute_error(ytest2, ypred2)
+    R2 = RSquared(ytest2, ypred2)
     resultsdict['PW20'] = [PW20]
     resultsdict['MAE'] = [MAE]
     resultsdict['R2'] = [R2]
     resultsdict['Time'] = [timeElapsed]
     return resultsdict
+
+
+
+
+
+
+
+
+
+
+
 
 def main():
     # dfHyper = pd.DataFrame()
@@ -482,7 +600,7 @@ def main():
         for root, dirs, files in os.walk(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations"):
             if root == 'C:\\Users\\Claire\\GIT_REPO_1\\CSCthesisPY\\WarImputations':
                 for file in files:
-                    if runImp < maxImp and file.endswith('.csv') and (
+                    if Imp < maxImp and file.endswith('.csv') and (
                             "train_" not in file and "test_" not in file and "SPLIT" not in file and "TRAIN" not in file and "TEST" not in file) and "ImpWarPATH" in file:
                         filedf = pd.read_csv(root + '\\' + file, ";")
                         if False:
@@ -514,9 +632,9 @@ def main():
               counter = counter + 1
               suffix = str(counter).zfill(3)
               filedf.to_csv(
-              r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Split\ImpWarPATHSPLIT_" + suffix + ".csv", ";")
+                r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Split\ImpWarPATHSPLIT_" + suffix + ".csv", ";")
               filesImp.append(
-              r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Split\ImpWarPATHSPLIT_" + suffix + ".csv")
+                r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Split\ImpWarPATHSPLIT_" + suffix + ".csv")
               runImp = runImp + 1
         #filesImp.append(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\CombinedWarImputations\AllImputations" + ".csv")
     results = []
@@ -540,6 +658,7 @@ def main():
             dfIWPC.drop(["Unnamed: 0"], axis=1, inplace=True)
         df = fileindex + 1
         dfmod = dfnew
+        #gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg                                                                                                                                                                                               llllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkklllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        b v         vbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb nbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
         dfmod.drop(['Gender', 'Country_recruitment'], axis=1, inplace=True)
         # dfIWPC.drop(['AgeDecades'], axis =1, inplace = True)
         # dfIWPC.drop(['INR_Three'], axis=1, inplace=True)
@@ -832,8 +951,9 @@ def main():
              #DTR = DecisionTreeRegressor()
              #estimates.append(Estimator(DTR,'DTR'))
              #estimates.append(Estimator(ABRF,'ABRF'))
-             #£TR = DecisionTreeRegressor()
-             #estimates.append(Estimator(DTR,'DTR'))
+             DTR = DecisionTreeRegressor()
+             estimates.append(Estimator(DTR,'DTR'))
+
              if False:
                 minmae = 99
                 learning_rate_values = [0.001, 0.01, 0.05, 0.1, 0.15, 0.2, 0.3, 0.5, 1.0]
@@ -852,13 +972,33 @@ def main():
                                 minmae = mae
                             print('Estimator:', estimator,'Depth:', depth, 'Sample:', sample, 'LearningRate:', value, ', Score:', mae)
                 print('smallest mae is ', minmae)
-             RF = RandomForestRegressor()
-             estimates.append(Estimator(RF,'RF'))
-             for _, est in enumerate(estimates):
-                resultsdict = traineval(est, x_train, y_train, x_test, y_test, squaring=squaring, df=df)
+             LR = linear_regression("mylinear")
+             GBR = gradient_boosting_regressor("mygbr")
+             XGB = xgboost_regression("myxgb")
+             KNN = k_neighbors_regressor("myknn")
+             DTR = decision_tree_regressor("mydtr")
+             RF = random_forest_regressor("myrf")
+             #estimates = {'LR':LR, 'GBR':GBR, 'XGB':XGB, 'KNN':KNN, 'DTR':DTR,'RF':RF}
+             #estimates = {'LR':LR, 'RF':RF}
+             #bestlist = ['LR','RF']
+             estimates = {'BST':'BST'}
+             estlist = ['BST']
+
+             if False:
+                estimates.append(Estimator(LR,'LR'))
+                estimates.append(Estimator(GBR,'GBR'))
+                estimates.append(Estimator(XGB,'XGB'))
+                estimates,append(Estimator(KNN,'KNN'))
+                estimates.append(Estimator(DTR,'DTR'))
+                estimates.append(Estimator(RF,'RF'))
+
+             for est in estlist:
+                x_train.drop(["Unnamed: 0"], axis=1, inplace=True)
+                x_test.drop(["Unnamed: 0"], axis=1, inplace = True)
+                resultsdict = traineval(est, estimates, x_train, y_train, x_test, y_test, squaring=squaring, df=df)
                 #print("Accuracy: %.3f%% (%.3f%%)" % (results2.mean() * 100.0, results2.std() * 100.0))
                 res_dict = {
-                               'Estimator': [est.identifier for x in range(len(resultsdict['PW20']))],
+                               'Estimator': [est for x in range(len(resultsdict['PW20']))],
                                'PW20': resultsdict['PW20'],
                                'MAE': resultsdict['MAE'],
                                'R2': resultsdict['R2'],
@@ -1054,10 +1194,11 @@ def main():
     dfSummary = dfResults.groupby('Estimator').apply(np.mean)
     stddev = []
     confinterval = []
-
+    dfResults.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfResults" + ".csv", ";")
+    dfSummary.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfSummary" + ".csv", ";")
     for i in range(len(metric_columns)):
-        for _, est in enumerate(estimates):
-            current_estimator = est.identifier
+        for est in estimates:
+            current_estimator = est
             current_metric = metric_columns[i]
             current_mean = dfSummary.loc[current_estimator][current_metric]
             # metric_values = dfResults.apply(lambda x:collect_Results(x['Estimator'],current_metric,axis=1))
