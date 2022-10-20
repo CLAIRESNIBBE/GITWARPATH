@@ -313,7 +313,9 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df):
            grid = GridSearchCV(model, param_grid=param_grid, scoring='neg_mean_absolute_error', cv=kcv, n_jobs=-1,verbose=2)
 
         gridresult = grid.fit(xtrain, ytrain)
-        end = time.time()
+
+
+      end = time.time()
         timeElapsed = end - start
         model = gridresult.best_estimator_
         paramdict = gridresult.best_params_
@@ -336,7 +338,7 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df):
 
     if est.identifier == "LR":
         start = time.time()
-    fitted = model.fit(xtrain, ytrain)
+        fitted = model.fit(xtrain, ytrain)
     if est.identifier == "LR":
         end = time.time()
         timeElapsed = end-start
@@ -360,8 +362,8 @@ def main():
     scaler = MinMaxScaler()
     dftemplate = pd.DataFrame()
     dfWarPath = pd.DataFrame()
-    impNumber = 100  # was 3
-    maxImp = 100  # was 3
+    impNumber = 50 # was 3
+    maxImp = 50  # was 3
     runImp = 0
     pd.set_option("display.max_rows", None, "display.max_columns", None)
     pd.set_option('expand_frame_repr', False)
@@ -756,9 +758,9 @@ def main():
              #model = Lasso()
              #pipeline_LASSO_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
              #estimates.append(Estimator(pipeline_LASSO_scaled, 'LASSO'))
-             #model = Ridge()
-             #pipeline_Ridge_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
-             #estimates.append(Estimator(pipeline_Ridge_scaled, 'RIDGE'))
+             model = Ridge()
+             pipeline_Ridge_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
+             estimates.append(Estimator(pipeline_Ridge_scaled, 'RIDGE'))
              #model = ElasticNet()
              #pipeline_ELNET_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
              #estimates.append(Estimator(pipeline_ELNET_scaled, 'ELNET'))
@@ -792,7 +794,7 @@ def main():
              #estimates.append(Estimator(DTR,'DTR'))
              RF = RandomForestRegressor()
              #estimates.append(Estimator(ABRF,'ABRF'))
-             estimates.append(Estimator(RF,'RF'))
+             #estimates.append(Estimator(RF,'RF'))
              for _, est in enumerate(estimates):
                 resultsdict = traineval(est, x_train, y_train, x_test, y_test, squaring=squaring, df=df)
                 #print("Accuracy: %.3f%% (%.3f%%)" % (results2.mean() * 100.0, results2.std() * 100.0))
