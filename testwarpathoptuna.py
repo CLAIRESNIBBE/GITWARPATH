@@ -1,5 +1,6 @@
 import sklearn
 import time
+import math
 import csv
 import os
 import os.path
@@ -51,7 +52,7 @@ from hpsklearn import any_regressor
 from warfit_learn.estimators import Estimator
 from warfit_learn.evaluation import evaluate_estimators
 from warfit_learn.metrics.scoring import confidence_interval
-from scipy.stats import norm
+from scipy.stats import norm, iqr, scoreatpercentile
 from mlxtend.regressor import StackingCVRegressor
 import warnings
 import statistics
@@ -124,8 +125,9 @@ def collect_Results(model, metric):
     return container
 
 
-def variance(metric):
-    meanvalue = np.mean(metric)
+def variance(metric,mean):
+    #meanvalue = np.nanmean(metric)
+    meanvalue = mean
     sumsquares = 0
     for i in range(len(metric)):
         core = abs(metric[i] - meanvalue)
@@ -137,16 +139,16 @@ def variance(metric):
     return variance
 
 
-def std_deviation(metric):
-    return np.sqrt(variance(metric))
+def std_deviation(metric,mean):
+    return np.sqrt(variance(metric,mean))
 
 
 def SList(series):
     return np.array(series.values.tolist())
 
 
-def confintlimit95(metric):
-    return 1.96 * np.sqrt(variance(metric) / len(metric))
+def confintlimit95(metric,mean):
+    return 1.96 * np.sqrt(variance(metric,mean) / len(metric))
 
 def TrainOrTest(patientID,TrainList, TestList):
     TrainDF = pd.DataFrame(TrainList.sort())
@@ -263,7 +265,7 @@ def evaluate_models(models, x_train, x_test, y_train, y_test):
     return scores
 
 def tune(objective,df,model):
-    ntrials = 20
+    ntrials = 50
     study = optuna.create_study(direction="maximize")
     study.optimize(objective, n_trials=ntrials)
     plot_optimization_history(study)
@@ -373,19 +375,18 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df):
 
                 def DTR_objective(trial):
                     _min_samples_leaf = trial.suggest_categorical("min_samples_leaf", [1])
-                    _max_depth = trial.suggest_categorical('max_depth', [2,3,4])
-                    _min_impurity_decrease = trial.suggest_categorical("min_impurity_decrease", [0.0])
-                    _max_features = trial.suggest_categorical('max_features', ['sqrt',0.355298191, 0.441096617, 0.55247903, 0.5616223889, 0.900168726, 0.92611712])
-                    _min_samples_split = trial.suggest_categorical("min_samples_split", 2)
+                    _max_depth = trial.suggest_categorical('max_depth', [2,3])
+                    #_min_impurity_decrease = trial.suggest_categorical("min_impurity_decrease", [0.0])
+                    _max_features = trial.suggest_categorical('max_features', [0.355298191, 0.55247903, 0.5616223889, 0.900168726, 0.92611712])
+                    #_min_samples_split = trial.suggest_categorical("min_samples_split", [2])
                     _max_leaf_nodes = trial.suggest_categorical("max_leaf_nodes", [None,5,10])
-                    _min_weight_fraction_leaf = trial.suggest_categorical("min_weight_fraction_leaf", [0.0])
-                    _splitter = trial.suggest_categorical('splitter', ["random"])
+                    #_min_weight_fraction_leaf = trial.suggest_categorical("min_weight_fraction_leaf", [0.0])
+                    #_splitter = trial.suggest_categorical('splitter', ["random"])
 
                     DTR_model = DecisionTreeRegressor(min_samples_leaf=_min_samples_leaf, max_depth=_max_depth,
-                                                      min_impurity_decrease=_min_impurity_decrease,
-                                                      max_features=_max_features, min_samples_split=_min_samples_split,
-                                                      max_leaf_nodes=_max_leaf_nodes, min_weight_fraction_leaf=_min_weight_fraction_leaf,
-                                                      splitter=_splitter)
+                                                      max_features=_max_features,
+                                                      max_leaf_nodes=_max_leaf_nodes)
+
 
                     score = cross_val_score(DTR_model, xtrain, ytrain, cv=kfolds,
                                             scoring="neg_mean_absolute_error").mean()
@@ -407,12 +408,34 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df):
                                   'min_samples_split': [2, 3, 4, 5, 6, 8, 10],
                                   'max_leaf_nodes': [10, 15, 20, 25, 30, 35, 40, 45, 50, None]
                                    }
+            elif est.identifier == "GBR":
+                start = time.time()
+                def GBR_Objective(trial):
+                    #_learning_rate = trial.suggest_categorical("learning_rate",[0.159470245, 0.034293879, 0.055418218, 0.030973395, 0.005561334, 0.132329369, 0.03803106, 0.072507733, 0.032894225,
+                    #                                                           0.0743424267, 0.023528704, 0.003805887, 0.009816521, 0.067644981, 0.075711757, 0.062691453, 0.096134727])
+                    _learning_rate = trial.suggest_categorical("learning_rate", [0.023528704,0.067644981,0.030973395, 0.003805887,0.132329369, 0.03803106, 0.072507733,0.009816521])
+
+                    _max_depth = trial.suggest_categorical("max_depth",[2,3,4,5])
+                    #_n_estimators = trial.suggest_categorical("n_estimators",[229,196,119,397,543,22,45,59,955,70,502,800,494,59,645,108,25])
+                    _n_estimators = trial.suggest_categorical("n_estimators",[25,45,59,119,543])
+                    _min_samples_leaf = trial.suggest_categorical("min_samples_leaf",[15,21,23])
+                    _min_samples_split = trial.suggest_categorical("min_samples_split",[2,3])
+                    GBR_model = GradientBoostingRegressor(learning_rate=_learning_rate, max_depth=_max_depth,n_estimators=_n_estimators,
+                                                          min_samples_leaf=_min_samples_leaf,min_samples_split=_min_samples_split)
+                    score = cross_val_score(GBR_model, xtrain, ytrain, cv=kfolds,
+                                            scoring="neg_mean_absolute_error").mean()
+                    return score
+
+                GBR_params = tune(GBR_Objective, df, modelID)
+                end = time.time()
+                model = GradientBoostingRegressor(**GBR_params)
+
             elif est.identifier == "MLPR":
                 start = time.time()
                 def MLPR_Objective(trial):
-                    _mlpr_hidden_layer_sizes = trial.suggest_categorical("hidden_layer_sizes",[(3,1),(3,),(50,30)])
-                    _mlpr_learning_rate_init = trial.suggest_categorical("learning_rate_init",[0.001, 0.0015,0.002])
-                    _mlpr_max_iter = trial.suggest_int("max_iter",1000,4000,step=500)
+                    _mlpr_hidden_layer_sizes = trial.suggest_categorical("hidden_layer_sizes",[(5,3,),(10,5),(196,)])
+                    _mlpr_learning_rate_init = trial.suggest_categorical("learning_rate_init",[ 0.002,  0.003])
+                    _mlpr_max_iter = trial.suggest_categorical("max_iter",[1000,  3500, 4000])
                     MLPR_Model = MLPRegressor(hidden_layer_sizes = _mlpr_hidden_layer_sizes, learning_rate_init=_mlpr_learning_rate_init,
                                                 max_iter = _mlpr_max_iter)
                     score = cross_val_score(MLPR_Model, xtrain, ytrain, cv=kfolds,
@@ -499,7 +522,8 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df):
                     def SVREG_Objective(trial):
                         scaler = MinMaxScaler()
                         #_gamma = trial.suggest_categorical('gamma', ['auto', 'scale'])
-                        _C = trial.suggest_float("C", 0.1, 1)
+
+                        _C = trial.suggest_categorical("C",  [1])
                         _epsilon = trial.suggest_float("epsilon", 0.01, 2)
                         #     _kernel = trial.suggest_categorical("kernel", ['linear', 'poly', 'rbf', 'sigmoid'])
                         _coef0 = trial.suggest_float("coef0", 0.01, 1)
@@ -571,8 +595,8 @@ def main():
                 scaler = MinMaxScaler()
                 dftemplate = pd.DataFrame()
                 dfWarPath = pd.DataFrame()
-                impNumber = 20  # was 3
-                maxImp = 20
+                impNumber = 50  # was 3
+                maxImp = 50
                 runImp = 0
                 pd.set_option("display.max_rows", None, "display.max_columns", None)
                 pd.set_option('expand_frame_repr', False)
@@ -584,9 +608,7 @@ def main():
                         for file in files:
                             if file.endswith('.csv'):
                                 filesIWPC.append(file)
-
-
-
+                imp = 50
                 for imp in range(impNumber):
                     counter = imp + 1
                     dfcurrent = df.loc[df[".imp"] == counter]
@@ -748,8 +770,7 @@ def main():
                     dfmod["Amiodarone"] = dfmod.apply(lambda x: ConvertYesNo(x["Amiodarone_status"]), axis=1)
                     dfmod["Smoker"] = dfmod.apply(lambda x: ConvertYesNo(x["Smoking_status"]), axis=1)
                     dfmod["Indicationflag"] = dfmod.apply(lambda x: ConvertYesNo(x["Indication"]), axis=1)
-                    dfmod.drop(["Inducer_status", "Amiodarone_status", "Smoking_status", "Indication"], axis=1,
-                               inplace=True)
+                    dfmod.drop(["Inducer_status", "Amiodarone_status", "Smoking_status", "Indication"], axis=1, inplace=True)
                     # dfmod["AgeDecades"] = np.floor(dfmod["Age_years"] * 0.1).astype("int")
                     dfmod["AgeYears"] = dfmod["Age_years"]
                     dfmod['AgeYears'] = np.where((dfmod['AgeYears'] <= 18), 18, dfmod['AgeYears'])
@@ -1059,13 +1080,13 @@ def main():
                                                       'LearningRate:',
                                                       value, ', Score:', mae)
                                 print('smallest mae is ', minmae)
-                            # GBR = GradientBoostingRegressor()
-                            # estimates.append(Estimator(GBR,'GBR'))
+                            #GBR = GradientBoostingRegressor()
+                            #estimates.append(Estimator(GBR,'GBR'))
                             # XGBR = XGBRegressor()
                             # estimates.append(Estimator(XGBR,'XGBR'))
                             # LAS = Lasso()
                             # estimates.append(Estimator(LAS,'LASSO'))
-                            KNNR = KNeighborsRegressor()
+                            #KNNR = KNeighborsRegressor()
                             # estimates.append(Estimator(KNNR, 'KNN'))
                             svr = sklearn.svm.SVR()
                             #estimates.append(Estimator(svr,'SVREG'))
@@ -1073,6 +1094,8 @@ def main():
                             estimates.append(Estimator(MLPR,'MLPR'))
                             #F = RandomForestRegressor()
                             #stimates.append(Estimator(RF, 'RF'))
+                            #DTR = DecisionTreeRegressor()
+                            #estimates.append(Estimator(DTR,'DTR'))
                             if "Unnamed: 0.1" in x_train.columns:
                                 x_train.drop(["Unnamed: 0.1"], axis=1, inplace=True)
                             if "Unnamed: 0.1" in x_test.columns:
@@ -1086,12 +1109,15 @@ def main():
                                     'MAE': resultsdict['MAE'],
                                     'R2': resultsdict['R2'],
                                     'Time': resultsdict['Time']}
-                                results.append(res_dict)
+                                if resultsdict['MAE'] > [5]:
+                                   results.append(res_dict)
 
                             df_res = pd.DataFrame()
                             for res in results:
                                 df_res = df_res.append(pd.DataFrame.from_dict(res))
                                 print(f"\n\n{df_res.groupby(['Estimator']).agg(np.mean)}\n")
+
+                #dfResults = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfResults" + ".csv", ";")
 
 
                 dfResults = pd.DataFrame(results)
@@ -1100,10 +1126,25 @@ def main():
                 dfResults["R2"] = dfResults.apply(lambda x: ExitSquareBracket(x["R2"]), axis=1).astype(float)
                 dfResults["Time"] = dfResults.apply(lambda x: ExitSquareBracket(x["Time"]), axis=1).astype(float)
                 dfResults["Estimator"] = dfResults.apply(lambda x: ExitSquareBracket(x["Estimator"]), axis=1)
+                dfResults.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfResultsPRE" + ".csv", ";")
+                if "Unnamed: 0" in dfResults.columns:
+                    dfResults.drop(["Unnamed: 0"], axis=1, inplace=True)
+                MLPR_rows = dfResults.loc[dfResults['Estimator'] == 'MLPR']
+                if len(MLPR_rows) > 0:
+                    MAElist = MLPR_rows['MAE'].tolist()
+                    maxlimit = iqr(MAElist) + 1.5*scoreatpercentile(MAElist, 75)
+                    newMAElist = [x for x in MAElist if x <= maxlimit]
+                    newMeanMae = np.mean(newMAElist)
+                    for i in dfResults.index:
+                      if dfResults.loc[i, 'MAE'] > maxlimit:
+                        dfResults.at[i, 'MAE'] = np.nan
+                        dfResults.at[i, 'PW20'] = np.nan
+                        dfResults.at[i, 'R2'] = np.nan
+                        dfResults.at[i, 'Time'] = np.nan
+
                 dfSummary = dfResults.groupby('Estimator').apply(np.mean)
                 stddev = []
                 confinterval = []
-
                 for i in range(len(metric_columns)):
                     for _, est in enumerate(estimates):
                         current_estimator = est.identifier
@@ -1113,8 +1154,14 @@ def main():
                         metric_values = np.where(dfResults['Estimator'] == current_estimator, dfResults[current_metric],
                                                  9999)
                         metriclist = np.array(metric_values)
-                        metriclist = [j for j in metriclist if j != 9999]
-                        current_stddev = confintlimit95(metriclist)
+                        #metriclist = [j for j in metriclist if j != np.nan]
+                        metriclistcopy = []
+                        for j in metriclist:
+                          if j != 9999:
+                            if  math.isnan(j) == False:
+                              metriclistcopy.append(j)
+                        metriclist = metriclistcopy
+                        current_stddev = confintlimit95(metriclist,current_mean)
                         confinterval.append(
                             {'estimator': current_estimator, 'metric': current_metric, 'mean': current_mean,
                              '95% CI lower bound': current_mean - current_stddev,
