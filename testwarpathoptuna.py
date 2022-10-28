@@ -27,6 +27,7 @@ from optuna.visualization import plot_optimization_history
 from optuna.visualization import plot_parallel_coordinate
 from optuna.visualization import plot_param_importances
 from optuna.visualization import plot_slice
+import lightgbm as lgb
 from sklearn.linear_model import LinearRegression, Ridge, Perceptron
 from sklearn.metrics import mean_absolute_error
 from sklearn.metrics import make_scorer
@@ -59,7 +60,6 @@ import statistics
 
 def fxn():
     warnings.warn("deprecated", DeprecationWarning)
-
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
@@ -310,7 +310,6 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df):
     if est.identifier != "LR":  # tuning is not required for LR
         if est.identifier == "XGBR":
             start=time.time()
-
             def XGBR_Objective(trial):
                _booster = trial.suggest_categorical('booster',["gbtree"])
                _max_depth = trial.suggest_int('max_depth',1,4,step=1)
@@ -336,15 +335,31 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df):
             start = time.time()
 
             def RF_Objective(trial):
-                 _min_samples_leaf = trial.suggest_categorical('min_samples_leaf', [11])
+                 #_min_samples_leaf = trial.suggest_categorical('min_samples_leaf', [2,3,4,5,6,7,8,9,10,11,12])
+                 _min_samples_leaf = trial.suggest_categorical('min_samples_leaf',[8,9,11,12])
                  _min_impurity_decrease = trial.suggest_categorical('min_impurity_decrease', [0.0])
-                 _max_depth = trial.suggest_categorical('max_depth', [4])
-                 _n_estimators = trial.suggest_categorical('n_estimators', [210])
-                 RF_model = RandomForestRegressor(min_samples_leaf=_min_samples_leaf,
-                                                  min_impurity_decrease=_min_impurity_decrease,
-                                                  max_depth=_max_depth, n_estimators=_n_estimators)
-                 score = cross_val_score(
-                        RF_model, xtrain, ytrain, cv=kfolds, scoring="neg_mean_absolute_error").mean()
+                 #_max_depth = trial.suggest_categorical('max_depth', [4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20])
+                 _max_depth = trial.suggest_categorical('max_depth', [4,6,10])
+                 #_n_estimators = trial.suggest_categorical('n_estimators', [50,60,70,80,90,100,110,120,130,140,150,160,170,180,190,200])
+                 _n_estimators = trial.suggest_categorical('n_estimators',[50,60,70,80,110,120,170,180])
+                 #_min_samples_split = trial.suggest_categorical("min_samples_split", [2, 3, 4, 5, 6, 7, 8, 9, 10])
+                 _min_samples_split = trial.suggest_categorical("min_samples_split",[4,5,6,7,8,9,10])
+                 #_max_features=trial.suggest_float("max_features",0.0,50.0,step=5.0)
+                 #_n_estimators = trial.suggest_categorical("n_estimators", [50,60,70,80,90,100,110,120,130,140,150,160,170,180,190,200])
+                 #_max_depth = trial.suggest_categorical("max_depth", [5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20])
+                 #_min_samp_split = trial.suggest_categorical("min_samples_split", [2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0])
+                 #_min_samples_leaf = trial.suggest_categorical("min_samples_leaf", [2.0,3.0,4.0,5.0,6.0,7.0,8.0,9.0,10.0])
+                 #_max_features = trial.suggest_categorical("max_features", [10,15,20,25,30,35,40,45,50])
+                 RF_model = RandomForestRegressor(
+                     max_depth=_max_depth,
+                     min_samples_split=_min_samples_split,
+                     min_impurity_decrease=_min_impurity_decrease,
+                     min_samples_leaf=_min_samples_leaf,
+                     n_estimators=_n_estimators
+
+                 )
+
+                 score = cross_val_score(RF_model, xtrain, ytrain, cv=kfolds, scoring="neg_mean_absolute_error").mean()
                  return score
 
             RF_params = tune(RF_Objective, df, est.identifier)
@@ -433,13 +448,16 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df):
             elif est.identifier == "MLPR":
                 start = time.time()
                 def MLPR_Objective(trial):
-                    _mlpr_hidden_layer_sizes = trial.suggest_categorical("hidden_layer_sizes",[(5,3,),(10,5),(196,)])
-                    _mlpr_learning_rate_init = trial.suggest_categorical("learning_rate_init",[ 0.002,  0.003])
-                    _mlpr_max_iter = trial.suggest_categorical("max_iter",[1000,  3500, 4000])
+                    scaler = MinMaxScaler()
+                    _mlpr_hidden_layer_sizes = trial.suggest_categorical("hidden_layer_sizes",[(85,3,),(85,),(85,30)])
+                    _mlpr_learning_rate_init = trial.suggest_categorical("learning_rate_init",[ 0.0015,  0.001])
+                    _mlpr_max_iter = trial.suggest_categorical("max_iter",[3500,4000,4500,5000])
+                    _mlpr_learning_rate = trial.suggest_categorical("learning_rate",['adaptive'])
+                    _mlpr_activation = trial.suggest_categorical("activation",["relu"])
                     MLPR_Model = MLPRegressor(hidden_layer_sizes = _mlpr_hidden_layer_sizes, learning_rate_init=_mlpr_learning_rate_init,
-                                                max_iter = _mlpr_max_iter)
-                    score = cross_val_score(MLPR_Model, xtrain, ytrain, cv=kfolds,
-                                            scoring="neg_mean_absolute_error").mean()
+                                              max_iter = _mlpr_max_iter, learning_rate = _mlpr_learning_rate, activation=_mlpr_activation)
+                    pipeline = make_pipeline(scaler,MLPR_Model )
+                    score = cross_val_score(pipeline, xtrain, ytrain, cv=kfolds, scoring="neg_mean_absolute_error").mean()
                     return score
                 MLPR_params = tune(MLPR_Objective, df, modelID)
                 end = time.time()
@@ -521,16 +539,15 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df):
 
                     def SVREG_Objective(trial):
                         scaler = MinMaxScaler()
-                        #_gamma = trial.suggest_categorical('gamma', ['auto', 'scale'])
-
+                        _gamma = trial.suggest_categorical('gamma', ['auto'])
                         _C = trial.suggest_categorical("C",  [1])
-                        _epsilon = trial.suggest_float("epsilon", 0.01, 2)
-                        #     _kernel = trial.suggest_categorical("kernel", ['linear', 'poly', 'rbf', 'sigmoid'])
-                        _coef0 = trial.suggest_float("coef0", 0.01, 1)
-                        svr = SVR(C=_C, epsilon=_epsilon, kernel='poly')
-                        SVREG_model = sklearn.svm.SVR(kernel="poly",  C=_C, coef0=_coef0,epsilon=_epsilon)
-                        pipeline = make_pipeline(scaler, SVREG_model)
-                        score = cross_val_score(pipeline, xtrain, ytrain, cv=kfolds,scoring="neg_mean_absolute_error").mean()
+                        _epsilon = trial.suggest_categorical("epsilon", [0.1])
+                        _kernel = trial.suggest_categorical("kernel", ['rbf'])
+                        #_coef0 = trial.suggest_float("coef0", 0.01, 1)
+                        #svr = SVR(C=_C, epsilon=_epsilon, kernel='poly')
+                        SVREG_model = sklearn.svm.SVR(gamma=_gamma, C=_C, epsilon=_epsilon, kernel=_kernel)
+                        #pipeline = make_pipeline(scaler, SVREG_model)
+                        score = cross_val_score(SVREG_model, xtrain, ytrain, cv=kfolds,scoring="neg_mean_absolute_error").mean()
                         return score
 
                     SVREG_params = tune(SVREG_Objective, df, modelID)
@@ -558,6 +575,50 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df):
                     GBR_params = tune(GBR_Objective, df, modelID)
                     end = time.time()
                     model = GradientBoostingRegressor(**GBR_params)
+
+                elif est.identifier == "LGB":
+                    def lgb_objective(trial):
+                        _num_leaves = trial.suggest_int("num_leaves", 50, 100)
+                        _max_depth = trial.suggest_int("max_depth", 1, 20)
+                        _learning_rate = trial.suggest_float("learning_rate", 0.01, 1)
+                        _n_estimators = trial.suggest_int("n_estimators", 50, 2000)
+                        _min_child_weight = trial.suggest_float("min_child_weight", 0.1, 10)
+                        _reg_alpha = trial.suggest_float('reg_alpha', 0.01, 10)
+                        _reg_lambda = trial.suggest_float('reg_lambda', 0.01, 10)
+                        _subsample = trial.suggest_float('subsample', 0.01, 1)
+
+                        lgbr = lgb.LGBMRegressor(objective='regression',
+                                                 num_leaves=_num_leaves,
+                                                 max_depth=_max_depth,
+                                                 learning_rate=_learning_rate,
+                                                 n_estimators=_n_estimators,
+                                                 min_child_weight=_min_child_weight,
+                                                 subsample=_subsample,
+                                                 reg_alpha=_reg_alpha,
+                                                 reg_lambda=_reg_lambda,
+                                                 random_state=RANDOM_SEED,
+                                                 )
+
+                        score = cross_val_score(
+                            lgbr, xtrain, ytrain, cv=kfolds, scoring="neg_mean_absolute_error"
+                        ).mean()
+                        return score
+                elif est.identifier == "STACK":
+                    # stack models
+                    stack = StackingRegressor(
+                        estimators=[
+                            ('ridge', ridge),
+                            ('lasso', lasso),
+                            ('elasticnet', elasticnet),
+                            ('randomforest', rf),
+                            ('gradientboostingregressor', gbr),
+                            ('xgb', xgbr),
+                            ('lgb', lgbr),
+                            # ('svr', svr), # Not using this for now as its score is significantly worse than the others
+                        ],
+                        cv=kfolds)
+                    stack.fit(X, y)
+
 
     if est.identifier == "LR":
        start = time.time()
@@ -1056,8 +1117,8 @@ def main():
                             # estimates.append(Estimator(ABRF,'ABRF'))
                             # DTR = DecisionTreeRegressor()
                             # estimates.append(Estimator(DTR,'DTR'))
-                            # RF = RandomForestRegressor()
-                            # estimates.append(Estimator(RF, 'RF'))
+                            RF = RandomForestRegressor()
+                            estimates.append(Estimator(RF, 'RF'))
                             if False:
                                 minmae = 99
                                 learning_rate_values = [0.001, 0.01, 0.05, 0.1, 0.15, 0.2, 0.3, 0.5, 1.0]
@@ -1088,14 +1149,15 @@ def main():
                             # estimates.append(Estimator(LAS,'LASSO'))
                             #KNNR = KNeighborsRegressor()
                             # estimates.append(Estimator(KNNR, 'KNN'))
-                            svr = sklearn.svm.SVR()
+                            #svr = sklearn.svm.SVR()
                             #estimates.append(Estimator(svr,'SVREG'))
-                            MLPR = MLPRegressor()
-                            estimates.append(Estimator(MLPR,'MLPR'))
+                            #MLPR = MLPRegressor()
+                            #estimates.append(Estimator(MLPR,'MLPR'))
                             #F = RandomForestRegressor()
                             #stimates.append(Estimator(RF, 'RF'))
                             #DTR = DecisionTreeRegressor()
                             #estimates.append(Estimator(DTR,'DTR'))
+
                             if "Unnamed: 0.1" in x_train.columns:
                                 x_train.drop(["Unnamed: 0.1"], axis=1, inplace=True)
                             if "Unnamed: 0.1" in x_test.columns:

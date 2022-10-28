@@ -8,9 +8,9 @@ from scipy.stats import norm, iqr, scoreatpercentile
 import numpy as np
 
 
-dfResults = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfResults" + ".csv", ";")
-dfResults.drop(["Unnamed: 0"], axis=1, inplace=True)
-dfSummary = dfResults.groupby('Estimator').apply(np.nanmean)
+dfResults = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\MAE_MLPR" + ".csv", ";")
+#fResults.drop(["Unnamed: 0"], axis=1, inplace=True)
+#dfSummary = dfResults.groupby('Estimator').apply(np.nanmean)
 MLPR_rows = dfResults.loc[dfResults['Estimator']=='MLPR']
 if len(MLPR_rows) > 0:
   MAElist = MLPR_rows['MAE'].tolist()

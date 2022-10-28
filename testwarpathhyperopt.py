@@ -444,16 +444,18 @@ def traineval(est, estimates, xtrain, ytrain, xtest, ytest, squaring, df):
     if est=="MLPR":
         maxEvals = 50
         #[8, 16, 32, (8, 8), (16, 16)]
-        space = {'hidden_layer_sizes': hp.choice('hidden_layer_sizes', [(3,1),(3,),(50,30)]),
-                 'activation': hp.choice('activation', ['relu', 'tanh']),
+        space = {'hidden_layer_sizes': hp.choice('hidden_layer_sizes', [(10,),(40,),(85,),(30,),(85,3),(15,3,),(90,5,)]),
+                 'learning_rate': hp.choice('learning_rate',['adaptive']),
+                 'activation': hp.choice('activation', ['relu']),
                  'learning_rate_init':hp.choice('learning_rate_init',[0.001, 0.0015,0.002]),
                  'max_iter': hp.choice('max_iter', [1000,  1500, 2000, 2500,  3000, 3500, 4000])
                  }
 
         def hyperparameter_tuning(space):
             scaler = MinMaxScaler()
-            model = MLPRegressor(hidden_layer_sizes=space['hidden_layer_sizes'], max_iter=int(space['max_iter']),
-                             activation=space['activation'], learning_rate_init=float(space['learning_rate_init']))
+            model = MLPRegressor(hidden_layer_sizes=space['hidden_layer_sizes'], learning_rate=space['learning_rate'],
+                                 max_iter=int(space['max_iter']), activation=space['activation'],
+                                 learning_rate_init=float(space['learning_rate_init']))
             #pipeline = make_pipeline(scaler,model)
             evaluation = [(xtrain, ytrain), (xtest, ytest)]
             model.fit(xtrain, ytrain)
@@ -511,12 +513,7 @@ def traineval(est, estimates, xtrain, ytrain, xtest, ytest, squaring, df):
         dfHyper.drop(["Unnamed: 0.1"], axis=1, inplace=True)
     dfHyper.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPEROPTHYPERPARAMETERS\model_" + ml_learner + suffix + ".csv", ";")
     MAE = mean_absolute_error(ytest2, ypred2)
-    if MAE >= 50:
-
-        print("check MAE !", MAE)
-
-    dfHyper = pd.read_csv(
-      r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPEROPTHYPERPARAMETERS\model_" + ml_learner + suffix + ".csv", ";")
+    dfHyper = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPEROPTHYPERPARAMETERS\model_" + ml_learner + suffix + ".csv", ";")
     dfHyper.loc[df - 1, "mae"] = MAE
     dfHyper.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPEROPTHYPERPARAMETERS\model_" + ml_learner + suffix + ".csv", ";")
     R2 = RSquared(ytest2, ypred2)
@@ -1010,16 +1007,16 @@ def main():
                 # estimates = {'LR':LR, 'GBR':GBR, 'XGB':XGB, 'KNN':KNN, 'DTR':DTR,'RF':RF}
                 # stimates = {'LR':LR, 'RF':RF}
                 # estlist = ['LR','RF']
-                # estlist = ['LR','SVREG']
-                # estimates = {'LR':LR, 'SVREG':SVR}
+                estlist = ['LR','SVREG']
+                estimates = {'LR':LR, 'SVREG':SVR}
                 # estimates = {'LR':LR,'Lasso':LASSO, 'Ridge':RIDGE, 'ELNet':ELNET}
                 # estlist = {'LR', 'Lasso', 'Ridge', 'ELNet'}
                 #estimates = {'LR':LR, 'MLPR': MLPR}
                 #estlist = {'LR','MLPR'}
                 #estimates = {'LR':LR, 'GBR':GBR}
                 #estlist = {'LR','GBR'}
-                estimates = {'LR':LR, 'DTR':DTR}
-                estlist = {'LR','DTR'}
+                #estimates = {'LR':LR, 'DTR':DTR}
+                #estlist = {'LR','DTR'}
                 if False:
                     estimates.append(Estimator(LR, 'LR'))
                     estimates.append(Estimator(GBR, 'GBR'))
