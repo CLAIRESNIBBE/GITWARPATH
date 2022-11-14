@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import sklearn
+import xgboost
 from warfit_learn.estimators import Estimator
 from sklearn.ensemble import RandomForestRegressor, AdaBoostRegressor
 from sklearn.linear_model import LinearRegression, Ridge
@@ -9,6 +10,7 @@ from sklearn.neighbors import KNeighborsRegressor
 from sklearn.pipeline import make_pipeline
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler, RobustScaler, MaxAbsScaler, MinMaxScaler, FunctionTransformer, Normalizer
+from xgboost import XGBRegressor
 def ExitSquareBracket(variable):
     stringvar = str(variable)
     if stringvar.find('[') >= 0 and stringvar.find(']') >= 0:
@@ -33,44 +35,19 @@ def variance(metric):
 def confintlimit95(metric):
     return 1.96 * np.sqrt(variance(metric ) / len(metric))
 
-metric_columns = ['MAE', 'PW20', 'R2']
+metric_columns = ['MAE', 'PW20', 'R2', 'Time']
 estimates = []
 #RF = RandomForestRegressor(max_depth=120, max_features=3, min_samples_leaf=4,
 #                                       min_samples_split=12, n_estimators=100)
 
 LR = LinearRegression()
 estimates.append(Estimator(LR,'LR'))
-KNNR = KNeighborsRegressor()
-pipeline_KNNR_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', KNNR)])
-estimates.append(Estimator(pipeline_KNNR_scaled, 'KNN'))
-model = Lasso()
-pipeline_LASSO_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
-estimates.append(Estimator(pipeline_LASSO_scaled, 'LASSO'))
-model = Ridge()
-pipeline_Ridge_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
-estimates.append(Estimator(pipeline_Ridge_scaled, 'RIDGE'))
-model = ElasticNet()
-pipeline_ELNET_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
-estimates.append(Estimator(pipeline_ELNET_scaled, 'ELNET'))
-model = sklearn.svm.SVR()
-pipeline_SVREG_scaled = Pipeline([('scale', MinMaxScaler()), ('alg', model)])
-estimates.append(Estimator(pipeline_SVREG_scaled, "SVREG"))
+SVR = sklearn.svm.SVR()
+estimates.append(Estimator(SVR,'SVREG'))
+#estimates.append(Estimator(pipeline_KNNR_scaled, 'KNN'))
 
+dfResults = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfResults.csv",";")
 
-#RF = RandomForestRegressor(max_depth=80, max_features='sqrt', min_samples_leaf=5,
-#                                       min_samples_split=12, n_estimators=2000)
-#ABRF = AdaBoostRegressor(base_estimator=RandomForestRegressor(max_depth=80,
- #                                                                  max_features='sqrt',
- #                                                                  min_samples_leaf=5,
- #                                                                  min_samples_split=12,
- #                                                                  n_estimators=2000),
- #                                                                  n_estimators=1, random_state=42)
-#ABRF2 = ABRF
-#estimates.append(Estimator(RF,'RF'))
-#estimates.append(Estimator(ABRF,'ABRF'))
-#estimates.append(Estimator(ABRF2,'ABRF2'))
-
-dfResults = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfResults" + ".csv", ";")
 #dfSummary = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfSummary" + ".csv", ";")
 dfSummary = dfResults.groupby('Estimator').apply(np.mean)
 stddev = []

@@ -250,7 +250,19 @@ def INRThree(targetINR):
         return 0
 
 
-
+def evaluate_models(models, x_train, x_test, y_train, y_test):
+    # fit and evaluate the models
+    scores = list()
+    for _, model in models:
+        # fit the model
+        model.fit(x_train, y_train)
+         # evaluate the model
+        yhat = model.predict(x_test)
+        mae = mean_absolute_error(y_test, yhat)
+        # store the performance
+        scores.append(-mae)
+    # report model performance
+    return scores
 
 def tune(objective,df,model):
     ntrials = 50
@@ -441,15 +453,13 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                 start = time.time()
                 def MLPR_Objective(trial):
                     scaler = MinMaxScaler()
-                    _mlpr_hidden_layer_sizes = trial.suggest_categorical("hidden_layer_sizes",[(10,)])  # WAS [(30,),(15,3)
-                    _mlpr_learning_rate_init = trial.suggest_categorical("learning_rate_init",[ 0.0015,  0.002]) # WAS [0.001]
-                    _mlpr_max_iter = trial.suggest_categorical("max_iter",[3500,4000,4500]) # WAS [1000,1500,2000]
-                    _mlpr_solver = trial.suggest_categorical("solver",['lbfgs'])
+                    _mlpr_hidden_layer_sizes = trial.suggest_categorical("hidden_layer_sizes",[(85,3,),(85,),(85,30)])
+                    _mlpr_learning_rate_init = trial.suggest_categorical("learning_rate_init",[ 0.0015,  0.001])
+                    _mlpr_max_iter = trial.suggest_categorical("max_iter",[3500,4000,4500,5000])
                     _mlpr_learning_rate = trial.suggest_categorical("learning_rate",['adaptive'])
                     _mlpr_activation = trial.suggest_categorical("activation",["relu"])
                     MLPR_Model = MLPRegressor(hidden_layer_sizes = _mlpr_hidden_layer_sizes, learning_rate_init=_mlpr_learning_rate_init,
-                                              max_iter = _mlpr_max_iter, learning_rate = _mlpr_learning_rate, activation=_mlpr_activation,
-                                              solver=_mlpr_solver)
+                                              max_iter = _mlpr_max_iter, learning_rate = _mlpr_learning_rate, activation=_mlpr_activation)
                     pipeline = make_pipeline(scaler,MLPR_Model )
                     score = cross_val_score(pipeline, xtrain, ytrain, cv=kfolds, scoring="neg_mean_absolute_error").mean()
                     return score
@@ -659,7 +669,7 @@ def main():
                 impNumber = 50  # was 3
                 maxImp = 50
                 runImp = 0
-                randomseed = 143
+                randomseed = 99
                 pd.set_option("display.max_rows", None, "display.max_columns", None)
                 pd.set_option('expand_frame_repr', False)
                 pd.set_option("display.max_rows", False)
@@ -935,11 +945,14 @@ def main():
                                              max_iter=2000, activation="relu")
 
                         if True:
+                            #RF = RandomForestRegressor()
+                            #estimates.append(Estimator(RF, 'RF'))
                             #GBR = GradientBoostingRegressor()
                             #estimates.append(Estimator(GBR,'GBR'))
                             #XGBR = XGBRegressor()
                             #estimates.append(Estimator(XGBR,'XGBR'))
-                            #RR=Ridge()[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[
+                            #RR=Ridge()
+                            #ELNET = ElasticNet()
                             #LAS = Lasso()
                             #estimates.append(Estimator(LAS,'LASSO'))
                             #estimates.append(Estimator(ELNET,'ELNET'))
@@ -948,12 +961,12 @@ def main():
                             #estimates.append(Estimator(KNNR, 'KNN'))
                             #svr = sklearn.svm.SVR()
                             #estimates.append(Estimator(svr,'SVREG'))
-                            MLPR = MLPRegressor()
-                            estimates.append(Estimator(MLPR,'MLPR'))
-                            #RF = RandomForestRegressor()
-                            #estimates.append(Estimator(RF, 'RF'))
-                            #DTR = DecisionTreeRegressor()
-                            #estimates.append(Estimator(DTR,'DTR'))
+                            #MLPR = MLPRegressor()
+                            #estimates.append(Estimator(MLPR,'MLPR'))
+                            RF = RandomForestRegressor()
+                            estimates.append(Estimator(RF, 'RF'))
+                            DTR = DecisionTreeRegressor()
+                            estimates.append(Estimator(DTR,'DTR'))
 
                             #LGB = lgb.LGBMRegressor()
                             #estimates.append(Estimator(LGB,'LGB'))
@@ -976,7 +989,7 @@ def main():
                             df_res = pd.DataFrame()
                             for res in results:
                                 df_res = df_res.append(pd.DataFrame.from_dict(res))
-                            print(f"\n\n{df_res.groupby(['Estimator']).agg(np.mean)}\n")
+                                print(f"\n\n{df_res.groupby(['Estimator']).agg(np.mean)}\n")
 
                 #dfResults = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfResults" + ".csv", ";")
 
