@@ -27,7 +27,7 @@ from sklearn.svm import LinearSVR, SVR
 from sklearn.neural_network import MLPRegressor
 from sklearn.ensemble import GradientBoostingRegressor, AdaBoostRegressor, ExtraTreesRegressor
 from sklearn.ensemble import StackingRegressor
-from sklearn.model_selection import RandomizedSearchCV
+from sklearn.model_selection import RandomizedSearchCV, learning_curve
 from sklearn.model_selection import GridSearchCV, RepeatedKFold, RepeatedStratifiedKFold
 from sklearn.model_selection import cross_val_score, cross_validate
 from sklearn.ensemble import RandomForestRegressor
@@ -387,7 +387,7 @@ def evaluate_models(models, x_train, x_test, y_train, y_test):
         model.fit(x_train, y_train)
         # evaluate the model
         yhat = model.predict(x_test)
-        mae = mean_absolute_error(y_test, yhat)
+        mae = MAEScore(y_test, yhat)
         # store the performance
         scores.append(-mae)
     # report model performance
@@ -420,27 +420,27 @@ def traineval(est, estimates, xtrain, ytrain, xtest, ytest, squaring, df, random
         maxEvals = 50
         start = time.time()
         #[8, 16, 32, (8, 8), (16, 16)]
-        space = {'hidden_layer_sizes': hp.choice('hidden_layer_sizes', [(10,),(40,),(85,),(30,),(85,3),(15,3,),(90,5,)]),
-                 'learning_rate': hp.choice('learning_rate',['adaptive']),
-                 'solver': hp.choice('solver',['lbfgs']),
-                  'activation': hp.choice('activation', ['relu']),
-                 'learning_rate_init':hp.choice('learning_rate_init',[0.001, 0.0015,0.002]),
-                 'max_iter': hp.choice('max_iter', [1000,  1500, 2000, 2500,  3000, 3500, 4000])
+        space = {'hidden_layer_sizes': hp.choice('hidden_layer_sizes', [(40,5),(85,),(30,),(50,),(55,10),(90,5),(200,),(200,20)]),
+                 'learning_rate': hp.choice('learning_rate',['adaptive','constant']),
+                 'solver': hp.choice('solver',['sgd']),
+                 'learning_rate_init':hp.choice('learning_rate_init',[0.0001,0.00015,0.001, 0.0015,0.002]),
+                 'max_iter': hp.choice('max_iter', [1000,  1500, 2000, 2500,  3000, 3500, 4000]),
+                                       'early_stopping' : hp.choice('early_stopping',[False])
                  }
 
         def hyperparameter_tuning(space):
             scaler = MinMaxScaler()
             model = MLPRegressor(hidden_layer_sizes=space['hidden_layer_sizes'], learning_rate=space['learning_rate'],
-                                 max_iter=int(space['max_iter']), activation=space['activation'],solver = space['solver'],
-                                 learning_rate_init=float(space['learning_rate_init']))
+                                 max_iter=int(space['max_iter']), solver = space['solver'],
+                                 learning_rate_init=float(space['learning_rate_init'] ))
             #pipeline = make_pipeline(scaler,model)
             evaluation = [(xtrain, ytrain), (xtest, ytest)]
             model.fit(xtrain, ytrain)
-
+            end=time.time()
             pred = model.predict(xtest)
             ytest2 = np.square(ytest)
             pred2 = np.square(pred)
-            R2 = r2_score(ytest2, pred2)
+            R2 = RSquared(ytest2, pred2)
             print("SCORE:", R2)
             returndict = {'loss': 1 - R2, 'status': STATUS_OK, 'model': model}
             return returndict
@@ -451,6 +451,7 @@ def traineval(est, estimates, xtrain, ytrain, xtest, ytest, squaring, df, random
         end = time.time()
         timeElapsed = end - start
         modelcurrent = trials.results[-1]['model']
+        #bestloss = modelcurrent._best_loss
         fitted=modelcurrent.fit(xtrain,ytrain)
         ypred = fitted.predict(xtest)
         if squaring:
@@ -474,8 +475,9 @@ def traineval(est, estimates, xtrain, ytrain, xtest, ytest, squaring, df, random
     paramdict = {k: [v] for k, v in paramdict.items()}
     dfHyperCurrent = pd.DataFrame(paramdict)
     dfHyperCurrent['imputation'] = df
-    dfHyperCurrent['bestloss'] = bestloss
-    dfHyperCurrent['mae'] = mean_absolute_error(ytest2, ypred2)
+    if est != "MLPR":
+      dfHyperCurrent['bestloss'] = bestloss
+    dfHyperCurrent['mae'] = MAEScore(ytest2, ypred2)
     ml_learner = modelID
     suffix = str(df).zfill(3)
     if df == 1:
@@ -492,7 +494,7 @@ def traineval(est, estimates, xtrain, ytrain, xtest, ytest, squaring, df, random
     if "Unnamed: 0.1" in dfHyper.columns:
         dfHyper.drop(["Unnamed: 0.1"], axis=1, inplace=True)
     dfHyper.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPEROPTHYPERPARAMETERS\model_" + ml_learner + suffix + ".csv", ";")
-    MAE = mean_absolute_error(ytest2, ypred2)
+    MAE = MAEScore(ytest2, ypred2)
     dfHyper = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPEROPTHYPERPARAMETERS\model_" + ml_learner + suffix + ".csv", ";")
     dfHyper.loc[df - 1, "mae"] = MAE
     dfHyper.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\HYPEROPTHYPERPARAMETERS\model_" + ml_learner + suffix + ".csv", ";")
@@ -718,7 +720,6 @@ def main():
             train, test = train_test_split(data, test_size=test_size, random_state=randomseed)
             traindf = pd.DataFrame(train)
             testdf = pd.DataFrame(test)
-
             traindf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Train" + suffix + ".csv", ";")
             testdf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Test" + suffix + ".csv", ";")
             testdf['Status'] = 'test'
@@ -992,12 +993,12 @@ def main():
                 #estimates = {'LR':LR,'LGBM':'LGBM'}
                 #estlist = {'LR','LGBM'}
 
-                estlist = ['LR','SVREG']
-                estimates = {'LR':LR, 'SVREG':SVR}
+                #estlist = ['LR','SVREG']
+                #estimates = {'LR':LR, 'SVREG':SVR}
                 # estimates = {'LR':LR,'Lasso':LASSO, 'Ridge':RIDGE, 'ELNet':ELNET}
                 # estlist = {'LR', 'Lasso', 'Ridge', 'ELNet'}
-                #estimates = {'LR':LR, 'MLPR': MLPR}
-                #estlist = {'LR','MLPR'}
+                estimates = {'LR':LR, 'MLPR': MLPR}
+                estlist = {'LR','MLPR'}
                 #estimates = {'LR':LR, 'GBR':GBR}
                 #estlist = {'LR','GBR'}
                 #estimates = {'LR':LR, 'DTR':DTR}

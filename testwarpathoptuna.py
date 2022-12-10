@@ -441,14 +441,21 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                 start = time.time()
                 def MLPR_Objective(trial):
                     scaler = MinMaxScaler()
-                    _mlpr_hidden_layer_sizes = trial.suggest_categorical("hidden_layer_sizes",[(10,)])  # WAS [(30,),(15,3)
-                    _mlpr_learning_rate_init = trial.suggest_categorical("learning_rate_init",[ 0.0015,  0.002]) # WAS [0.001]
-                    _mlpr_max_iter = trial.suggest_categorical("max_iter",[3500,4000,4500]) # WAS [1000,1500,2000]
+                    _mlpr_hidden_layer_sizes = trial.suggest_categorical("hidden_layer_sizes",
+                                                                       [(2,), (4,), (4, 1,), (4, 2,), (2, 1,), (2, 2,)])
+                    #_mlpr_hidden_layer_sizes = trial.suggest_categorical("hidden_layer_sizes",[(2,),(4,),(8,),(4,1,),(4,2,),(4,4,),(2,1,),(2,2,),(8,2,),(8,4,),(8,1,),(8,6,)])
+                    # _mlpr_hidden_layer_sizes = trial.suggest_categorical("hidden_layer_sizes",[(20,),(10,),(11,),(12,),(13,),(14,),(15,),(16,),(17,),(18,),(19,
+                   #_mlpr_learning_rate_init = trial.suggest_categorical("learning_rate_init",[ 0.0001, 0.0015,  0.002]) # WAS [0.001]
+                    _mlpr_max_iter = trial.suggest_categorical("max_iter",[5500,6000,6500,7000,7500,8000,8500,9000,9500,10000]) # WAS [1000,1500,2000]
+                    #_mlpr_max_iter = trial.suggest_categorical("max_iter", [4500, 5000, 5500, 6000, 6500, 7000, 7500,8000])  # WAS [1000,1500,2000]
                     _mlpr_solver = trial.suggest_categorical("solver",['lbfgs'])
-                    _mlpr_learning_rate = trial.suggest_categorical("learning_rate",['adaptive'])
-                    _mlpr_activation = trial.suggest_categorical("activation",["relu"])
-                    MLPR_Model = MLPRegressor(hidden_layer_sizes = _mlpr_hidden_layer_sizes, learning_rate_init=_mlpr_learning_rate_init,
-                                              max_iter = _mlpr_max_iter, learning_rate = _mlpr_learning_rate, activation=_mlpr_activation,
+                    #_mlpr_learning_rate = trial.suggest_categorical("learning_rate",['adaptive'])
+                    #_mlpr_activation = trial.suggest_categorical("activation",["relu"])
+                    #MLPR_Model = MLPRegressor(hidden_layer_sizes = _mlpr_hidden_layer_sizes, learning_rate_init=_mlpr_learning_rate_init,
+                    #                          max_iter = _mlpr_max_iter, learning_rate = _mlpr_learning_rate, activation=_mlpr_activation,
+                    #                          solver=_mlpr_solver)
+                    MLPR_Model = MLPRegressor(hidden_layer_sizes = _mlpr_hidden_layer_sizes,
+                                              max_iter=_mlpr_max_iter,
                                               solver=_mlpr_solver)
                     pipeline = make_pipeline(scaler,MLPR_Model )
                     score = cross_val_score(pipeline, xtrain, ytrain, cv=kfolds, scoring="neg_mean_absolute_error").mean()
@@ -659,7 +666,8 @@ def main():
                 impNumber = 50  # was 3
                 maxImp = 50
                 runImp = 0
-                randomseed = 143
+                randomseed = 42
+                #99_42 143 33 113 102 0 66
                 pd.set_option("display.max_rows", None, "display.max_columns", None)
                 pd.set_option('expand_frame_repr', False)
                 pd.set_option("display.max_rows", False)
@@ -846,7 +854,8 @@ def main():
                     dfmod.drop(["Age_years"], axis=1, inplace=True)
                     dfmod.drop([".imp"], axis=1, inplace=True)
                     dfmod.drop([".id"], axis=1, inplace=True)
-                    dfmod.drop(["Unnamed: 0.1.1"], axis=1, inplace=True)
+                    if "Unnamed: 0.1.1" in dfmod.columns:
+                        dfmod.drop(["Unnamed: 0.1.1"], axis=1, inplace=True)
                     suffix = str(df).zfill(3)
                     if combineImputations == True:
                         filename = "dfWarfarin001allPatients"
@@ -948,12 +957,12 @@ def main():
                             #estimates.append(Estimator(KNNR, 'KNN'))
                             #svr = sklearn.svm.SVR()
                             #estimates.append(Estimator(svr,'SVREG'))
-                            MLPR = MLPRegressor()
-                            estimates.append(Estimator(MLPR,'MLPR'))
+                            #MLPR = MLPRegressor()
+                            #estimates.append(Estimator(MLPR,'MLPR'))
                             #RF = RandomForestRegressor()
                             #estimates.append(Estimator(RF, 'RF'))
-                            #DTR = DecisionTreeRegressor()
-                            #estimates.append(Estimator(DTR,'DTR'))
+                            DTR = DecisionTreeRegressor()
+                            estimates.append(Estimator(DTR,'DTR'))
 
                             #LGB = lgb.LGBMRegressor()
                             #estimates.append(Estimator(LGB,'LGB'))
