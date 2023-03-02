@@ -386,8 +386,6 @@ def main():
                 mae_std_dev = std_Dev_Summ[stdpos]['MAE'] / impNumber
                 mae_CI_minus = round(mae_value - 1.96*np.sqrt(mae_std_dev + mae_variance), 4)
                 mae_CI_plus = round(mae_value + 1.96*np.sqrt(mae_std_dev + mae_variance), 4)
-                #mae_CI_minus = round(mae_value - 1.96*(mae_std_dev) , 4)
-                #mae_CI_plus = round(mae_value + 1.96 * (mae_std_dev),4)
                 pw20_value = models[k]['PW20'] / impNumber
                 pw20_list = collect_Results(results, fieldname, 'PW20')
                 pw20_variance = variance(pw20_list)*Bfactor

@@ -259,7 +259,7 @@ def main():
             df_IWPC = pd.DataFrame(data=data, columns=metric_columns)
             df_GAGE = pd.DataFrame(data=data, columns=metric_columns)
             df_FIXED = pd.DataFrame(data=data, columns=metric_columns)
-            if False:
+            if True:
                 while boot < 5:
                     print("imputation ", df, " on sample ", boot)
                     dfsample = dfmod.sample(n=690,frac=None,replace = True)
@@ -274,10 +274,7 @@ def main():
                         dosePred2 = dfMetricfactors[model + '_Pred']
                         curr_MAE = score_mae(doseTrue, dosePred2)
                         curr_PW20 = PercIn20(doseTrue, dosePred2)
-                        curr_R2 = RSquared(doseTrue, dosePred2)
-                        curr_MALAR = MALAR(doseTrue, dosePred2)
-                        curr_MLAR = MLAR(doseTrue, dosePred2)
-                        smpResults.append({'Imp': df, 'Sample': boot, 'model': model,'MAE': curr_MAE,'PW20': curr_PW20,'R2': curr_R2,'MALAR': curr_MALAR,'MLAR': curr_MLAR})
+                        impResults.append({'Imp': df, 'Sample': boot, 'model': model,'MAE': curr_MAE,'PW20': curr_PW20})
 
                 for m in range(len(listmodels)):
                     modelinlist = listmodels[m]
@@ -371,17 +368,8 @@ def main():
                  b = impResults[k]['Imp']
                  c = impResults[k]['MAE']
                  d = impResults[k]['PW20']
-                 e = impResults[k]['R2']
-                 f = impResults[k]['MAPE']
-                 g = impResults[k]['MLAR']
-                 h = impResults[k]['MALAR']
-                 i = impResults[k]['MAE_sd']
-                 j = impResults[k]['PW20_sd']
-                 l = impResults[k]['R2_sd']
-                 m = impResults[k]['MALAR_sd']
-                 n = impResults[k]['MLAR_sd']
-                 results.append({'Imp': b, 'model': a, 'MAE': c, 'PW20': d, 'R2': e, 'MAPE': f, 'MLAR': g, 'MALAR': h,
-                                'MAE_sd': i, 'PW20_sd': j, 'R2_sd':l, 'MALAR_sd':m, 'MLAR_sd':n})
+
+                 results.append({'Imp': b, 'model': a, 'MAE': c, 'PW20': d})
 
             for k in range(len(models)):
                  fieldname = models[k]['model']
@@ -390,15 +378,7 @@ def main():
 
                     models[k]['MAE'] += results[m]['MAE']
                     models[k]['PW20'] += results[m]['PW20']
-                    models[k]['R2'] += results[m]['R2']
-                    models[k]['MAPE'] += results[m]['MAPE']
-                    models[k]['MLAR'] += results[m]['MLAR']
-                    models[k]['MALAR'] += results[m]['MALAR']
-                    models[k]['MAE_sd'] += results[m]['MAE_sd']
-                    models[k]['PW20_sd'] += results[m]['PW20_sd']
-                    models[k]['R2_sd'] += results[m]['R2_sd']
-                    models[k]['MALAR_sd'] += results[m]['MALAR_sd']
-                    models[k]['MLAR_sd'] += results[m]['MLAR_sd']
+
                     #print(fieldname, results[m]['MAE'], results[m]['PW20'], results[m]['R2'], results[m]['MAPE'],
                     #     results[m]['MLAR'], results[m]['MALAR'])
 
@@ -411,48 +391,26 @@ def main():
                   pw20_value = round(models[k]['PW20'] / 100, 4)
                   print(fieldname,'PW20',models[k]['PW20'])
                   R2_value = round(models[k]['R2'] / 100, 4)
-                  print(fieldname, 'R2',models[k]['R2'])
-                  MALAR_value = round(models[k]['MALAR'] / 100, 4)
-                  print(fieldname, 'MALAR',models[k]['MALAR'])
-                  MLAR_value = round(models[k]['MLAR'] / 100, 4)
-                  print(fieldname, 'MLAR',models[k]['MLAR'])
-                  MALAR_value = round(models[k]['MALAR'] / 100, 4)
-                  print(fieldname, models[k]['MAE'], models[k]['PW20'], models[k]['R2'],  models[k]['MLAR'], models[k]['MALAR'])
-                  print(fieldname, 'MAE:', mae_value, 'PW20:', pw20_value, 'R2:', R2_value,  'MLAR:', MLAR_value, 'MALAR:', MALAR_value)
+
+                  print(fieldname, models[k]['MAE'], models[k]['PW20'])
+                  print(fieldname, 'MAE:', mae_value, 'PW20:', pw20_value)
 
 
-        if False:
-                print("Confidence Intervals for ", fieldname)
-                factor = models[k]['MAE_sd']/100
-                print("MAE 1.96 * std deviation/(sqrt(n) ", factor )
-                MAE_avg = models[k]['MAE']/100
-                MAE_upper = MAE_avg+factor
-                MAE_lower = MAE_avg-factor
-                print(fieldname, 'MAE', MAE_avg, MAE_lower, MAE_upper)
-                factor = models[k]['PW20_sd']/100
-                print("PW20 1.96 * std deviation/(sqrt(n) ", factor)
-                PW20_avg = models[k]['PW20']/100
-                PW20_upper = round(PW20_avg+factor,4)
-                PW20_lower = round(PW20_avg-factor,4)
-                print(fieldname, 'PW20',PW20_avg, PW20_lower,PW20_upper)
-                factor = models[k]['R2_sd']/100
-                print("R2 1.96 * std deviation/(sqrt(n) ", factor)
-                R2_avg = models[k]['R2']/100
-                R2_upper = round(R2_avg + factor,4)
-                R2_lower = round(R2_avg - factor,4)
-                print(fieldname, 'R2', R2_avg,R2_lower, R2_upper)
-                factor = models[k]['MALAR_sd']/100
-                print("MALAR 1.96 * std deviation/(sqrt(n) ", factor)
-                MALAR_avg = models[k]['MALAR']/100
-                MALAR_upper = round(MALAR_avg + factor,4)
-                MALAR_lower = round(MALAR_avg - factor,4)
-                print(fieldname, 'MALAR', MALAR_avg, MALAR_lower, MALAR_upper)
-                factor = models[k]['MLAR_sd']/100
-                print("MLAR 1.96 * std deviation/(sqrt(n) ", factor)
-                MLAR_avg = models[k]['MLAR']/100
-                MLAR_upper = round(MLAR_avg + factor,4)
-                MLAR_lower = round(MLAR_avg - factor,4)
-                print(fieldname, 'MLAR', MLAR_avg,MLAR_lower, MLAR_upper)
+        #if False:
+            print("Confidence Intervals for ", fieldname)
+            factor = models[k]['MAE_sd']/100
+            print("MAE 1.96 * std deviation/(sqrt(n) ", factor )
+            MAE_avg = models[k]['MAE']/100
+            MAE_upper = MAE_avg+factor
+            MAE_lower = MAE_avg-factor
+            print(fieldname, 'MAE', MAE_avg, MAE_lower, MAE_upper)
+            factor = models[k]['PW20_sd']/100
+            print("PW20 1.96 * std deviation/(sqrt(n) ", factor)
+            PW20_avg = models[k]['PW20']/100
+            PW20_upper = round(PW20_avg+factor,4)
+            PW20_lower = round(PW20_avg-factor,4)
+            print(fieldname, 'PW20',PW20_avg, PW20_lower,PW20_upper)
+
 
     except FileNotFoundError:
         print("Sorry, could not find file " + file_name)

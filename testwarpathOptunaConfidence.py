@@ -250,8 +250,6 @@ def INRThree(targetINR):
         return 0
 
 
-
-
 def tune(objective,df,model):
     ntrials = 50
     study = optuna.create_study(direction="maximize")
@@ -383,16 +381,20 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                 def DTR_objective(trial):
                     _min_samples_leaf = trial.suggest_categorical("min_samples_leaf", [1])
                     _max_depth = trial.suggest_categorical('max_depth', [2])
-                    #_min_impurity_decrease = trial.suggest_categorical("min_impurity_decrease", [0.0])
+                    _min_impurity_decrease = trial.suggest_categorical("min_impurity_decrease", [0.0])
                     _max_features = trial.suggest_categorical('max_features', [0.355298191, 0.55247903, 0.5616223889, 0.900168726])
-                    #_min_samples_split = trial.suggest_categorical("min_samples_split", [2])
+                    _min_samples_split = trial.suggest_categorical("min_samples_split", [2])
                     _max_leaf_nodes = trial.suggest_categorical("max_leaf_nodes", [None,10])
-                    #_min_weight_fraction_leaf = trial.suggest_categorical("min_weight_fraction_leaf", [0.0])
-                    #_splitter = trial.suggest_categorical('splitter', ["random"])
+                    _min_weight_fraction_leaf = trial.suggest_categorical("min_weight_fraction_leaf", [0.0])
+                    _splitter = trial.suggest_categorical('splitter', ["random"])
 
                     DTR_model = DecisionTreeRegressor(min_samples_leaf=_min_samples_leaf, max_depth=_max_depth,
                                                       max_features=_max_features,
-                                                      max_leaf_nodes=_max_leaf_nodes)
+                                                      max_leaf_nodes=_max_leaf_nodes,
+                                                      min_impurity_decrease=_min_impurity_decrease,
+                                                      min_weight_fraction_leaf=_min_weight_fraction_leaf,
+                                                      min_samples_split=_min_samples_split,
+                                                      splitter=_splitter)
 
 
                     score = cross_val_score(DTR_model, xtrain, ytrain, cv=kfolds,
@@ -438,17 +440,44 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                 model = GradientBoostingRegressor(**GBR_params)
 
             elif est.identifier == "MLPR":
+
+
+                #activation = 'identity', alpha = 0.009260944818691528,
+                #beta_1 = 0.8304148442169565, beta_2 = 0.9847593650340831,
+                #epsilon = 4.968151316490382e-06, learning_rate = 'adaptive',
+                #learning_rate_init = 0.014389028832229495, max_fun = 27459,
+                #max_iter = 240, momentum = 0.871153667593362,
+                #power_t = 0.6130708398995247, random_state = 2, solver = 'lbfgs',
+                #tol = 0.008075623520655316,
+                #validation_fraction = 0.036450106641084085
+
+
+
+
                 start = time.time()
                 def MLPR_Objective(trial):
                     scaler = MinMaxScaler()
                     _mlpr_hidden_layer_sizes = trial.suggest_categorical("hidden_layer_sizes",
-                                                                       [(2,), (4,), (4, 1,), (4, 2,), (2, 1,), (2, 2,)])
+                                                                       [(2,),(3,), (1,),(3,1,),(3,2,),(3,3,), (2, 1,),(2, 2,)])
+
                     #_mlpr_hidden_layer_sizes = trial.suggest_categorical("hidden_layer_sizes",[(2,),(4,),(8,),(4,1,),(4,2,),(4,4,),(2,1,),(2,2,),(8,2,),(8,4,),(8,1,),(8,6,)])
                     # _mlpr_hidden_layer_sizes = trial.suggest_categorical("hidden_layer_sizes",[(20,),(10,),(11,),(12,),(13,),(14,),(15,),(16,),(17,),(18,),(19,
                    #_mlpr_learning_rate_init = trial.suggest_categorical("learning_rate_init",[ 0.0001, 0.0015,  0.002]) # WAS [0.001]
-                    _mlpr_max_iter = trial.suggest_categorical("max_iter",[5500,6000,6500,7000,7500,8000,8500,9000,9500,10000]) # WAS [1000,1500,2000]
+                    _mlpr_max_iter = trial.suggest_categorical("max_iter",[240,5500,6000,6500,7000,7500,8000,8500,9000,9500,10000]) # WAS [1000,1500,2000]
                     #_mlpr_max_iter = trial.suggest_categorical("max_iter", [4500, 5000, 5500, 6000, 6500, 7000, 7500,8000])  # WAS [1000,1500,2000]
                     _mlpr_solver = trial.suggest_categorical("solver",['lbfgs'])
+                    _mlpr_tol = trial.suggest_categorical("tol",[0.008075623520655316])
+                    #_mlpr_activation = trial.suggest_categorical('activation',['logistic','relu'])
+                    _mlpr_learning_rate_init = trial.suggest_categorical('learning_rate_init', [0.014389028832229495])
+                    _mlpr_epsilon = trial.suggest_categorical('epsilon',[4.968151316490382e-06])
+                    _mlpr_activation = trial.suggest_categorical('activation',['identity'])
+                    _mlpr_alpha = trial.suggest_categorical('alpha',[0.009260944818691528])
+                    _mlpr_beta_1 = trial.suggest_categorical('beta_1', [0.8304148442169565])
+                    _mlpr_beta_2 = trial.suggest_categorical('beta_2', [0.9847593650340831])
+                    _mlpr_power_t = trial.suggest_categorical('power_t', [0.6130708398995247])
+                    _mlpr_max_fun = trial.suggest_categorical('max_fun', [27459])
+                    _mlpr_momentum = trial.suggest_categorical('momentum',[0.871153667593362])
+                    _mlpr_validation_fraction = trial.suggest_categorical('validation_fraction',[0.036450106641084085])
                     #_mlpr_learning_rate = trial.suggest_categorical("learning_rate",['adaptive'])
                     #_mlpr_activation = trial.suggest_categorical("activation",["relu"])
                     #MLPR_Model = MLPRegressor(hidden_layer_sizes = _mlpr_hidden_layer_sizes, learning_rate_init=_mlpr_learning_rate_init,
@@ -456,7 +485,13 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                     #                          solver=_mlpr_solver)
                     MLPR_Model = MLPRegressor(hidden_layer_sizes = _mlpr_hidden_layer_sizes,
                                               max_iter=_mlpr_max_iter,
-                                              solver=_mlpr_solver)
+                                              activation=_mlpr_activation,
+                                              solver=_mlpr_solver,random_state = randomseed,
+                                              tol=_mlpr_tol,learning_rate_init=_mlpr_learning_rate_init,
+                                              epsilon=_mlpr_epsilon, alpha = _mlpr_alpha,
+                                              beta_1= _mlpr_beta_1, beta_2 = _mlpr_beta_2,
+                                              power_t = _mlpr_power_t,max_fun=_mlpr_max_fun,
+                                              momentum= _mlpr_momentum, validation_fraction= _mlpr_validation_fraction)
                     pipeline = make_pipeline(scaler,MLPR_Model )
                     score = cross_val_score(pipeline, xtrain, ytrain, cv=kfolds, scoring="neg_mean_absolute_error").mean()
                     return score
@@ -540,13 +575,16 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
 
                     def SVREG_Objective(trial):
                         scaler = StandardScaler()
-                        _gamma = trial.suggest_categorical('gamma', ['auto'])
-                        _C = trial.suggest_categorical("C",  [1])
-                        _epsilon = trial.suggest_categorical("epsilon", [0.1])
+                        #_gamma = trial.suggest_categorical('gamma', ['auto', 'scale'])
+                        _regParam1 = trial.suggest_categorical('C', [1])
+                        _regParam2 = trial.suggest_categorical('epsilon', [0.1])
+                        _gamma = trial.suggest_categorical('gamma', ['scale'])
+                        #_C = trial.suggest_categorical("C",  [0,0.1,0,2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,1.5,2.0,2.5,3.0,3.5,4.0,4.5,5.0,5.5,6.0,6.5,7.0,7.5,8.0,8.5,9.0,9.5,10.0])
+                        #_epsilon = trial.suggest_categorical("epsilon", [0,0.1,0,2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,1.5,2.0,2.5,3.0,3.5,4.0,4.5,5.0,5.5,6.0,6.5,7.0,7.5,8.0,8.5,9.0,9.5,10.0])
                         _kernel = trial.suggest_categorical("kernel", ['rbf'])
                         #_coef0 = trial.suggest_float("coef0", 0.01, 1)
                         #svr = SVR(C=_C, epsilon=_epsilon, kernel='poly')
-                        SVREG_model = sklearn.svm.SVR(gamma=_gamma, C=_C, epsilon=_epsilon, kernel=_kernel)
+                        SVREG_model = sklearn.svm.SVR(gamma=_gamma, C=_regParam1, epsilon=_regParam2, kernel=_kernel)
                         pipeline = make_pipeline(scaler, SVREG_model)
                         score = cross_val_score(pipeline, xtrain, ytrain, cv=kfolds,scoring="neg_mean_absolute_error").mean()
                         return score
@@ -667,7 +705,7 @@ def main():
                 impNumber = 50  # was 3
                 maxImp = 50
                 runImp = 0
-                randomseed = 102
+                randomseed = 0
                 #99_42 143 33 113 102 0 66
                 pd.set_option("display.max_rows", None, "display.max_columns", None)
                 pd.set_option('expand_frame_repr', False)
@@ -950,7 +988,9 @@ def main():
                             #XGBR = XGBRegressor()
                             #estimates.append(Estimator(XGBR,'XGBR'))
                             #RR=Ridge()[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[
+                            #RR = Ridge()
                             #LAS = Lasso()
+                            #ELNET = ElasticNet()
                             #estimates.append(Estimator(LAS,'LASSO'))
                             #estimates.append(Estimator(ELNET,'ELNET'))
                             #estimates.append(Estimator(RR,'RIDGE'))

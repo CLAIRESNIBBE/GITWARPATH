@@ -4,6 +4,7 @@ import sklearn
 import xgboost
 from warfit_learn.estimators import Estimator
 from sklearn.ensemble import RandomForestRegressor, AdaBoostRegressor
+from sklearn.neural_network import MLPRegressor
 from sklearn.linear_model import LinearRegression, Ridge
 from sklearn.linear_model import RidgeCV, ElasticNetCV, LassoLarsCV, Lasso, ElasticNet
 from sklearn.neighbors import KNeighborsRegressor
@@ -42,8 +43,10 @@ estimates = []
 
 LR = LinearRegression()
 estimates.append(Estimator(LR,'LR'))
-SVR = sklearn.svm.SVR()
-estimates.append(Estimator(SVR,'SVREG'))
+MLPR = MLPRegressor()
+estimates.append(Estimator(MLPR, 'MLPR'))
+
+
 #estimates.append(Estimator(pipeline_KNNR_scaled, 'KNN'))
 
 dfResults = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfResults.csv",";")
