@@ -281,12 +281,6 @@ def tune(objective,df,model):
     print(f"Best score: {best_score} \nOptimized parameters: {params}")
     return params
 
-def dropColumn(IWPCparam, columnname, dfColumns, dfmod, dfIWPC):
-    if columnname in dfColumns:
-        if IWPCparam == "IWPC":
-          dfIWPC.drop([columnname],axis=1,inplace=True)
-        else:
-          dfmod.drop([columnname], axis=1, inplace=True)
 
 def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, randomseed):
     resultsdict = {'PW20': 0, 'MAE': 0, 'R2': 0, 'Time': ''}
@@ -456,6 +450,10 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                 #power_t = 0.6130708398995247, random_state = 2, solver = 'lbfgs',
                 #tol = 0.008075623520655316,
                 #validation_fraction = 0.036450106641084085
+
+
+
+
                 start = time.time()
                 def MLPR_Objective(trial):
                     scaler = MinMaxScaler()
@@ -596,6 +594,7 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                     model = sklearn.svm.SVR(**SVREG_params)
 
                 elif est.identifier == "ABRF":
+
                     param_grid = [{'n_estimators': [10, 50, 100, 500], 'learning_rate': [0.0001, 0.001, 0.01, 0.1]}]
                 elif est.identifier == "GBR":
                     start = time.time()
@@ -699,18 +698,13 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
 
 def main():
                 # dfHyper = pd.DataFrame()
-                combinedata = True
+                combinedata = False
                 scaler = MinMaxScaler()
-                fileName1 = "AllImputations.csv"
-                fileName1 = fileName1.upper()
-                fileName2 = 'IMPWARPATHSUPER.CSV'
-                filescheck = []
-                filescheck.append(fileName1)
-                filescheck.append(fileName2)
                 dftemplate = pd.DataFrame()
                 dfWarPath = pd.DataFrame()
-                impNumber = 50  # was 3
-                maxImp = 50
+                number_of_samples = 10
+                impNumber = 10  # was 3
+                maxImp = 10
                 runImp = 0
                 randomseed = 0
                 #99_42 143 33 113 102 0 66
@@ -720,12 +714,10 @@ def main():
                 df = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\MiceRWarPATHData.csv", ";")
                 filesIWPC = []
                 if True:
-                    runningImp = 0
                     for root, dirs, files in os.walk(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\MICESTATSMODEL"):
                         for file in files:
-                            if file.endswith('.csv') and runningImp < maxImp:
+                            if file.endswith('.csv'):
                                 filesIWPC.append(file)
-                                runningImp = runningImp+1
                 imp = 50
                 for imp in range(impNumber):
                     counter = imp + 1
@@ -761,21 +753,15 @@ def main():
 
                 else:
                     # fixedtraintest = False
-                    if True:
+                    if False:
                         for root, dirs, files in os.walk(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations"):
                             for file in files:
-                                fileup = file.upper()
                                 if file.endswith(
-                                    '.csv') and 'TEST' not in fileup and 'TRAIN' not in fileup and "SPLIT" not in fileup and fileup not in filescheck:
+                                        '.csv') and 'TEST' not in file and 'TRAIN' not in file and "SPLIT" not in file:
                                     # filesImp.append(file)
                                     filedf = pd.read_csv(root + '\\' + file, ";")
                                     trainID, testID = train_test_split(filedf, test_size=0.2)
                                     trainSize = len(trainID)
-                                    if trainSize == 232:
-                                       print("error")
-                                    if trainSize == 29120:
-                                       print("error")
-
                                     trainID.to_csv(
                                         r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TRAINSPLIT" + ".csv",
                                         ";")
@@ -872,7 +858,7 @@ def main():
                         rootIWPC = root.replace("WarImputations", "MICESTATSMODELHIV\\")
                         IWPC_csv = rootIWPC + filesIWPC[fileindex]
                         IWPCDF = pd.read_csv(IWPC_csv, ';')
-                        sampleSize = int(round(trainSize))
+                        sampleSize = int(round(trainSize * 0.5))
                         dfIWPC = IWPCDF.sample(n=sampleSize)
                         dfIWPC["Status"] = "train"
                         dfIWPC.drop(["Unnamed: 0"], axis=1, inplace=True)
@@ -887,8 +873,6 @@ def main():
                     dfmod["Target_INR"] = dfmod.apply(lambda x: INRThree(x["Target_INR"]), axis=1)
                     dfmod["Target_INR"] = dfmod['Target_INR'].astype("float")
                     if combinedata == True:
-                        dfIWPC["Target_INR"] = np.where(dfIWPC["Target_INR"] == "Three", 3.0,
-                                                       np.where(dfIWPC["Target_INR"] == "aTwo_point_five", 2.5, 2.0))
                         dfIWPC["Target_INR"] = dfIWPC.apply(lambda x: INRThree(x["Target_INR"]), axis=1)
                         dfIWPC["Target_INR"] = dfIWPC['Target_INR'].astype("float")
 
@@ -897,43 +881,37 @@ def main():
                     dfmod["Smoker"] = dfmod.apply(lambda x: ConvertYesNo(x["Smoking_status"]), axis=1)
                     dfmod["Indicationflag"] = dfmod.apply(lambda x: ConvertYesNo(x["Indication"]), axis=1)
                     dfmod.drop(["Inducer_status", "Amiodarone_status", "Smoking_status", "Indication"], axis=1, inplace=True)
+                    # dfmod["AgeDecades"] = np.floor(dfmod["Age_years"] * 0.1).astype("int")
                     dfmod["AgeYears"] = dfmod["Age_years"]
                     dfmod['AgeYears'] = np.where((dfmod['AgeYears'] <= 18), 18, dfmod['AgeYears'])
                     dfmod["HIVPositive"] = np.where(dfmod["HIV_status"] == "Positive", 1, 0)
                     dfmod["HIVUnknown"] = np.where(dfmod["HIV_status"] == "Unknown", 1, 0)
-                    dfmod["Status"] = ""
-                    if combinedata == True:
-                        dfIWPC['AgeYears'] = np.where((dfIWPC['AgeYears'] <= 18), 18, dfIWPC['AgeYears'])
-                        dropColumn("IWPC", "AgeDecades", dfIWPC.columns, dfmod, dfIWPC)
-                        dropColumn("IWPC", "INR_Three", dfIWPC.columns, dfmod, dfIWPC)
-                        dfIWPC["HIVPositive"]=0
-                        dfIWPC["HIVUnknown"]=0
-
-                    dropColumn("WARPATH", 'HIV_status', dfmod.columns, dfmod, dfIWPC)
-                    dropColumn("WARPATH", "Unnamed: 0", dfmod.columns, dfmod, dfIWPC)
-                    dropColumn("WARPATH", "Unnamed: 0.1", dfmod.columns, dfmod, dfIWPC)
-                    dropColumn("WARPATH", "Unnamed: 0.2", dfmod.columns, dfmod, dfIWPC)
-                    dropColumn("WARPATH", "Age_years", dfmod.columns, dfmod, dfIWPC)
-                    dropColumn("WARPATH", ".imp", dfmod.columns, dfmod, dfIWPC)
-                    dropColumn("WARPATH", ".id", dfmod.columns, dfmod, dfIWPC)
-                    dropColumn("WARPATH", "Unnamed: 0.1.1", dfmod.columns, dfmod, dfIWPC)
-
+                    # dfIWPC["HIVPositive"]=0
+                    # dfIWPC["HIVUnknown"] = 0
+                    dfmod.drop(["HIV_status"], axis=1, inplace=True)
+                    dfmod.drop(["Unnamed: 0"], axis=1, inplace=True)
+                    dfmod.drop(["Unnamed: 0.1"], axis=1, inplace=True)
+                    dfmod.drop(["Age_years"], axis=1, inplace=True)
+                    dfmod.drop([".imp"], axis=1, inplace=True)
+                    dfmod.drop([".id"], axis=1, inplace=True)
+                    if "Unnamed: 0.1.1" in dfmod.columns:
+                        dfmod.drop(["Unnamed: 0.1.1"], axis=1, inplace=True)
                     suffix = str(df).zfill(3)
                     if combineImputations == True:
                         filename = "dfWarfarin001allPatients"
                         dfmod.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\PreProcessed\\" + filename + ".csv", ";")
-                    if combinedata == True:
-                       dfmod = dfmod.sample(frac=1)
-                       dfIWPC = dfIWPC.sample(frac=1)
-                       frames = [dfmod, dfIWPC]
-                       dfmod = pd.concat(frames,ignore_index=True, sort=True)
-                       dfmod = dfmod.sample(frac=1)
-                       combfilename = "comb" + suffix
-                       dfmod.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\combinedata\\" + combfilename + ".csv",
+                    elif combinedata == True:
+                        dfmod = dfmod.sample(frac=1)
+                        dfIWPC = dfIWPC.sample(frac=1)
+                        frames = [dfmod, dfIWPC]
+                        dfmod = pd.concat(frames)
+                        dfmod = dfmod.sample(frac=1)
+                        combfilename = "comb" + suffix
+                        dfmod.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\combinedata\\" + combfilename + ".csv",
                                      ";")
                     else:
-                       filename = "dfWarfarin" + suffix
-                       dfmod.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\PreProcessed\\" + filename + ".csv", ";")
+                        filename = "dfWarfarin" + suffix
+                        dfmod.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\PreProcessed\\" + filename + ".csv", ";")
                     if True:
                         print("On imputation ", df)
                         data = dfmod
@@ -947,9 +925,18 @@ def main():
                         # train = data.loc[data["Status"] == "train"]
                         # test = data.loc[data["Status"] == "test"]
                         test_size = 0.2
+
                         train, test = train_test_split(data, test_size=test_size, random_state=randomseed)  # was 66
                         traindf = pd.DataFrame(train)
                         testdf = pd.DataFrame(test)
+                        while boot < number_of_samples:
+                            print("imputation ", df, " on sample ", boot)
+                            dfsampletrain = traindf.sample(n=291, frac=None, replace=True)
+                            dfsampletrain = dfsample.reset_index(drop=True)
+                            boot = boot + 1
+
+
+
 
                         traindf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Train" + suffix + ".csv", ";")
                         testdf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Test" + suffix + ".csv", ";")
