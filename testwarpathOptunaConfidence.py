@@ -716,7 +716,8 @@ def main():
                 impNumber = 50  # was 3
                 maxImp = 50
                 runImp = 0
-                randomseed = 0
+                randomseed = 113
+                flagHIV = False
                 #99_42 143 33 113 102 0 66
                 pd.set_option("display.max_rows", None, "display.max_columns", None)
                 pd.set_option('expand_frame_repr', False)
@@ -910,16 +911,17 @@ def main():
                     dfmod.drop(["Inducer_status", "Amiodarone_status", "Smoking_status", "Indication"], axis=1, inplace=True)
                     dfmod["AgeYears"] = dfmod["Age_years"]
                     dfmod['AgeYears'] = np.where((dfmod['AgeYears'] <= 18), 18, dfmod['AgeYears'])
-                    dfmod["HIVPositive"] = np.where(dfmod["HIV_status"] == "Positive", 1, 0)
-                    dfmod["HIVUnknown"] = np.where(dfmod["HIV_status"] == "Unknown", 1, 0)
+                    if flagHIV == True:
+                       dfmod["HIVPositive"] = np.where(dfmod["HIV_status"] == "Positive", 1, 0)
+                       dfmod["HIVUnknown"] = np.where(dfmod["HIV_status"] == "Unknown", 1, 0)
                     dfmod["Status"] = ""
                     if combinedata == True:
                         dfIWPC['AgeYears'] = np.where((dfIWPC['AgeYears'] <= 18), 18, dfIWPC['AgeYears'])
                         dropColumn("IWPC", "AgeDecades", dfIWPC.columns, dfmod, dfIWPC)
                         dropColumn("IWPC", "INR_Three", dfIWPC.columns, dfmod, dfIWPC)
-                        dfIWPC["HIVPositive"]=0
-                        dfIWPC["HIVUnknown"]=0
-
+                        if flagHIV == True:
+                            dfIWPC["HIVPositive"]=0
+                            dfIWPC["HIVUnknown"]=0
                     dropColumn("WARPATH", 'HIV_status', dfmod.columns, dfmod, dfIWPC)
                     dropColumn("WARPATH", "Unnamed: 0", dfmod.columns, dfmod, dfIWPC)
                     dropColumn("WARPATH", "Unnamed: 0.1", dfmod.columns, dfmod, dfIWPC)
@@ -1030,8 +1032,8 @@ def main():
                         if True:
                             #GBR = GradientBoostingRegressor()
                             #estimates.append(Estimator(GBR,'GBR'))
-                            #XGBR = XGBRegressor()
-                            #estimates.append(Estimator(XGBR,'XGBR'))
+                            XGBR = XGBRegressor()
+                            estimates.append(Estimator(XGBR,'XGBR'))
                             #RR=Ridge()[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[
                             #RR = Ridge()
                             #LAS = Lasso()
@@ -1041,8 +1043,8 @@ def main():
                             #estimates.append(Estimator(RR,'RIDGE'))
                             #KNNR = KNeighborsRegressor()
                             #estimates.append(Estimator(KNNR, 'KNN'))
-                            svr = sklearn.svm.SVR()
-                            estimates.append(Estimator(svr,'SVREG'))
+                            #svr = sklearn.svm.SVR()
+                            #estimates.append(Estimator(svr,'SVREG'))
                             #MLPR = MLPRegressor()
                             #estimates.append(Estimator(MLPR,'MLPR'))
                             #RF = RandomForestRegressor()

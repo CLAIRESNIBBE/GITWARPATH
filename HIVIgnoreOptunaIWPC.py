@@ -117,6 +117,7 @@ def collect_Metrics(metrics, model, metric):
             container.append(metrics[metric][metrics['Estimator'] == model].values)
     return container
 
+
 def collect_Results(model, metric):
     container = []
     if Estimator == model:
@@ -145,6 +146,7 @@ def std_deviation(metric,mean):
 def SList(series):
     return np.array(series.values.tolist())
 
+
 def confintlimit95(metric,mean):
     return 1.96 * np.sqrt(variance(metric,mean) / len(metric))
 
@@ -155,6 +157,18 @@ def TrainOrTest(patientID,TrainList, TestList):
         return 'train'
     elif (patientID in TestList):
         return 'test'
+
+
+    #newList = []
+    #for patient in patientIDList:
+    #  currpatient = patient
+    #  for fixedpatient in TrainList:
+    #    if (fixedpatient == currpatient):
+    #      newList.append('train')
+    #  for fixedpatient in TestList:
+    #    if (fixedpatient == currpatient):
+    #      newList.append('test')
+    #return newList
 
 def format_summary(df_res):
     df_summary = df_res.groupby(['Estimator']).mean()
@@ -267,14 +281,12 @@ def tune(objective,df,model,randomseed):
     print(f"Best score: {best_score} \nOptimized parameters: {params}")
     return params
 
-def dropColumn(IWPCparam, columnname, dfColumns, dfmod, dfIWPC, IWPCDF):
+def dropColumn(IWPCparam, columnname, dfColumns, dfmod, dfIWPC):
     if columnname in dfColumns:
         if IWPCparam == "IWPC":
-           dfIWPC.drop([columnname],axis=1,inplace=True)
-        elif IWPCparam == "IWPCDF":
-           IWPCDF.drop([columnname],axis=1,inplace=True)
+          dfIWPC.drop([columnname],axis=1,inplace=True)
         else:
-           dfmod.drop([columnname], axis=1, inplace=True)
+          dfmod.drop([columnname], axis=1, inplace=True)
 
 def indexTo1(df):
     df.index = np.arange(1, len(df) + 1)
@@ -692,7 +704,6 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
 def main():
                 # dfHyper = pd.DataFrame()
                 combinedata = True
-                onlyIWPC = True
                 scaler = MinMaxScaler()
                 fileName1 = "AllImputations.csv"
                 fileName1 = fileName1.upper()
@@ -704,8 +715,9 @@ def main():
                 dfWarPath = pd.DataFrame()
                 impNumber = 50  # was 3
                 maxImp = 50
-                runImp = 0
+                runImp = 143
                 randomseed = 0
+                HIVflag = False
                 #99_42 143 33 113 102 0 66
                 pd.set_option("display.max_rows", None, "display.max_columns", None)
                 pd.set_option('expand_frame_repr', False)
@@ -872,24 +884,13 @@ def main():
                         IWPC_csv = rootIWPC + filesIWPC[fileindex]
                         IWPCDF = pd.read_csv(IWPC_csv, ';')
                         IWPCDF.reset_index()
-                        if onlyIWPC == True:
-                            IWPCDF['AgeYears'] = np.where((IWPCDF['AgeYears'] <= 18), 18, IWPCDF['AgeYears'])
-                            IWPCDF["Target_INR"] = IWPCDF.apply(lambda x: INRThree(x["Target_INR"]), axis=1)
-                            IWPCDF["Target_INR"] = IWPCDF['Target_INR'].astype("float")
-                            IWPCDF['Dose_mg_week'] = IWPCDF['Dose_mg_week'].apply(np.sqrt)
-                            dropColumn("IWPCDF", "AgeDecades", IWPCDF.columns, dfmod, IWPCDF, IWPCDF)
-                            dropColumn("IWPCDF", "INR_Three", IWPCDF.columns, dfmod, IWPCDF, IWPCDF)
-                            #IWPCDF["HIVPositive"] = 0
-                            #IWPCDF["HIVUnknown"] = 0
-                            dfIWPConly, dfIWPC_test = train_test_split(IWPCDF, test_size=0.2, random_state=randomseed)
-                            dfIWPConly.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Claire_IWPC" + randstring + suffix + ".csv",
-                                ";")
-                        else:
-                          sampleSize = int(round(trainSize))
-                          dfIWPC,testset=   train_test_split(IWPCDF, test_size=0.1, train_size=sampleSize, random_state=randomseed)
-                          dfIWPC["Status"] = "train"
-                          dropColumn("IWPC", "Unnamed: 0", dfIWPC.columns, dfmod, dfIWPC,IWPCDF)
-                          dfIWPC.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Claire_IWPC" + randstring + suffix + ".csv", ";")
+                        sampleSize = int(round(trainSize))
+                        dfIWPC,testset=   train_test_split(IWPCDF, test_size=0.1, train_size=sampleSize, random_state=randomseed)
+                        dfIWPC["Status"] = "train"
+                        dropColumn("IWPC", "Unnamed: 0", dfIWPC.columns, dfmod, dfIWPC)
+                        dfIWPC.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Claire_IWPC" + randstring + suffix + ".csv", ";")
+                        #dfIWPC.drop(["Unnamed: 0"], axis=1, inplace=True)
+                    #df = fileindex + 1
                     dfnew.reset_index()
                     dfmod = dfnew
                     dfmod.drop(['Gender', 'Country_recruitment'], axis=1, inplace=True)
@@ -897,13 +898,12 @@ def main():
                     # dfIWPC.drop(['INR_Three'], axis=1, inplace=True)
                     # dfmod["INR_Three"] = np.where(dfmod["Target_INR"] == "Three", 1, 0)
                     dfmod["Target_INR"] = np.where(dfmod["Target_INR"] == "Three", 3.0,
-                                                   np.where(dfmod["Target_INR"] == "aTwo_point_five", 2.5, 2.0))
+                                          np.where(dfmod["Target_INR"] == "aTwo_point_five", 2.5, 2.0))
                     dfmod["Target_INR"] = dfmod.apply(lambda x: INRThree(x["Target_INR"]), axis=1)
                     dfmod["Target_INR"] = dfmod['Target_INR'].astype("float")
                     if combinedata == True:
-                        if onlyIWPC == False:
-                            dfIWPC["Target_INR"] = dfIWPC.apply(lambda x: INRThree(x["Target_INR"]), axis=1)
-                            dfIWPC["Target_INR"] = dfIWPC['Target_INR'].astype("float")
+                        dfIWPC["Target_INR"] = dfIWPC.apply(lambda x: INRThree(x["Target_INR"]), axis=1)
+                        dfIWPC["Target_INR"] = dfIWPC['Target_INR'].astype("float")
                     dfmod["Inducer"] = dfmod.apply(lambda x: ConvertYesNo(x["Inducer_status"]), axis=1)
                     dfmod["Amiodarone"] = dfmod.apply(lambda x: ConvertYesNo(x["Amiodarone_status"]), axis=1)
                     dfmod["Smoker"] = dfmod.apply(lambda x: ConvertYesNo(x["Smoking_status"]), axis=1)
@@ -911,18 +911,25 @@ def main():
                     dfmod.drop(["Inducer_status", "Amiodarone_status", "Smoking_status", "Indication"], axis=1, inplace=True)
                     dfmod["AgeYears"] = dfmod["Age_years"]
                     dfmod['AgeYears'] = np.where((dfmod['AgeYears'] <= 18), 18, dfmod['AgeYears'])
-                    dfmod["HIVPositive"] = np.where(dfmod["HIV_status"] == "Positive", 1, 0)
-                    dfmod["HIVUnknown"] = np.where(dfmod["HIV_status"] == "Unknown", 1, 0)
+                    if HIVflag == True:
+                      dfmod["HIVPositive"] = np.where(dfmod["HIV_status"] == "Positive", 1, 0)
+                      dfmod["HIVUnknown"] = np.where(dfmod["HIV_status"] == "Unknown", 1, 0)
                     dfmod["Status"] = ""
-                    if onlyIWPC == False:
-                        dropColumn("WARPATH", 'HIV_status', dfmod.columns, dfmod, dfIWPC, IWPCDF)
-                        dropColumn("WARPATH", "Unnamed: 0", dfmod.columns, dfmod, dfIWPC, IWPCDF)
-                        dropColumn("WARPATH", "Unnamed: 0.1", dfmod.columns, dfmod, dfIWPC, IWPCDF)
-                        dropColumn("WARPATH", "Unnamed: 0.2", dfmod.columns, dfmod, dfIWPC, IWPCDF)
-                        dropColumn("WARPATH", "Age_years", dfmod.columns, dfmod, dfIWPC, IWPCDF)
-                        dropColumn("WARPATH", ".imp", dfmod.columns, dfmod, dfIWPC, IWPCDF)
-                        dropColumn("WARPATH", ".id", dfmod.columns, dfmod, dfIWPC, IWPCDF)
-                        dropColumn("WARPATH", "Unnamed: 0.1.1", dfmod.columns, dfmod, dfIWPC, IWPCDF)
+                    if combinedata == True:
+                        dfIWPC['AgeYears'] = np.where((dfIWPC['AgeYears'] <= 18), 18, dfIWPC['AgeYears'])
+                        dropColumn("IWPC", "AgeDecades", dfIWPC.columns, dfmod, dfIWPC)
+                        dropColumn("IWPC", "INR_Three", dfIWPC.columns, dfmod, dfIWPC)
+                        if HIVflag == True:
+                            dfIWPC["HIVPositive"]=0
+                            dfIWPC["HIVUnknown"]=0
+                    dropColumn("WARPATH", 'HIV_status', dfmod.columns, dfmod, dfIWPC)
+                    dropColumn("WARPATH", "Unnamed: 0", dfmod.columns, dfmod, dfIWPC)
+                    dropColumn("WARPATH", "Unnamed: 0.1", dfmod.columns, dfmod, dfIWPC)
+                    dropColumn("WARPATH", "Unnamed: 0.2", dfmod.columns, dfmod, dfIWPC)
+                    dropColumn("WARPATH", "Age_years", dfmod.columns, dfmod, dfIWPC)
+                    dropColumn("WARPATH", ".imp", dfmod.columns, dfmod, dfIWPC)
+                    dropColumn("WARPATH", ".id", dfmod.columns, dfmod, dfIWPC)
+                    dropColumn("WARPATH", "Unnamed: 0.1.1", dfmod.columns, dfmod, dfIWPC)
 
                     #suffix = str(df).zfill(3)
                     if combineImputations == True:
@@ -942,14 +949,13 @@ def main():
                        dfmod.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\PreProcessed\\" + filename + ".csv", ";")
                     if True:
                         print("On imputation ", df)
-                        if onlyIWPC == False:
-                           dfIWPC.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Claire_IWPC_Formatted" + ".csv", ";")
+                        dfIWPC.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Claire_IWPC_Formatted" + ".csv", ";")
                         data = dfmod
                         data.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Claire_Warpath" + ".csv", ";")
                         #data.index = data.index + 1
                         print(data.shape)
                         data['Dose_mg_week'] = data['Dose_mg_week'].apply(np.sqrt)
-                        IWPCDF['Dose_mg_week'] = IWPCDF['Dose_mg_week'].apply(np.sqrt)
+                        dfIWPC['Dose_mg_week'] = dfIWPC['Dose_mg_week'].apply(np.sqrt)
                         estimates = []
                         target_column = 'Dose_mg_week'
                         status_column = "Status"
@@ -959,33 +965,32 @@ def main():
                         traindf = pd.DataFrame(train)
                         traindf.reset_index()
                         traindf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Claire_train" + ".csv", ";")
+                        #dfIWPC.reset_index()
                         testdf = pd.DataFrame(test)
                         if combinedata == True:
-                            if onlyIWPC == False:
-                              dfIWPC.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Claire_IWPC_precombine" + ".csv", ";")
-                              frames = [traindf,dfIWPC]
-                              traindf = pd.concat(frames)
-                            if onlyIWPC == True:
-                              traindf = pd.DataFrame()
-                              frames = [traindf,dfIWPConly]
-                              traindf = pd.concat(frames)
-                              testdf = pd.DataFrame()
-                              frames = [testdf,dfIWPC_test]
-                              testdf = pd.concat(frames)
+                            dfIWPC.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Claire_IWPC_precombine" + ".csv", ";")
+                            frames = [traindf,dfIWPC]
+                            traindf = pd.concat(frames)
+                            #traindf = pd.concat(frames, ignore_index=True, sort=True)
                             traindf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Claire_trainplusIWPC" + ".csv", ";")
+                            #combfilename = "comb" + suffix
+                            #combfilename.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\combinedata\\" + combfilename + ".csv",";")
                         traindf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Train" + suffix + ".csv", ";")
                         testdf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Test" + suffix + ".csv", ";")
                         testdf['Status'] = 'test'
                         traindf['Status'] = 'train'
                         frames = (traindf, testdf)
                         combdf = pd.concat(frames)
+                        # combdf.index = combdf.index + 1
                         combdf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\TrainPlusTest" + suffix + ".csv", ";")
-                        combID = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\TrainPlusTest" + suffix + ".csv",";")
+                        combID = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\TrainPlusTest" + suffix + ".csv", ";")
+                        # combID.index = combID.index+1
                         combID.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\TrainTestStatus" + suffix + ".csv", ";")
                         combID['NewStatus'] = combID['Status']
+                        # combID['NewStatus'] = 'train'
+                        # combID['NewStatus'] = combID.apply(lambda x:TrainOrTest(x["Unnamed: 0"],trainID[".id"].tolist(), testID[".id"].tolist()), axis=1)
                         combID.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\TrainTestStatus" + suffix + ".csv", ";")
                         squaring = True
-
                         combIDcopy = combID
                         train = combID[combID.NewStatus == "train"]
                         test = combID[combID.NewStatus == "test"]
@@ -994,13 +999,13 @@ def main():
                         train = train.drop(['NewStatus'], axis=1)
                         test = test.drop(['NewStatus'], axis=1)
                         x_cols = list(train.columns)
+                        # _cols_notarg = x_cols.remove(target_column)
                         targ_col = list(target_column)
                         targetindex = x_cols.index(target_column)
                         y_train = train[target_column].values
                         x_train = train.drop([target_column], axis=1)
                         y_test = test[target_column].values
                         x_test = test.drop([target_column], axis=1)
-
                     estimates = []
                     LR = LinearRegression()
                     estimates.append(Estimator(LR, 'LR'))
@@ -1021,13 +1026,14 @@ def main():
                         if True:
                             #GBR = GradientBoostingRegressor()
                             #estimates.append(Estimator(GBR,'GBR'))
-                            #XGBR = XGBRegressor()
-                            #estimates.append(Estimator(XGBR,'XGBR'))
-                            #ELNET = ElasticNet()
+                            XGBR = XGBRegressor()
+                            estimates.append(Estimator(XGBR,'XGBR'))
+                            #RR=Ridge()[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[
+                            #RR = Ridge()
                             #LAS = Lasso()
+                            #ELNET = ElasticNet()
                             #estimates.append(Estimator(LAS,'LASSO'))
                             #estimates.append(Estimator(ELNET,'ELNET'))
-                            #RR = Ridge()
                             #estimates.append(Estimator(RR,'RIDGE'))
                             #KNNR = KNeighborsRegressor()
                             #estimates.append(Estimator(KNNR, 'KNN'))
@@ -1035,22 +1041,19 @@ def main():
                             #estimates.append(Estimator(svr,'SVREG'))
                             #MLPR = MLPRegressor()
                             #estimates.append(Estimator(MLPR,'MLPR'))
-                            RF = RandomForestRegressor()
-                            estimates.append(Estimator(RF, 'RF'))
+                            #RF = RandomForestRegressor()
+                            #estimates.append(Estimator(RF, 'RF'))
                             #DTR = DecisionTreeRegressor()
                             #estimates.append(Estimator(DTR,'DTR'))
                             #LGB = lgb.LGBMRegressor()
                             #estimates.append(Estimator(LGB,'LGB'))
-                            if "Unnamed: 0" in x_train.columns:
-                              x_train.drop(["Unnamed: 0"], axis=1, inplace=True)
-                            if "Unnamed: 0" in x_test.columns:
-                              x_test.drop(["Unnamed: 0"], axis=1, inplace=True)
                             if "Unnamed: 0.1" in x_train.columns:
                               x_train.drop(["Unnamed: 0.1"], axis=1, inplace=True)
                             if "Unnamed: 0.1" in x_test.columns:
                               x_test.drop(["Unnamed: 0.1"], axis=1, inplace=True)
                             for _, est in enumerate(estimates):
                                 resultsdict = traineval(est, x_train, y_train, x_test, y_test, squaring=squaring, df=df,randomseed=randomseed)
+
                                 res_dict = {
                                     'Estimator': [est.identifier for x in range(len(resultsdict['PW20']))],
                                     'PW20': resultsdict['PW20'],
