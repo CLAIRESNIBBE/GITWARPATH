@@ -706,6 +706,7 @@ def main():
                 maxImp = 50
                 runImp = 0
                 randomseed = 0
+                flagHIV = False
                 #99_42 143 33 113 102 0 66
                 pd.set_option("display.max_rows", None, "display.max_columns", None)
                 pd.set_option('expand_frame_repr', False)
@@ -911,8 +912,9 @@ def main():
                     dfmod.drop(["Inducer_status", "Amiodarone_status", "Smoking_status", "Indication"], axis=1, inplace=True)
                     dfmod["AgeYears"] = dfmod["Age_years"]
                     dfmod['AgeYears'] = np.where((dfmod['AgeYears'] <= 18), 18, dfmod['AgeYears'])
-                    dfmod["HIVPositive"] = np.where(dfmod["HIV_status"] == "Positive", 1, 0)
-                    dfmod["HIVUnknown"] = np.where(dfmod["HIV_status"] == "Unknown", 1, 0)
+                    if flagHIV == True:
+                       dfIWPC["HIVPositive"] = np.where(dfmod["HIV_status"] == "Positive", 1, 0)
+                       dfIWPC["HIVUnknown"] = np.where(dfmod["HIV_status"] == "Unknown", 1, 0)
                     dfmod["Status"] = ""
                     if onlyIWPC == False:
                         dropColumn("WARPATH", 'HIV_status', dfmod.columns, dfmod, dfIWPC, IWPCDF)
@@ -924,10 +926,6 @@ def main():
                         dropColumn("WARPATH", ".id", dfmod.columns, dfmod, dfIWPC, IWPCDF)
                         dropColumn("WARPATH", "Unnamed: 0.1.1", dfmod.columns, dfmod, dfIWPC, IWPCDF)
 
-                    #suffix = str(df).zfill(3)
-                    if combineImputations == True:
-                        filename = "dfWarfarin001allPatients"
-                        dfmod.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\PreProcessed\\" + filename + ".csv", ";")
                     if False:
                        dfmod = dfmod.sample(frac=1)
                        dfIWPC = dfIWPC.sample(frac=1)
@@ -1033,10 +1031,10 @@ def main():
                             #estimates.append(Estimator(KNNR, 'KNN'))
                             #svr = sklearn.svm.SVR()
                             #estimates.append(Estimator(svr,'SVREG'))
-                            #MLPR = MLPRegressor()
-                            #estimates.append(Estimator(MLPR,'MLPR'))
-                            RF = RandomForestRegressor()
-                            estimates.append(Estimator(RF, 'RF'))
+                            MLPR = MLPRegressor()
+                            estimates.append(Estimator(MLPR,'MLPR'))
+                            #RF = RandomForestRegressor()
+                            #estimates.append(Estimator(RF, 'RF'))
                             #DTR = DecisionTreeRegressor()
                             #estimates.append(Estimator(DTR,'DTR'))
                             #LGB = lgb.LGBMRegressor()
