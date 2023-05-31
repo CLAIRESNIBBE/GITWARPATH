@@ -607,38 +607,7 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                     end = time.time()
                     model = GradientBoostingRegressor(**GBR_params)
 
-                elif est.identifier == "LGB":
-                    start = time.time()
-                    def LGB_Objective(trial):
-                        _num_leaves = trial.suggest_categorical("num_leaves", [50,55,60,65,70,75,80,85,90,95,100])
-                        _max_depth = trial.suggest_categorical("max_depth", [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20])
-                        _learning_rate = trial.suggest_categorical("learning_rate", [0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0])
-                        _n_estimators = trial.suggest_categorical("n_estimators", [50,100,150,200,250,300,350,400,450,500,550,600,650,700,750,800,850,900,950,1000,1050,1100,1150,1200,1250,1300,1350,1400,1450,1500,1550,1600,1650,1700,1750,1800,1850,1900,1950,2000])
-                        _min_child_weight = trial.suggest_categorical("min_child_weight", [0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,1.5,2.0,2.5,3.0,3.5,4.0,4.5,5.0,5.5,6.0,6.5,7.0,7.5,8.0,8.5,9.0,9.5,10.0])
-                        _reg_alpha = trial.suggest_categorical('reg_alpha',[0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,1.5,2.0,2.5,3.0,3.5,4.0,4.5,5.0,5.5,6.0,6.5,7.0,7.5,8.0,8.5,9.0,9.5,10.0])
-                        _reg_lambda = trial.suggest_categorical('reg_lambda', [0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,1.5,2.0,2.5,3.0,3.5,4.0,4.5,5.0,5.5,6.0,6.5,7.0,7.5,8.0,8.5,9.0,9.5,10.0])
-                        _subsample = trial.suggest_categorical('subsample', [0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,1.5,2.0,2.5,3.0,3.5,4.0,4.5,5.0,5.5,6.0,6.5,7.0,7.5,8.0,8.5,9.0,9.5,10.0])
 
-                        lgbr = lgb.LGBMRegressor(objective='regression',
-                                                 num_leaves=_num_leaves,
-                                                 max_depth=_max_depth,
-                                                 learning_rate=_learning_rate,
-                                                 n_estimators=_n_estimators,
-                                                 min_child_weight=_min_child_weight,
-                                                 subsample=_subsample,
-                                                 reg_alpha=_reg_alpha,
-                                                 reg_lambda=_reg_lambda,
-                                                 random_state=RANDOM_SEED,
-                                                 )
-
-                        score = cross_val_score(
-                            lgbr, xtrain, ytrain, cv=kfolds, scoring="neg_mean_absolute_error"
-                        ).mean()
-                        return score
-
-                    LGB_params = tune(LGB_Objective, df, modelID, randomseed)
-                    end = time.time()
-                    model = lgb.LGBMRegressor(**LGB_params)
 
                 elif est.identifier == "STACK":
                     # stack models
@@ -653,7 +622,7 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                             ('lgb', lgbr),
                             # ('svr', svr), # Not using this for now as its score is significantly worse than the others
                         ],
-                        cv=kfolds)
+                        cv=kfol0ds)
                     stack.fit(X, y)
 
 
@@ -1017,37 +986,35 @@ def main():
                                              max_iter=2000, activation="relu")
 
                         if True:
-                            #GBR = GradientBoostingRegressor()
-                            #estimates.append(Estimator(GBR,'GBR'))
-                            #XGBR = XGBRegressor()
-                            #estimates.append(Estimator(XGBR,'XGBR'))
-                            #ELNET = ElasticNet()
-                            #LAS = Lasso()
-                            #estimates.append(Estimator(LAS,'LASSO'))
-                            #estimates.append(Estimator(ELNET,'ELNET'))
-                            #RR = Ridge()
-                            #estimates.append(Estimator(RR,'RIDGE'))
-                            #KNNR = KNeighborsRegressor()
-                            #estimates.append(Estimator(KNNR, 'KNN'))
-                            #svr = sklearn.svm.SVR()
-                            #estimates.append(Estimator(svr,'SVREG'))
-                            MLPR = MLPRegressor()
-                            estimates.append(Estimator(MLPR,'MLPR'))
-                            #RF = RandomForestRegressor()
-                            #estimates.append(Estimator(RF, 'RF'))
-                            #DTR = DecisionTreeRegressor()
-                            #estimates.append(Estimator(DTR,'DTR'))
-                            #LGB = lgb.LGBMRegressor()
-                            #estimates.append(Estimator(LGB,'LGB'))
-                            if "Unnamed: 0" in x_train.columns:
+                           #GBR = GradientBoostingRegressor()
+                           #estimates.append(Estimator(GBR,'GBR'))
+                           #XGBR = XGBRegressor()
+                           #estimates.append(Estimator(XGBR,'XGBR'))
+                           #ELNET = ElasticNet()
+                           #LAS = Lasso()
+                           #estimates.append(Estimator(LAS,'LASSO'))
+                           #estimates.append(Estimator(ELNET,'ELNET'))
+                           #RR = Ridge()
+                           #estimates.append(Estimator(RR,'RIDGE'))
+                           #KNNR = KNeighborsRegressor()
+                           #estimates.append(Estimator(KNNR, 'KNN'))
+                           #svr = sklearn.svm.SVR()
+                           #estimates.append(Estimator(svr,'SVREG'))
+                           #MLPR = MLPRegressor()
+                           #estimates.append(Estimator(MLPR,'MLPR'))
+                           RF = RandomForestRegressor()
+                           estimates.append(Estimator(RF, 'RF'))
+                           #DTR = DecisionTreeRegressor()
+                           #estimates.append(Estimator(DTR,'DTR'))
+                           if "Unnamed: 0" in x_train.columns:
                               x_train.drop(["Unnamed: 0"], axis=1, inplace=True)
-                            if "Unnamed: 0" in x_test.columns:
+                           if "Unnamed: 0" in x_test.columns:
                               x_test.drop(["Unnamed: 0"], axis=1, inplace=True)
-                            if "Unnamed: 0.1" in x_train.columns:
+                           if "Unnamed: 0.1" in x_train.columns:
                               x_train.drop(["Unnamed: 0.1"], axis=1, inplace=True)
-                            if "Unnamed: 0.1" in x_test.columns:
+                           if "Unnamed: 0.1" in x_test.columns:
                               x_test.drop(["Unnamed: 0.1"], axis=1, inplace=True)
-                            for _, est in enumerate(estimates):
+                           for _, est in enumerate(estimates):
                                 resultsdict = traineval(est, x_train, y_train, x_test, y_test, squaring=squaring, df=df,randomseed=randomseed)
                                 res_dict = {
                                     'Estimator': [est.identifier for x in range(len(resultsdict['PW20']))],
@@ -1058,10 +1025,10 @@ def main():
                                 if resultsdict['MAE'] > [5]:
                                    results.append(res_dict)
 
-                            df_res = pd.DataFrame()
-                            for res in results:
+                           df_res = pd.DataFrame()
+                           for res in results:
                                 df_res = df_res.append(pd.DataFrame.from_dict(res))
-                            print(f"\n\n{df_res.groupby(['Estimator']).agg(np.mean)}\n")
+                           print(f"\n\n{df_res.groupby(['Estimator']).agg(np.mean)}\n")
 
                 #dfResults = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfResults" + ".csv", ";")
 

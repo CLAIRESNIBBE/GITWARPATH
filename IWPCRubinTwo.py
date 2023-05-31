@@ -146,8 +146,7 @@ def DoseRound(predicted):
 
 
 def main():
-    filewritename = input("Enter file name: \n")
-    fileoutput = open(filewritename, 'w')
+
     pd.set_option("display.max_rows", None, "display.max_columns", None)
     filelist = [f for f in os.listdir(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\MICE") if f.endswith(".csv")]
     for f in filelist:
@@ -226,15 +225,15 @@ def main():
       IWPCbase = factor_IWPC["Intercept"] + factor_IWPC["Age"] * dfmod["AgeDecades"] + factor_IWPC["Height"] * dfmod["Height_cm"] + factor_IWPC["Weight"] * dfmod["Weight_kg"] + factor_IWPC["Amiodarone"] * dfmod["Amiodarone"] + factor_IWPC["Inducer"] * dfmod["Inducer"]
       dfmod['IWPC_Pred'] = np.square(IWPCbase)
 
-      print("Run on the 100 imputed data sets provided by Innocent Asiiwe...", file = fileoutput)
-      print("Intercept", factor_IWPC["Intercept"],"Age", SList(dfmod["AgeDecades"]),"AgeFactor",factor_IWPC["Age"], file = fileoutput)
-      print("Age*Factor" ,factor_IWPC["Age"] * SList(dfmod["AgeDecades"]), "WeightFactor ", factor_IWPC["Weight"], file = fileoutput)
-      print("Weight*Factor ",factor_IWPC["Weight"] * SList(dfmod["Weight_kg"]), "Amiodarone ",SList(dfmod["Amiodarone"]), file = fileoutput)
-      print("HeightFactor", factor_IWPC["Height"], "Height", SList(dfmod["Height_cm"]), file = fileoutput),
-      print("Height*Factor ", factor_IWPC["Height"] * SList(dfmod["Height_cm"]),file = fileoutput)
-      print("Amiodarone*Factor ",factor_IWPC["Amiodarone"] * SList(dfmod["Amiodarone"]), file = fileoutput)
-      print("Inducer", SList(dfmod["Inducer"]), "Inducer Factor",factor_IWPC["Inducer"], file = fileoutput)
-      print("Inducer*Factor",  factor_IWPC["Inducer"] * SList(dfmod["Inducer"]),"Equation",SList(dfmod['IWPC_Pred']), file = fileoutput)
+      print("Run on the 100 imputed data sets provided by Innocent Asiiwe...",
+      print("Intercept", factor_IWPC["Intercept"],"Age", SList(dfmod["AgeDecades"]),"AgeFactor",factor_IWPC["Age"]))
+      print("Age*Factor" ,factor_IWPC["Age"] * SList(dfmod["AgeDecades"]), "WeightFactor ", factor_IWPC["Weight"])
+      print("Weight*Factor ",factor_IWPC["Weight"] * SList(dfmod["Weight_kg"]), "Amiodarone ",SList(dfmod["Amiodarone"]))
+      print("HeightFactor", factor_IWPC["Height"], "Height", SList(dfmod["Height_cm"]))
+      print("Height*Factor ", factor_IWPC["Height"] * SList(dfmod["Height_cm"]))
+      print("Amiodarone*Factor ",factor_IWPC["Amiodarone"] * SList(dfmod["Amiodarone"]))
+      print("Inducer", SList(dfmod["Inducer"]), "Inducer Factor",factor_IWPC["Inducer"])
+      print("Inducer*Factor",  factor_IWPC["Inducer"] * SList(dfmod["Inducer"]),"Equation",SList(dfmod['IWPC_Pred']))
 
       dfKey = dfmod[['IWPC_Pred', 'Dose_mg_week']]
       impResults.append({'Imp': df, 'model': 'IWPC', 'predactual': dfKey, 'MAE': 0, 'PW20': 0, 'R2': 0, 'MAPE': 0, 'MLAR': 0,
@@ -292,7 +291,7 @@ def main():
       df_IWPC = pd.DataFrame(data=data, columns=metric_columns)
       df_GAGE = pd.DataFrame(data=data, columns=metric_columns)
       df_FIXED = pd.DataFrame(data=data, columns=metric_columns)
-      if False:
+      if True:
         while boot < number_of_samples:
           print("imputation ", df, " on sample ", boot)
           dfsample = dfmod.sample(n=690, frac=None, replace=True)
@@ -372,6 +371,7 @@ def main():
                         models[k]['MLAR'] += results[m]['MLAR']
                         models[k]['MALAR'] += results[m]['MALAR']
 
+
             Bfactor = (impNumber+1)/impNumber
 
             for k in range(len(models)):
@@ -415,11 +415,11 @@ def main():
                 MLAR_CI_minus = round(MLAR_value - 1.96*np.sqrt(MLAR_std_dev + MLAR_variance), 4)
                 MLAR_CI_plus = round(MLAR_value + 1.96*np.sqrt(MLAR_std_dev + MLAR_variance), 4)
 
-                print(fieldname, 'MAE:', round(mae_value, 6), "StdDev:", round(mae_std_dev,6),"B: ",round(mae_variance,4),"  CI: [",mae_CI_minus, mae_CI_plus,"]",file = fileoutput)
-                print(fieldname, 'PW20:', round(pw20_value, 6),"StdDev:", round(pw20_std_dev,6),"B: ", round(pw20_variance,4)," CI: [", pw20_CI_minus, pw20_CI_plus,"]",file = fileoutput)
-                print(fieldname, 'R2:', round(R2_value, 6), "StdDev:", round(R2_std_dev,6),"B: ",round(R2_variance,4)," CI: [", R2_CI_minus, R2_CI_plus, "]",file = fileoutput)
-                print(fieldname, 'MALAR:', round(MALAR_value, 6), "StdDev:", round(MALAR_std_dev,6), "B: ",round(MALAR_variance,4), " CI: [", MALAR_CI_minus, MALAR_CI_plus,"]", file = fileoutput)
-                print(fieldname, 'MLAR:', round(MLAR_value, 6), "StdDev", round(MLAR_std_dev,6), "B :",round(MLAR_variance,4)," CI:",MLAR_CI_minus, MLAR_CI_plus, "]",file = fileoutput)
+                print(fieldname, 'MAE:', round(mae_value, 6), "StdDev:", round(mae_std_dev,6),"B: ",round(mae_variance,4),"  CI: [",mae_CI_minus, mae_CI_plus,"]")
+                print(fieldname, 'PW20:', round(pw20_value, 6),"StdDev:", round(pw20_std_dev,6),"B: ", round(pw20_variance,4)," CI: [", pw20_CI_minus, pw20_CI_plus,"]")
+                print(fieldname, 'R2:', round(R2_value, 6), "StdDev:", round(R2_std_dev,6),"B: ",round(R2_variance,4)," CI: [", R2_CI_minus, R2_CI_plus, "]")
+                print(fieldname, 'MALAR:', round(MALAR_value, 6), "StdDev:", round(MALAR_std_dev,6), "B: ",round(MALAR_variance,4), " CI: [", MALAR_CI_minus, MALAR_CI_plus,"]")
+                print(fieldname, 'MLAR:', round(MLAR_value, 6), "StdDev", round(MLAR_std_dev,6), "B :",round(MLAR_variance,4)," CI:",MLAR_CI_minus, MLAR_CI_plus, "]")
 
 if __name__ == "__main__":
     main()

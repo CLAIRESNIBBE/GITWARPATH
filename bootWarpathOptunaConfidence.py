@@ -57,6 +57,13 @@ from scipy.stats import norm, iqr, scoreatpercentile
 from mlxtend.regressor import StackingCVRegressor
 import warnings
 import statistics
+def find(lst, key, value):
+    for i, dic in enumerate(lst):
+        if dic[key] == value:
+            return i
+    return -1
+
+
 
 def fxn():
     warnings.warn("deprecated", DeprecationWarning)
@@ -100,7 +107,7 @@ from tpot import TPOTRegressor
 from numpy import loadtxt
 from copy import copy
 
-def ExitSquareBracket(variable):
+def ExitSquareBracket(variable, floatbool):
     stringvar = str(variable)
     if stringvar.find('[') >= 0 and stringvar.find(']') >= 0:
         var1 = stringvar.replace('[', '')
@@ -108,39 +115,75 @@ def ExitSquareBracket(variable):
         var2 = var2.replace("'", "")
         return var2
     else:
-        return stringvar
+        if floatbool:
+          return float(stringvar)
+        else:
+          return stringvar
+
+#def collect_Metrics(metrics, model, metric):
+#    container = []
+#    for i in range(len(metrics)):
+#        if metrics[metric][metrics['Estimator'].any() == model]:
+#            container.append(metrics[metric][metrics['Estimator'] == model].values)
+#    return container
 
 def collect_Metrics(metrics, model, metric):
     container = []
     for i in range(len(metrics)):
-        if metrics[metric][metrics['Estimator'].any() == model]:
-            container.append(metrics[metric][metrics['Estimator'] == model].values)
+        if (metrics[i]['model'] == model) & (metrics[i]['metric'] == metric):
+           #print(metrics[i]['model'], metrics[i]['metric'], metrics[i]['value'])
+           container.append(metrics[i]['value'])
     return container
 
-
-def collect_Results(model, metric):
+def collect_Results(metrics, model, metric):
     container = []
-    if Estimator == model:
-        container.append(metric)
+    for i in range(len(metrics)):
+        if (metrics[i]['model']== model):
+            container.append(metrics[i][metric])
     return container
 
 
-def variance(metric,mean):
-    #meanvalue = np.nanmean(metric)
-    meanvalue = mean
+
+
+
+#def collect_Results(model, metric):
+#    container = []
+#    if Estimator == model:
+#        container.append(metric)
+#    return container
+
+
+#def variance(metric,mean):
+#    #meanvalue = np.nanmean(metric)
+#    meanvalue = mean
+#    sumsquares = 0
+#    for i in range(len(metric)):
+#        core = abs(metric[i] - meanvalue)
+#        sumsquares += np.square(core)
+#    if len(metric) == 1:
+#        variance = 0
+#    else:
+#        variance = sumsquares / ((len(metric) - 1))
+#    return variance
+
+def variance(metric):
+    meanvalue = np.mean(metric)
     sumsquares = 0
     for i in range(len(metric)):
         core = abs(metric[i] - meanvalue)
         sumsquares += np.square(core)
-    if len(metric) == 1:
-        variance = 0
-    else:
-        variance = sumsquares / ((len(metric) - 1))
+    variance = sumsquares / ((len(metric) - 1))
     return variance
 
 
-def std_deviation(metric,mean):
-    return np.sqrt(variance(metric,mean))
+
+
+
+#def std_deviation(metric,mean):
+ #   return np.sqrt(variance(metric,mean))
+
+def std_deviation(metric):
+    return np.sqrt(variance(metric))
 
 
 def SList(series):
@@ -702,7 +745,24 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
     return resultsdict
 
 def main():
-                # dfHyper = pd.DataFrame()
+                #filewritename = input("Enter file name: \n")
+                #ileoutput = open(filewritename, 'w')
+                #std_Dev_Summ = ({'model': 'WarPATH', 'MAE': 0, 'PW20': 0})
+                #variance_Summ = ({'model': 'WarPATH', 'MAE': 0, 'PW20': 0})
+                std_Dev_Summ = ({'model': 'IWPC', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MALAR': 0, 'MLAR': 0},
+                                {'model': 'WarPATH', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MALAR': 0, 'MLAR': 0},
+                                {'model': 'Gage', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MALAR': 0, 'MLAR': 0},
+                                {'model': 'Fixed', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MALAR': 0, 'MLAR': 0})
+
+                variance_Summ = ({'model': 'IWPC', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MALAR': 0, 'MLAR': 0},
+                                 {'model': 'WarPATH', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MALAR': 0, 'MLAR': 0},
+                                 {'model': 'Gage', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MALAR': 0, 'MLAR': 0},
+                                 {'model': 'Fixed', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MALAR': 0, 'MLAR': 0})
+
+                number_of_samples = 100
+                bootresults = []
+                std_Dev = []
+
                 combinedata = False
                 scaler = MinMaxScaler()
                 fileName1 = "AllImputations.csv"
@@ -713,10 +773,10 @@ def main():
                 filescheck.append(fileName2)
                 dftemplate = pd.DataFrame()
                 dfWarPath = pd.DataFrame()
-                impNumber = 50  # was 3
+                impNumber = 50  # was 50 as was maximp
                 maxImp = 50
                 runImp = 0
-                randomseed = 33
+                randomseed = 66
                 flagHIV = False
                 #99_42 143 33 113 102 0 66`6
                 pd.set_option("display.max_rows", None, "display.max_columns", None)
@@ -957,6 +1017,17 @@ def main():
                         #data.index = data.index + 1
                         print(data.shape)
                         data['Dose_mg_week'] = data['Dose_mg_week'].apply(np.sqrt)
+                        impResults = []
+                        models = []
+                        boot = 0
+                        samples = []
+                        metrics = []
+                        smpResults = []
+                        metric_columns = ['MAE', 'PW20']
+                        listmodels = ['WarPATH']
+                        if (find(models, 'model', 'WarPATH') == -1):
+                            models.append({'model': 'WarPATH', 'MAE': 0, 'PW20': 0})
+
                         if combinedata == True:
                             dfIWPC['Dose_mg_week'] = dfIWPC['Dose_mg_week'].apply(np.sqrt)
                         estimates = []
@@ -1016,8 +1087,8 @@ def main():
                         x_test = test.drop([target_column], axis=1)
 
                     estimates = []
-                    LR = LinearRegression()
-                    estimates.append(Estimator(LR, 'LR'))
+                    #LR = LinearRegression()
+                    #estimates.append(Estimator(LR, 'LR'))
 
                     MLPR_Scaling = False
                     if MLPR_Scaling == True:
@@ -1043,14 +1114,14 @@ def main():
                            #estimates.append(Estimator(LAS,'LASSO'))
                            #estimates.append(Estimator(ELNET,'ELNET'))
                            #estimates.append(Estimator(RR,'RIDGE'))
-                           #KNNR = KNeighborsRegressor()
-                           #estimates.append(Estimator(KNNR, 'KNN'))
+                           KNNR = KNeighborsRegressor()
+                           estimates.append(Estimator(KNNR, 'KNN'))
                            #svr = sklearn.svm.SVR()
                            #estimates.append(Estimator(svr,'SVREG'))
                            #MLPR = MLPRegressor()
                            #estimates.append(Estimator(MLPR,'MLPR'))
-                           RF = RandomForestRegressor()
-                           estimates.append(Estimator(RF, 'RF'))
+                           #RF = RandomForestRegressor()
+                           #estimates.append(Estimator(RF, 'RF'))
                            #DTR = DecisionTreeRegressor()
                            #estimates.append(Estimator(DTR,'DTR'))
                            #LGB = lgb.LGBMRegressor()
@@ -1068,6 +1139,73 @@ def main():
                                    'MAE': resultsdict['MAE'],
                                    'R2': resultsdict['R2'],
                                    'Time': resultsdict['Time']}
+                               data["WarPATH_MAE"] =  ExitSquareBracket(resultsdict['MAE'],True)
+                               data["WarPATH_PW20"] = ExitSquareBracket(resultsdict['PW20'],True)
+                               dfKey = data[["WarPATH_MAE","WarPATH_PW20"]]
+                               impResults.append({'Imp': df, 'model': 'WarPATH', 'METRICS': dfKey, 'MAE': 0, 'PW20': 0})
+                               for k in range(len(impResults)):
+                                   dfKey = impResults[k]['METRICS']
+                                   model = impResults[k]['model']
+                                   imputation = impResults[k]['Imp']
+                                   model_MAE = dfKey["WarPATH_MAE"].astype('float')
+                                   model_PW20 = dfKey["WarPATH_PW20"].astype('float')
+                                   impResults[k]['MAE'] = model_MAE
+                                   impResults[k]['PW20'] = model_PW20
+
+                               for k in range(len(impResults)):
+                                   a = impResults[k]['model']
+                                   b = impResults[k]['Imp']
+                                   c = impResults[k]['MAE'].astype('float')
+                                   d = impResults[k]['PW20'].astype('float')
+                               bootresults.append(
+                                   #{'Imp': b, 'model': a, 'MAE': c, 'PW20': d})
+                                   {'Imp': b, 'model': a, 'MAE': c[0], 'PW20': d[0]})
+                               resultsdf = pd.DataFrame(bootresults)
+                               resultsdf.to_csv(
+                                   r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\IWPCResults_" + str(df) + ".csv", ";")
+                               boot = 0
+                               samples = []
+                               metrics = []
+                               smpResults = []
+
+                               dataSet = np.random.randint(10, size=(number_of_samples, 2))
+                               df_WARPATH = pd.DataFrame(data=dataSet, columns=metric_columns)
+                               boot = 0
+                               while boot < number_of_samples:
+                                   print("imputation ", df, " on sample ", boot)
+                                   dfsample = data.sample(n=364, frac=None, replace=True)
+                                   ## CHECK dfsample
+                                   dfsample = dfsample.reset_index(drop=True)
+                                   dfMetricfactors = dfsample[["WarPATH_MAE", "WarPATH_PW20"]]
+                                   dfsample.to_csv(
+                                       r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\IWPC_Imp" + str(df) + "Samp" + str(
+                                           boot) + ".csv", ";")
+                                   boot = boot + 1
+                                   samples.append(dfMetricfactors)
+                                   for m in range(len(listmodels)):
+                                       model = listmodels[m]
+                                       curr_MAE = dfMetricfactors[model + '_MAE'].astype('float')
+                                       curr_PW20 = dfMetricfactors[model + '_PW20'].astype('float')
+                                       smpResults.append({'Imp': df, 'Sample': boot, 'model': model, 'MAE': curr_MAE[0],'PW20': curr_PW20[0]})
+
+                               for m in range(len(listmodels)):
+                                   modelinlist = listmodels[m]
+                                   for l in range(len(metric_columns)):
+                                       metric = metric_columns[l]
+                                       for j in range(len(smpResults)):
+                                           model = smpResults[j]['model']
+                                           metric_value = smpResults[j][metric]
+                                           if model == modelinlist:
+                                               metrics.append({'model': model, 'metric': metric, 'value': metric_value})
+
+                               for i in range(len(metric_columns)):
+                                   current_metric = metric_columns[i]
+                                   df_WARPATH[current_metric] = np.array(
+                                   collect_Metrics(metrics, 'WarPATH', current_metric))
+                                   std = np.square(std_deviation(df_WARPATH[current_metric]))
+                                   var = variance(df_WARPATH[current_metric])
+                                   std_Dev.append({'model': 'WarPATH', 'metric': current_metric, 'SD': std, 'VAR': var})
+
                                if resultsdict['MAE'] > [5]:
                                    results.append(res_dict)
 
@@ -1078,13 +1216,18 @@ def main():
 
                 #dfResults = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfResults" + ".csv", ";")
 
-
                 dfResults = pd.DataFrame(results)
-                dfResults["PW20"] = dfResults.apply(lambda x: ExitSquareBracket(x["PW20"]), axis=1).astype(float)
-                dfResults["MAE"] = dfResults.apply(lambda x: ExitSquareBracket(x["MAE"]), axis=1).astype(float)
-                dfResults["R2"] = dfResults.apply(lambda x: ExitSquareBracket(x["R2"]), axis=1).astype(float)
-                dfResults["Time"] = dfResults.apply(lambda x: ExitSquareBracket(x["Time"]), axis=1).astype(float)
-                dfResults["Estimator"] = dfResults.apply(lambda x: ExitSquareBracket(x["Estimator"]), axis=1)
+                dfResults["PW20"] = dfResults.apply(lambda x: ExitSquareBracket(x["PW20"],False), axis=1).astype(float)
+                dfResults["MAE"] = dfResults.apply(lambda x: ExitSquareBracket(x["MAE"],False), axis=1).astype(float)
+                dfResults["R2"] = dfResults.apply(lambda x: ExitSquareBracket(x["R2"],False), axis=1).astype(float)
+                dfResults["Time"] = dfResults.apply(lambda x: ExitSquareBracket(x["Time"],False), axis=1).astype(float)
+                dfResults["Estimator"] = dfResults.apply(lambda x: ExitSquareBracket(x["Estimator"],False), axis=1)
+
+                #dfResults["PW20"] = dfResults.apply(lambda x: ExitSquareBracket(x["PW20"],True),axis = 1)
+                #dfResults["MAE"] = dfResults.apply(lambda x: ExitSquareBracket(x["MAE"],True),axis=1)
+                #dfResults["R2"] = dfResults.apply(lambda x: ExitSquareBracket(x["R2"],True), axis=1)
+                #dfResults["Time"] = dfResults.apply(lambda x: ExitSquareBracket(x["Time"],True), axis=1)
+                #dfResults["Estimator"] = dfResults.apply(lambda x: ExitSquareBracket(x["Estimator"],False), axis=1)
                 dfResults.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfResultsPRE" + ".csv", ";")
                 if "Unnamed: 0" in dfResults.columns:
                     dfResults.drop(["Unnamed: 0"], axis=1, inplace=True)
@@ -1102,10 +1245,11 @@ def main():
                         dfResults.at[i, 'Time'] = np.nan
 
                 dfSummary = dfResults.groupby('Estimator').apply(np.mean)
-                stddev = []
-                confinterval = []
-                for i in range(len(metric_columns)):
-                    for _, est in enumerate(estimates):
+                if False:
+                    stddev = []
+                    confinterval = []
+                    for i in range(len(metric_columns)):
+                     for _, est in enumerate(estimates):
                         current_estimator = est.identifier
                         current_metric = metric_columns[i]
                         current_mean = dfSummary.loc[current_estimator][current_metric]
@@ -1130,11 +1274,57 @@ def main():
 
                 dfSummary.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfSummary_" + str(randomseed) + ".csv", ";")
 
-                dfConfidence = pd.DataFrame(confinterval,
-                                            columns=['estimator', 'metric', 'mean', '95% CI lower bound',
-                                                     '95% CI upper bound'])
-                dfConfidence.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfConfidence" + ".csv", ";")
+                #dfConfidence = pd.DataFrame(confinterval,  columns=['estimator', 'metric', 'mean', '95% CI lower bound','95% CI upper bound'])
+                #dfConfidence.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfConfidence" + ".csv", ";")
                 print("STOP HERE")
+
+
+                if df  == impNumber:
+                    for k in range(len(std_Dev)):
+                        model = std_Dev[k]['model']
+                        metric = std_Dev[k]['metric']
+                        Wfactor = std_Dev[k]['SD']
+                        Bfactor = std_Dev[k]['VAR']
+                        modelpos = find(std_Dev_Summ, 'model', model)
+                        std_Dev_Summ[modelpos][metric] += Wfactor
+                        modelpos2 = find(variance_Summ, 'model', model)
+                        variance_Summ[modelpos2][metric] += Bfactor
+
+
+                    for k in range(len(models)):
+                        fieldname = models[k]['model']
+                        for m in range(len(bootresults)):
+                            if bootresults[m]['model'] == fieldname:
+                                models[k]['MAE'] += bootresults[m]['MAE']
+                                models[k]['PW20'] += bootresults[m]['PW20']
+
+
+
+                    Bfactor = (impNumber + 1) / impNumber
+
+                    for k in range(len(models)):
+                       fieldname = models[k]['model']
+                       mae_value = models[k]['MAE'] / impNumber
+                       mae_list = collect_Results(bootresults, fieldname, 'MAE')
+                       mae_variance = variance(mae_list) * Bfactor
+                       stdpos = find(std_Dev_Summ, 'model', fieldname)
+                       varpos = find(variance_Summ, 'model', fieldname)
+                       mae_var = variance_Summ[varpos]['MAE'] * 2
+                       mae_std_dev = std_Dev_Summ[stdpos]['MAE'] / impNumber
+                       mae_CI_minus = round(mae_value - 1.96 * np.sqrt(mae_std_dev + mae_variance), 4)
+                       mae_CI_plus = round(mae_value + 1.96 * np.sqrt(mae_std_dev + mae_variance), 4)
+                       pw20_value = models[k]['PW20'] / impNumber
+                       pw20_list = collect_Results(bootresults, fieldname, 'PW20')
+                       pw20_variance = variance(pw20_list) * Bfactor
+                       pw20_std_dev = std_Dev_Summ[stdpos]['PW20'] / impNumber
+                       pw20_var = variance_Summ[varpos]['MAE'] * 2
+                       pw20_CI_minus = round(pw20_value - 1.96 * np.sqrt(pw20_std_dev + pw20_variance), 4)
+                       pw20_CI_plus = round(pw20_value + 1.96 * np.sqrt(pw20_std_dev + pw20_variance), 4)
+
+                       print(fieldname, 'MAE:', round(mae_value, 6), "StdDev:", round(mae_std_dev,6),"B: ",round(mae_variance,4),"  CI: [",mae_CI_minus, mae_CI_plus,"]")
+                       print(fieldname, 'PW20:', round(pw20_value, 6), "StdDev:", round(pw20_std_dev, 6), "B: ", round(pw20_variance, 4), " CI: [", pw20_CI_minus, pw20_CI_plus, "]")
+
+
 
 if __name__ == "__main__":
     main()
