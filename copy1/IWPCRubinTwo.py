@@ -151,7 +151,7 @@ def main():
     filelist = [f for f in os.listdir(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\MICE") if f.endswith(".csv")]
     for f in filelist:
         os.remove(os.path.join(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\MICE", f))
-    number_of_samples = 1000
+    number_of_samples = 100
     results = []
     std_Dev = []
     factor_IWPC = {"Age": -0.2546, "Height": 0.0118, "Weight": 0.0134, "Inducer": 1.2799, "Amiodarone": -0.5695,

@@ -1149,8 +1149,8 @@ def main():
                                    imputation = impResults[k]['Imp']
                                    model_MAE = dfKey["WarPATH_MAE"].astype('float')
                                    model_PW20 = dfKey["WarPATH_PW20"].astype('float')
-                                   impResults[k]['MAE'] = model_MAE[k]
-                                   impResults[k]['PW20'] = model_PW20[k]
+                                   impResults[k]['MAE'] = model_MAE
+                                   impResults[k]['PW20'] = model_PW20
 
                                for k in range(len(impResults)):
                                    a = impResults[k]['model']
@@ -1159,7 +1159,7 @@ def main():
                                    d = impResults[k]['PW20'].astype('float')
                                bootresults.append(
                                    #{'Imp': b, 'model': a, 'MAE': c, 'PW20': d})
-                                   {'Imp': b, 'model': a, 'MAE': c, 'PW20': d})
+                                   {'Imp': b, 'model': a, 'MAE': c[0], 'PW20': d[0]})
                                resultsdf = pd.DataFrame(bootresults)
                                resultsdf.to_csv(
                                    r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\IWPCResults_" + str(df) + ".csv", ";")
@@ -1184,9 +1184,9 @@ def main():
                                    samples.append(dfMetricfactors)
                                    for m in range(len(listmodels)):
                                        model = listmodels[m]
-                                       curr_MAE = float(dfMetricfactors[model + '_MAE'][m])
-                                       curr_PW20 = float(dfMetricfactors[model + '_PW20'][m])
-                                       smpResults.append({'Imp': df, 'Sample': boot, 'model': model, 'MAE': curr_MAE,'PW20': curr_PW20})
+                                       curr_MAE = dfMetricfactors[model + '_MAE'].astype('float')
+                                       curr_PW20 = dfMetricfactors[model + '_PW20'].astype('float')
+                                       smpResults.append({'Imp': df, 'Sample': boot, 'model': model, 'MAE': curr_MAE[0],'PW20': curr_PW20[0]})
 
                                for m in range(len(listmodels)):
                                    modelinlist = listmodels[m]
@@ -1202,10 +1202,8 @@ def main():
                                    current_metric = metric_columns[i]
                                    df_WARPATH[current_metric] = np.array(
                                    collect_Metrics(metrics, 'WarPATH', current_metric))
-                                   #std = std_deviation(df_WARPATH[current_metric])
-                                   #std = np.square(std_deviation(df_WARPATH[current_metric]))
+                                   std = np.square(std_deviation(df_WARPATH[current_metric]))
                                    var = variance(df_WARPATH[current_metric])
-                                   std = np.sqrt(var)
                                    std_Dev.append({'model': 'WarPATH', 'metric': current_metric, 'SD': std, 'VAR': var})
 
                                if resultsdict['MAE'] > [5]:
@@ -1299,6 +1297,9 @@ def main():
                             if bootresults[m]['model'] == fieldname:
                                 models[k]['MAE'] += bootresults[m]['MAE']
                                 models[k]['PW20'] += bootresults[m]['PW20']
+
+
+
                     Bfactor = (impNumber + 1) / impNumber
 
                     for k in range(len(models)):
@@ -1320,11 +1321,9 @@ def main():
                        pw20_CI_minus = round(pw20_value - 1.96 * np.sqrt(pw20_std_dev + pw20_variance), 4)
                        pw20_CI_plus = round(pw20_value + 1.96 * np.sqrt(pw20_std_dev + pw20_variance), 4)
 
-                       print(fieldname, 'MAE:', round(mae_value, 6), "StdDev:", round(mae_std_dev,6),"B: ",
-                       round(mae_variance,4),"  CI: [",mae_CI_minus, mae_CI_plus,"]")
-                       print(fieldname, 'PW20:', round(pw20_value, 6), "StdDev:", round(pw20_std_dev, 6), "B: ",
-                       round(pw20_variance, 4)," CI: [", pw20_CI_minus, pw20_CI_plus, "]")
-                       print(dfSummary)
+                       print(fieldname, 'MAE:', round(mae_value, 6), "StdDev:", round(mae_std_dev,6),"B: ",round(mae_variance,4),"  CI: [",mae_CI_minus, mae_CI_plus,"]")
+                       print(fieldname, 'PW20:', round(pw20_value, 6), "StdDev:", round(pw20_std_dev, 6), "B: ", round(pw20_variance, 4), " CI: [", pw20_CI_minus, pw20_CI_plus, "]")
+
 
 
 if __name__ == "__main__":

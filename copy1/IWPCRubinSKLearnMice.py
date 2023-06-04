@@ -2,7 +2,9 @@ import csv
 import pandas as pd
 import numpy as np
 import os
+import math
 import time
+import tqdm
 import matplotlib.pyplot as plt
 import seaborn as seabornInstance
 from sklearn.model_selection import train_test_split
@@ -14,8 +16,9 @@ from warfit_learn.metrics import score_pw20, score_r2, score_mae
 from warfit_learn.metrics import confidence_interval
 from scipy.stats import norm
 from statsmodels.imputation import mice
+from sklearn.experimental import enable_iterative_imputer
+from sklearn.impute import IterativeImputer
 import statsmodels.api as sm
-#from numpy.testing import assert_equal, assert_allclose, dec
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -136,31 +139,26 @@ def find(lst, key, value):
             return i
     return -1
 
-def SList(series):
-    return np.array(series.values.tolist())
-
-
 
 def DoseRound(predicted):
     return round(predicted / 2.5, 0) * 2.5
 
 
 def main():
-
+    #filewritename = input("Enter file name: \n")
     pd.set_option("display.max_rows", None, "display.max_columns", None)
+    filewritename = "testing100"
+    fileoutput = open(filewritename, 'w')
+    dfmod = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\IWPC_Blacks.csv", ";")
+    dfmod.drop(['Gender'], axis=1, inplace=True)
+    number_of_samples = 100
+    MICE_SAMPLES = 100
+    number_of_imps = 100
+    results = []
+    std_Dev = []
     filelist = [f for f in os.listdir(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\MICE") if f.endswith(".csv")]
     for f in filelist:
         os.remove(os.path.join(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\MICE", f))
-    number_of_samples = 1000
-    results = []
-    std_Dev = []
-    factor_IWPC = {"Age": -0.2546, "Height": 0.0118, "Weight": 0.0134, "Inducer": 1.2799, "Amiodarone": -0.5695,
-                   "Intercept": 4.4436}
-    factor_Gage = {"Age": -0.0075, "BSA": 0.425, "TargetINR": 0.216, "Smoker": 0.108, "Amiodarone": -0.257,
-                   "Indication": 0.0784, "Intercept": 0.769}
-    factor_Fixed = {"Intercept": 35}
-    factor_WarPath = {'Intercept': 23.6886, 'Age': -0.0656, 'Weight': 0.2178, 'TargetINR': 7.3190}
-
 
     std_Dev_Summ = ({'model': 'IWPC', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MALAR': 0, 'MLAR': 0},
                     {'model': 'WarPATH', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MALAR': 0, 'MLAR': 0},
@@ -172,8 +170,59 @@ def main():
                      {'model': 'Gage', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MALAR': 0, 'MLAR': 0},
                      {'model': 'Fixed', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MALAR': 0, 'MLAR': 0})
 
+    dfmod["AgeLower"] = dfmod["Age_years"].str.split('_', expand=True)[0]
+    dfmod['AgeLower'] = dfmod['AgeLower'].str.replace('+', '')
+    dfmod["AgeDecades"] = dfmod["AgeLower"].astype("float") * 0.1
+    dfmod["AgeYears"] = dfmod["AgeLower"].astype("float")
+    dfmod['AgeYears'] = np.where((dfmod['AgeYears'] <= 18), 18, dfmod['AgeYears'])
+    dfmod.drop(['AgeLower'], axis=1, inplace=True)
+    dfmod.drop(['Age_years'], axis=1, inplace=True)
+    dfmod["Weight_kg"] = dfmod["Weight_kg"].astype("float")
+    dfmod["Height_cm"] = dfmod["Height_cm"].astype("float")
+    dfmod["Target_INR"] = dfmod["Target_INR"].astype("float")
+    dfmod["INR_Three"] = np.where(dfmod["Target_INR"] >= 3.0, 1, 0)
+    dfmod["Dose_mg_week"] = dfmod["Dose_mg_week"].astype("float")
+    dfmod["Inducer"] = dfmod.apply(lambda x: ConvertYesNo(x["Inducer_status"]), axis=1)
+    dfmod["Amiodarone"] = dfmod.apply(lambda x: ConvertYesNo(x["Amiodarone_status"]), axis=1)
+    dfmod["Smoker"] = dfmod.apply(lambda x: ConvertYesNo(x["Smoking_status"]), axis=1)
+    dfmod["Indicationflag"] = dfmod.apply(lambda x: ConvertYesNo(x["Indication"]), axis=1)
+    dfmod.drop(["Inducer_status", "Amiodarone_status", "Smoking_status", "Indication"], axis=1, inplace=True)
+    dfmodY = dfmod['Dose_mg_week']
+    dfmod.drop(['Dose_mg_week'], axis=1, inplace=True)
+    dfmodX = dfmod
+    factor_IWPC = {"Age": -0.2546, "Height": 0.0118, "Weight": 0.0134, "Inducer": 1.2799, "Amiodarone": -0.5695,
+                   "Intercept": 4.4436}
+    factor_Gage = {"Age": -0.0075, "BSA": 0.425, "TargetINR": 0.216, "Smoker": 0.108, "Amiodarone": -0.257,
+                   "Indication": 0.0784, "Intercept": 0.769}
+    factor_Fixed = {"Intercept": 35}
+    factor_WarPath = {'Intercept': 23.6886, 'Age': -0.0656, 'Weight': 0.2178, 'TargetINR': 7.3190}
+
+
+    mice_dfs = []
+    #print(dfmodX.min().values)
+    for i in range(MICE_SAMPLES):
+         imp = IterativeImputer( verbose=0, max_iter=20, initial_strategy="most_frequent", sample_posterior=True)
+         _df = pd.DataFrame(imp.fit_transform(dfmodX))
+         _df.columns = dfmodX.columns
+         dfcomplete = pd.concat([_df, dfmodY], axis = 1)
+         print(dfcomplete.isna())
+         X =  np.asanyarray(dfcomplete)
+         if np.isnan(X).any() == True:
+             print(i, list(map(tuple, np.where(np.isnan(X)))))
+         dfcomplete.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\MICE\IWPC_MICE_" + str(i) + ".csv", ";")
+         mice_dfs.append(dfcomplete)
+
+
+    #imp = mice.MICEData(dfmod)
+    #imp.update_all()
+    #resultsImp = []
+    #for j in range(number_of_imps):
+    #    x = imp.next_sample()
+    #   resultsImp.append(x)
+    #    x.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\MICE\IWPC_MICE_" + str(j) + ".csv", ";")
+
     filesImp = []
-    for root, dirs, files in os.walk(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Imputations"):
+    for root, dirs, files in os.walk(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\MICE"):
         for file in files:
             if file.endswith('.csv'):
                 filesImp.append(file)
@@ -184,25 +233,6 @@ def main():
       dfnew = pd.read_csv(root+'\\'+file,";")
       df = filesImp.index(file)
       dfmod = dfnew
-      #print(SList(dfmod))
-      dfmod["AgeLower"] = dfmod["Age_years"].str.split('_', expand=True)[0]
-      dfmod['AgeLower'] = dfmod['AgeLower'].str.replace('+', '')
-      dfmod["AgeDecades"] = np.floor(dfmod["AgeLower"].astype("float") * 0.1).astype("int")
-      dfmod["AgeYears"] = dfmod["AgeLower"].astype("float")
-      dfmod['AgeYears'] = np.where((dfmod['AgeYears'] <= 18), 18, dfmod['AgeYears'])
-      dfmod.drop(['AgeLower'], axis=1, inplace=True)
-      dfmod.drop(['Age_years'], axis=1, inplace=True)
-      dfmod["Weight_kg"] = dfmod["Weight_kg"].astype("float")
-      dfmod["Height_cm"] = dfmod["Height_cm"].astype("float")
-      dfmod["Target_INR"] = dfmod["Target_INR"].astype("float")
-      dfmod["INR_Three"] = np.where(dfmod["Target_INR"] >= 3.0, 1, 0)
-      dfmod["Dose_mg_week"] = dfmod["Dose_mg_week"].astype("float")
-      dfmod["Inducer"] = dfmod.apply(lambda x: ConvertYesNo(x["Inducer_status"]), axis=1)
-      dfmod["Amiodarone"] = dfmod.apply(lambda x: ConvertYesNo(x["Amiodarone_status"]), axis=1)
-      dfmod["Smoker"] = dfmod.apply(lambda x: ConvertYesNo(x["Smoking_status"]), axis=1)
-      dfmod["Indicationflag"] = dfmod.apply(lambda x: ConvertYesNo(x["Indication"]), axis=1)
-      dfmod.drop(["Inducer_status", "Amiodarone_status", "Smoking_status", "Indication"], axis=1, inplace=True)
-
       #results = []
       impResults = []
       models = []
@@ -214,36 +244,27 @@ def main():
       listmodels = ['WarPATH', 'IWPC', 'Gage', 'Fixed']
       dfmod["Dose_mg_week"] = dfmod["Dose_mg_week"].astype("float")
       dfmod['BSA'] = dfmod.apply(lambda x: BSA(x["Height_cm"], x["Weight_kg"]), axis=1)
-      print("on imputation ", df)
-      if df==99:
-          time.sleep(3)
       if (find(models, 'model', 'IWPC') == -1):
         models.append({'model': 'IWPC', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MAPE': 0, 'MLAR': 0, 'MALAR': 0})
         models.append({'model': 'WarPATH', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MAPE': 0, 'MLAR': 0, 'MALAR': 0})
         models.append({'model': 'Gage', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MAPE': 0, 'MLAR': 0, 'MALAR': 0})
         models.append({'model': 'Fixed', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MAPE': 0, 'MLAR': 0, 'MALAR': 0})
-      IWPCbase = factor_IWPC["Intercept"] + factor_IWPC["Age"] * dfmod["AgeDecades"] + factor_IWPC["Height"] * dfmod["Height_cm"] + factor_IWPC["Weight"] * dfmod["Weight_kg"] + factor_IWPC["Amiodarone"] * dfmod["Amiodarone"] + factor_IWPC["Inducer"] * dfmod["Inducer"]
-      dfmod['IWPC_Pred'] = np.square(IWPCbase)
-
-      print("Run on the 100 imputed data sets provided by Innocent Asiiwe...",
-      print("Intercept", factor_IWPC["Intercept"],"Age", SList(dfmod["AgeDecades"]),"AgeFactor",factor_IWPC["Age"]))
-      print("Age*Factor" ,factor_IWPC["Age"] * SList(dfmod["AgeDecades"]), "WeightFactor ", factor_IWPC["Weight"])
-      print("Weight*Factor ",factor_IWPC["Weight"] * SList(dfmod["Weight_kg"]), "Amiodarone ",SList(dfmod["Amiodarone"]))
-      print("HeightFactor", factor_IWPC["Height"], "Height", SList(dfmod["Height_cm"]))
-      print("Height*Factor ", factor_IWPC["Height"] * SList(dfmod["Height_cm"]))
-      print("Amiodarone*Factor ",factor_IWPC["Amiodarone"] * SList(dfmod["Amiodarone"]))
-      print("Inducer", SList(dfmod["Inducer"]), "Inducer Factor",factor_IWPC["Inducer"])
-      print("Inducer*Factor",  factor_IWPC["Inducer"] * SList(dfmod["Inducer"]),"Equation",SList(dfmod['IWPC_Pred']))
-
+      dfmod['IWPC_Pred'] = np.square(factor_IWPC["Intercept"] + factor_IWPC["Age"] * dfmod["AgeDecades"] +
+                                   factor_IWPC["Height"] * dfmod["Height_cm"] + factor_IWPC["Weight"] * dfmod["Weight_kg"] +
+                                   factor_IWPC["Amiodarone"] * dfmod["Amiodarone"] + factor_IWPC["Inducer"] * dfmod["Inducer"])
       dfKey = dfmod[['IWPC_Pred', 'Dose_mg_week']]
       impResults.append({'Imp': df, 'model': 'IWPC', 'predactual': dfKey, 'MAE': 0, 'PW20': 0, 'R2': 0, 'MAPE': 0, 'MLAR': 0,
                  'MALAR': 0})
-      dfmod["Gage_Pred"] = 7 * np.exp(factor_Gage["Intercept"] + factor_Gage["Age"] * dfmod["AgeYears"] +
-                                     factor_Gage["BSA"] * dfmod["BSA"] + factor_Gage["TargetINR"] * dfmod["Target_INR"] +
-                                     factor_Gage["Amiodarone"] * dfmod["Amiodarone"] +
-                                     factor_Gage["Indication"] * dfmod["Indicationflag"] + factor_Gage["Smoker"] * dfmod["Smoker"])
+      GageFormula = factor_Gage["Intercept"] + factor_Gage["Age"] * dfmod["AgeYears"] + factor_Gage["BSA"] * dfmod["BSA"] + factor_Gage["TargetINR"] * dfmod["Target_INR"] + factor_Gage["Amiodarone"] * dfmod["Amiodarone"] + factor_Gage["Indication"] * dfmod["Indicationflag"] + factor_Gage["Smoker"] * dfmod["Smoker"]
+      dfmod["Gage_Pred"] = 7 * np.exp(GageFormula)
+      X = np.asanyarray(dfmod["Gage_Pred"])
+      if np.isnan(X).any() == True:
+          print(GageFormula)
+          print("BSA ", dfmod["BSA"]*factor_Gage["BSA"], "Indication", dfmod["Indicationflag"]*factor_Gage["Indication"])
+          print("Smoker", dfmod["Smoker"]*factor_Gage["Smoker"])
       dfKey = dfmod[["Gage_Pred", "Dose_mg_week"]]
       impResults.append({'Imp': df, 'model': 'Gage', 'predactual': dfKey, 'MAE': 0, 'PW20': 0, 'R2': 0, 'MAPE': 0, 'MLAR': 0,'MALAR': 0})
+
       dfmod["WarPATH_Pred"] = factor_WarPath['Intercept'] + factor_WarPath['Age'] * dfmod['AgeYears'] + factor_WarPath['Weight'] * dfmod['Weight_kg'] + factor_WarPath['TargetINR'] * dfmod[
                                         'INR_Three']
       dfKey = dfmod[["WarPATH_Pred", "Dose_mg_week"]]
@@ -253,8 +274,7 @@ def main():
       dfKey = dfmod[["Fixed_Pred", "Dose_mg_week"]]
       impResults.append({'Imp': df, 'model': 'Fixed', 'predactual': dfKey, 'MAE': 0, 'PW20': 0, 'R2': 0, 'MAPE': 0, 'MLAR': 0,
                  'MALAR': 0})
-      suffix = str(df).zfill(3)
-      dfmod.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\MiceInnocent\IWPCImputed_" + suffix + ".csv", ";")
+      dfmod.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\IWPCImputed_" + str(df) + ".csv", ";")
 
       for k in range(len(impResults)):
         dfKey = impResults[k]['predactual']
@@ -262,9 +282,14 @@ def main():
         imputation = impResults[k]['Imp']
         doseTrue = dfKey["Dose_mg_week"]
         dosePred2 = dfKey[model + '_Pred']
+        X = np.asanyarray(dosePred2)
+        if np.isnan(X).any()== True:
+            print("NAN values:", model, list(map(tuple, np.where(np.isnan(X)))))
+            dosePred2.fillna(np.mean(dosePred2))
         impResults[k]['MAE'] = score_mae(doseTrue, dosePred2)
         impResults[k]['PW20'] = PercIn20(doseTrue, dosePred2)
         impResults[k]['R2'] = RSquared(doseTrue, dosePred2)
+        impResults[k]['MAPE'] = MAPE(doseTrue, dosePred2)
         impResults[k]['MLAR'] = MLAR(doseTrue, dosePred2)
         impResults[k]['MALAR'] = MALAR(doseTrue, dosePred2)
 
@@ -273,14 +298,11 @@ def main():
           b = impResults[k]['Imp']
           c = impResults[k]['MAE']
           d = impResults[k]['PW20']
-
           e = impResults[k]['R2']
           f = impResults[k]['MAPE']
           g = impResults[k]['MLAR']
           h = impResults[k]['MALAR']
           results.append({'Imp': b, 'model': a, 'MAE': c, 'PW20': d, 'R2': e, 'MAPE': f, 'MLAR': g, 'MALAR': h})
-      resultsdf = pd.DataFrame(results)
-      resultsdf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\IWPCResults_" + str(df) + ".csv", ";")
       boot = 0
       samples = []
       metrics = []
@@ -350,7 +372,7 @@ def main():
         df_FIXED.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Fixed_samples" + ".csv", ";")
 
 
-      if (df+1) == impNumber:
+        if (df+1) == impNumber:
             for k in range(len(std_Dev)):
                 model = std_Dev[k]['model']
                 metric = std_Dev[k]['metric']
@@ -371,14 +393,12 @@ def main():
                         models[k]['MLAR'] += results[m]['MLAR']
                         models[k]['MALAR'] += results[m]['MALAR']
 
-
             Bfactor = (impNumber+1)/impNumber
 
             for k in range(len(models)):
                 fieldname = models[k]['model']
                 mae_value = models[k]['MAE'] / impNumber
                 mae_list = collect_Results(results, fieldname, 'MAE')
-                #mae_list.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarPATH_samples" + ".csv", ";")
                 mae_variance = variance(mae_list)*Bfactor
                 stdpos = find(std_Dev_Summ, 'model', fieldname)
                 varpos = find(variance_Summ, 'model', fieldname)
@@ -386,6 +406,8 @@ def main():
                 mae_std_dev = std_Dev_Summ[stdpos]['MAE'] / impNumber
                 mae_CI_minus = round(mae_value - 1.96*np.sqrt(mae_std_dev + mae_variance), 4)
                 mae_CI_plus = round(mae_value + 1.96*np.sqrt(mae_std_dev + mae_variance), 4)
+                #mae_CI_minus = round(mae_value - 1.96*(mae_std_dev) , 4)
+                #mae_CI_plus = round(mae_value + 1.96 * (mae_std_dev),4)
                 pw20_value = models[k]['PW20'] / impNumber
                 pw20_list = collect_Results(results, fieldname, 'PW20')
                 pw20_variance = variance(pw20_list)*Bfactor
@@ -415,11 +437,11 @@ def main():
                 MLAR_CI_minus = round(MLAR_value - 1.96*np.sqrt(MLAR_std_dev + MLAR_variance), 4)
                 MLAR_CI_plus = round(MLAR_value + 1.96*np.sqrt(MLAR_std_dev + MLAR_variance), 4)
 
-                print(fieldname, 'MAE:', round(mae_value, 6), "StdDev:", round(mae_std_dev,6),"B: ",round(mae_variance,4),"  CI: [",mae_CI_minus, mae_CI_plus,"]")
-                print(fieldname, 'PW20:', round(pw20_value, 6),"StdDev:", round(pw20_std_dev,6),"B: ", round(pw20_variance,4)," CI: [", pw20_CI_minus, pw20_CI_plus,"]")
-                print(fieldname, 'R2:', round(R2_value, 6), "StdDev:", round(R2_std_dev,6),"B: ",round(R2_variance,4)," CI: [", R2_CI_minus, R2_CI_plus, "]")
-                print(fieldname, 'MALAR:', round(MALAR_value, 6), "StdDev:", round(MALAR_std_dev,6), "B: ",round(MALAR_variance,4), " CI: [", MALAR_CI_minus, MALAR_CI_plus,"]")
-                print(fieldname, 'MLAR:', round(MLAR_value, 6), "StdDev", round(MLAR_std_dev,6), "B :",round(MLAR_variance,4)," CI:",MLAR_CI_minus, MLAR_CI_plus, "]")
+                print(fieldname, 'MAE:', round(mae_value, 6), "StdDev:", round(mae_std_dev,6),"B: ",round(mae_variance,4),"  CI: [",mae_CI_minus, mae_CI_plus,"]",file = fileoutput)
+                print(fieldname, 'PW20:', round(pw20_value, 6),"StdDev:", round(pw20_std_dev,6),"B: ", round(pw20_variance,4)," CI: [", pw20_CI_minus, pw20_CI_plus,"]",file = fileoutput)
+                print(fieldname, 'R2:', round(R2_value, 6), "StdDev:", round(R2_std_dev,6),"B: ",round(R2_variance,4)," CI: [", R2_CI_minus, R2_CI_plus, "]",file = fileoutput)
+                print(fieldname, 'MALAR:', round(MALAR_value, 6), "StdDev:", round(MALAR_std_dev,6), "B: ",round(MALAR_variance,4), " CI: [", MALAR_CI_minus, MALAR_CI_plus,"]", file = fileoutput)
+                print(fieldname, 'MLAR:', round(MLAR_value, 6), "StdDev", round(MLAR_std_dev,6), "B :",round(MLAR_variance,4)," CI:",MLAR_CI_minus, MLAR_CI_plus, "]",file = fileoutput)
 
 if __name__ == "__main__":
     main()
