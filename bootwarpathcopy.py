@@ -344,7 +344,7 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
     kfolds = KFold(n_splits=10, shuffle=True, random_state=RANDOM_SEED)
     model = est.estimator
     gridFit = True
-    #print(f'\n{est.identifier}...')
+    print(f'\n{est.identifier}...')
     modelID = est.identifier
     if est.identifier != "LR":  # tuning is not required for LR
         if est.identifier == "XGBR":
@@ -745,20 +745,7 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
     return resultsdict
 
 def main():
-    dfConf = pd.DataFrame()
-    randomStates = []
-    randomStates.append(0)
-    randomStates.append(33)
-    randomStates.append(42)
-    randomStates.append(66)
-    randomStates.append(99)
-    randomStates.append(102)
-    randomStates.append(113)
-    randomStates.append(143)
-    for state in range(len(randomStates)):
-                randomseed = randomStates[state]
-                print("Processing random state", randomseed)
-                #filewritena       me = input("Enter file name: \n")
+                #filewritename = input("Enter file name: \n")
                 #ileoutput = open(filewritename, 'w')
                 #std_Dev_Summ = ({'model': 'WarPATH', 'MAE': 0, 'PW20': 0})
                 #variance_Summ = ({'model': 'WarPATH', 'MAE': 0, 'PW20': 0})
@@ -789,7 +776,7 @@ def main():
                 impNumber = 50  # was 50 as was maximp
                 maxImp = 50
                 runImp = 0
-                #randomseed = 0
+                randomseed = 0
                 flagHIV = False
                 #99_42 143 33 113 102 0 66`6
                 pd.set_option("display.max_rows", None, "display.max_columns", None)
@@ -868,7 +855,8 @@ def main():
                     patients_train = trainID[".id"].to_list()
 
                     dftrain = df[df['.id'].isin(patients_train)]
-                    dftrain.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Training\train" + suffix + ".csv", ";")
+                    dftrain.to_csv(
+                        r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Training\train" + suffix + ".csv", ";")
                     for imp in range(impNumber):
                         counter = imp + 1
                         dftrainimp = dftrain.loc[df[".imp"] == counter]
@@ -1022,12 +1010,12 @@ def main():
                        filename = "dfWarfarin" + suffix
                        dfmod.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\PreProcessed\\" + filename + ".csv", ";")
                     if True:
-                        #print("On imputation ", df, " and random seed ", randomseed)
+                        print("On imputation ", df)
                         dfIWPC.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Claire_IWPC_Formatted" + ".csv", ";")
                         data = dfmod
                         data.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Claire_Warpath" + ".csv", ";")
                         #data.index = data.index + 1
-                        #print(data.shape)
+                        print(data.shape)
                         data['Dose_mg_week'] = data['Dose_mg_week'].apply(np.sqrt)
                         impResults = []
                         models = []
@@ -1099,8 +1087,8 @@ def main():
                         x_test = test.drop([target_column], axis=1)
 
                     estimates = []
-                   #LR = LinearRegression()
-                    #stimates.append(Estimator(LR, 'LR'))
+                    #LR = LinearRegression()
+                    #estimates.append(Estimator(LR, 'LR'))
 
                     MLPR_Scaling = False
                     if MLPR_Scaling == True:
@@ -1119,21 +1107,21 @@ def main():
                            #GBR = GradientBoostingRegressor()
                            #estimates.append(Estimator(GBR,'GBR'))
                            #XGBR = XGBRegressor()
-                           #stimates.append(Estimator(XGBR,'XGBR'))
+                           #estimates.append(Estimator(XGBR,'XGBR'))
                            #RR =  Ridge()
                            #LAS= Lasso()
                            #ELNET = ElasticNet()
                            #estimates.append(Estimator(LAS,'LASSO'))
                            #estimates.append(Estimator(ELNET,'ELNET'))
                            #estimates.append(Estimator(RR,'RIDGE'))
-                           #KNNR = KNeighborsRegressor()
-                           #estimates.append(Estimator(KNNR, 'KNN'))
+                           KNNR = KNeighborsRegressor()
+                           estimates.append(Estimator(KNNR, 'KNN'))
                            #svr = sklearn.svm.SVR()
                            #estimates.append(Estimator(svr,'SVREG'))
                            #MLPR = MLPRegressor()
                            #estimates.append(Estimator(MLPR,'MLPR'))
-                           RF = RandomForestRegressor()
-                           estimates.append(Estimator(RF, 'RF'))
+                           #RF = RandomForestRegressor()
+                           #estimates.append(Estimator(RF, 'RF'))
                            #DTR = DecisionTreeRegressor()
                            #estimates.append(Estimator(DTR,'DTR'))
                            #LGB = lgb.LGBMRegressor()
@@ -1184,7 +1172,6 @@ def main():
                                dataSet = np.random.randint(10, size=(number_of_samples, 2))
                                df_WARPATH = pd.DataFrame(data=dataSet, columns=metric_columns)
                                boot = 0
-                               #print("bootstrapping..")
                                while boot < number_of_samples:
                                    print("imputation ", df, " on sample ", boot)
                                    dfsample = data.sample(n=364, frac=None, replace=True)
@@ -1291,7 +1278,7 @@ def main():
                 dfSummary.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfSummary_" + str(randomseed) + ".csv", ";")
 
                 #dfConfidence = pd.DataFrame(confinterval,  columns=['estimator', 'metric', 'mean', '95% CI lower bound','95% CI upper bound'])
-                #dfConfidence.to_csv(r"C:\Users\C   laire\GIT_REPO_1\CSCthesisPY\WARPATH_dfConfidence" + ".csv", ";")
+                #dfConfidence.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfConfidence" + ".csv", ";")
                 print("STOP HERE")
 
 
@@ -1333,21 +1320,14 @@ def main():
                        pw20_var = variance_Summ[varpos]['MAE'] * 2
                        pw20_CI_minus = round(pw20_value - 1.96 * np.sqrt(pw20_std_dev + pw20_variance), 4)
                        pw20_CI_plus = round(pw20_value + 1.96 * np.sqrt(pw20_std_dev + pw20_variance), 4)
-                       dfPrev = dfConf
-                       dfCurr = pd.DataFrame()
-                       dfCurr['HEADER']=['WARPATH',alg, randomseed]
-                       dfCurr["MAE"]= [round(mae_value,6), mae_CI_minus, mae_CI_plus]
-                       dfCurr["PW2O"]=[round(pw20_value,6), pw20_CI_minus, pw20_CI_plus]
-                       frames = (dfPrev, dfCurr)
-                       dfConf = pd.concat(frames)
-                       name= "WARPATH"+alg.replace(" ","")
-                       dfConf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\CI\\" + name + ".csv", ";")
+
                        print(fieldname, 'MAE:', round(mae_value, 6), "StdDev:", round(mae_std_dev,6),"B: ",
-                       round(mae_variance,4),"  CI: [",mae_CI_minus, mae_CI_plus,"]",)
+                       round(mae_variance,4),"  CI: [",mae_CI_minus, mae_CI_plus,"]")
                        print(fieldname, 'PW20:', round(pw20_value, 6), "StdDev:", round(pw20_std_dev, 6), "B: ",
                        round(pw20_variance, 4)," CI: [", pw20_CI_minus, pw20_CI_plus, "]")
                        print('RANDOM STATE,   ', randomseed)
                        print(dfSummary)
+
 
 if __name__ == "__main__":
     main()

@@ -197,7 +197,7 @@ def PercIn20(true, predicted):
 
 
 def INRThree(targetINR):
-    if (targetINR >= 2.5).all() & (targetINR <= 3.5).all():
+    if (targetINR >= 2.5) & (targetINR <= 3.5):
         return 1
     else:
         return 0
