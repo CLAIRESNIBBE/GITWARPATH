@@ -492,6 +492,8 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                 model = GradientBoostingRegressor(**GBR_params)
 
             elif est.identifier == "MLPR":
+
+
                 #activation = 'identity', alpha = 0.009260944818691528,
                 #beta_1 = 0.8304148442169565, beta_2 = 0.9847593650340831,
                 #epsilon = 4.968151316490382e-06, learning_rate = 'adaptive',
@@ -513,6 +515,7 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                     #_mlpr_max_iter = trial.suggest_categorical("max_iter", [4500, 5000, 5500, 6000, 6500, 7000, 7500,8000])  # WAS [1000,1500,2000]
                     _mlpr_solver = trial.suggest_categorical("solver",['lbfgs'])
                     _mlpr_tol = trial.suggest_categorical("tol",[0.008075623520655316])
+
                     #_mlpr_activation = trial.suggest_categorical('activation',['logistic','relu'])
                     _mlpr_learning_rate_init = trial.suggest_categorical('learning_rate_init', [0.014389028832229495])
                     _mlpr_epsilon = trial.suggest_categorical('epsilon',[4.968151316490382e-06])
@@ -546,7 +549,7 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                 model = MLPRegressor(**MLPR_params)
 
 
-            elif est.identifier == "KNN":
+            elif est.identifier == "KNNR":
                 start = time.time()
 
                 def KNN_Objective(trial):
@@ -586,6 +589,7 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                         ridge_model = Ridge(alpha=_alpha, max_iter=_max_iter)
                         scaler = MinMaxScaler()
                         pipeline = make_pipeline(scaler, ridge_model)
+
                         score = cross_val_score(pipeline, xtrain, ytrain, cv=kfolds,scoring="neg_mean_absolute_error").mean()
                         return score
 
@@ -593,7 +597,7 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                     end = time.time()
                     model = Ridge(**RIDGE_params)
 
-                elif est.identifier == "ELNR":
+                elif est.identifier == "ELNET":
                     start = time.time()
 
                     def ELNET_Objective(trial):
@@ -709,6 +713,7 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                         cv=kfolds)
                     stack.fit(X, y)
 
+
     if est.identifier == "LR":
        start = time.time()
     fitted = model.fit(xtrain, ytrain)
@@ -742,17 +747,35 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
     return resultsdict
 
 def main():
-    dfConf = pd.DataFrame()
-    randomStates = []
-    randomStates.append(0)
-    randomStates.append(33)
-    randomStates.append(42)
-    randomStates.append(66)
-    randomStates.append(99)
-    randomStates.append(102)
-    randomStates.append(113)
-    randomStates.append(143)
-    for state in range(len(randomStates)):
+    models=[]
+    KNNR = KNeighborsRegressor()
+    #RR = Ridge()
+    LAS = Lasso()
+    #ELNR = ElasticNet()
+    #svr = sklearn.svm.SVR()
+    #GBR = GradientBoostingRegressor()
+    #MLPR = MLPRegressor()
+    #models.append(Estimator(GBR,'GBR'))
+    #models.append(Estimator(svr,'SVREG'))
+    #models.append(Estimator(LAS,'LASSO'))
+    #models.append(Estimator(ElNET,"Elnet"))
+    #models.append(Estimator(RR, "RIDGE"))
+    models.append(Estimator(KNNR, "KNNR"))
+    for _, est in enumerate(models):
+        dfConf = pd.DataFrame()
+        estimates = []
+        print("Processing ML model ", est.identifier)
+        estimates.append(Estimator(est.estimator, est.identifier))
+        randomStates = []
+        randomStates.append(0)
+        randomStates.append(33)
+        randomStates.append(42)
+        randomStates.append(66)
+        randomStates.append(99)
+        randomStates.append(102)
+        randomStates.append(113)
+        randomStates.append(143)
+        for state in range(len(randomStates)):
                 randomseed = randomStates[state]
                 timeBegin = time.time()
                 print("Processing random state", randomseed)
@@ -1040,7 +1063,7 @@ def main():
 
                         if combinedata == True:
                             dfIWPC['Dose_mg_week'] = dfIWPC['Dose_mg_week'].apply(np.sqrt)
-                        estimates = []
+                        #estimates = []
                         target_column = 'Dose_mg_week'
                         status_column = "Status"
                         test_size = 0.2
@@ -1096,7 +1119,7 @@ def main():
                         y_test = test[target_column].values
                         x_test = test.drop([target_column], axis=1)
 
-                    estimates = []
+                    #estimates = []
                     #LR = LinearRegression()
                     #estimates.append(Estimator(LR, 'LR'))
                     MLPR_Scaling = False
@@ -1118,9 +1141,9 @@ def main():
                            #XGBR = XGBRegressor()
                            #estimates.append(Estimator(XGBR,'XGBR'))
                            #RR =  Ridge()
-                           LAS= Lasso()
+                           #LAS= Lasso()
                            #ELNET = ElasticNet()
-                           estimates.append(Estimator(LAS,'LASSO'))
+                           #estimates.append(Estimator(LAS,'LASSO'))
                            #estimates.append(Estimator(ELNET,'ELNET'))
                            #estimates.append(Estimator(RR,'RIDGE'))
                            #KNNR = KNeighborsRegressor()
@@ -1290,7 +1313,6 @@ def main():
                 #dfConfidence = pd.DataFrame(confinterval,  columns=['estimator', 'metric', 'mean', '95% CI lower bound','95% CI upper bound'])
                 #dfConfidence.to_csv(r"C:\Users\C   laire\GIT_REPO_1\CSCthesisPY\WARPATH_dfConfidence" + ".csv", ";")
                 print("STOP HERE")
-
 
                 if df  == impNumber:
                     for k in range(len(std_Dev)):
