@@ -453,8 +453,7 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                                             scoring="neg_mean_absolute_error").mean()
                     return score
 
-
- modelID, randomseed)
+                DTR_params = tune(DTR_objective, df, modelID, randomseed)
                 end = time.time()
                 model = DecisionTreeRegressor(**DTR_params)
 
@@ -493,8 +492,6 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                 model = GradientBoostingRegressor(**GBR_params)
 
             elif est.identifier == "MLPR":
-
-
                 #activation = 'identity', alpha = 0.009260944818691528,
                 #beta_1 = 0.8304148442169565, beta_2 = 0.9847593650340831,
                 #epsilon = 4.968151316490382e-06, learning_rate = 'adaptive',
@@ -502,7 +499,6 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                 #max_iter = 240, momentum = 0.871153667593362,
                 #power_t = 0.6130708398995247, random_state = 2, solver = 'lbfgs',
                 #tol = 0.008075623520655316,
-
                 #validation_fraction = 0.036450106641084085
                 start = time.time()
                 def MLPR_Objective(trial):
@@ -750,20 +746,19 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
 
 def main():
     models=[]
-    #LR = LinearRegression()
     #KNNR = KNeighborsRegressor()
-    RR = Ridge()
-    LAS = Lasso()
-    ELNET = ElasticNet()
-    svr = sklearn.svm.SVR()
-    GBR = GradientBoostingRegressor()
-    #MLPR = MLPRegressor()
-    models.append(Estimator(GBR,'GBR'))
-    models.append(Estimator(svr,'SVREG'))
-    models.append(Estimator(LAS,'LASSO'))
-    models.append(Estimator(ELNET,"Elnet"))
-    models.append(Estimator(RR, "RIDGE"))
-    #models.append(Estimator(LR, "LR"))
+    #RR = Ridge()
+    #AS = Lasso()
+    #ELNET = ElasticNet()
+    #svr = sklearn.svm.SVR()
+    #GBR = GradientBoostingRegressor()
+    MLPR = MLPRegressor()
+    models.append(Estimator(MLPR,'MLPR'))
+    #models.append(Estimator(GBR,'GBR'))
+    #models.append(Estimator(svr,'SVREG'))
+    #models.append(Estimator(LAS,'LASSO'))
+    #models.append(Estimator(ELNET, "ELNET"))
+    #models.append(Estimator(RR, "RIDGE"))
     #models.append(Estimator(KNNR, "KNNR"))
     for _, est in enumerate(models):
         dfConf = pd.DataFrame()
@@ -1283,6 +1278,7 @@ def main():
                         dfResults.at[i, 'PW20'] = np.nan
                         dfResults.at[i, 'R2'] = np.nan
                         dfResults.at[i, 'Time'] = np.nan
+                                                                  
 
                 dfSummary = dfResults.groupby('Estimator').apply(np.mean)
                 if False:

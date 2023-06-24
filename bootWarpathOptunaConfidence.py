@@ -744,14 +744,19 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
 def main():
     dfConf = pd.DataFrame()
     randomStates = []
-    randomStates.append(0)
-    randomStates.append(33)
-    randomStates.append(42)
-    randomStates.append(66)
-    randomStates.append(99)
-    randomStates.append(102)
-    randomStates.append(113)
-    randomStates.append(143)
+    if False:
+        randomStates.append(0)
+        randomStates.append(33)
+        randomStates.append(42)
+        randomStates.append(66)
+        randomStates.append(99)
+        randomStates.append(102)
+        randomStates.append(113)
+        randomStates.append(143)
+    else:
+        randomStates.append(102)
+        randomStates.append(113)
+        randomStates.append(143)
     for state in range(len(randomStates)):
                 randomseed = randomStates[state]
                 timeBegin = time.time()
@@ -773,8 +778,7 @@ def main():
                 number_of_samples = 1000
                 bootresults = []
                 std_Dev = []
-
-                combinedata = False
+                combinedata = True
                 scaler = MinMaxScaler()
                 fileName1 = "AllImputations.csv"
                 fileName1 = fileName1.upper()
@@ -1115,12 +1119,12 @@ def main():
                         if True:
                            #GBR = GradientBoostingRegressor()
                            #estimates.append(Estimator(GBR,'GBR'))
-                           #XGBR = XGBRegressor()
-                           #estimates.append(Estimator(XGBR,'XGBR'))
+                           XGBR = XGBRegressor()
+                           estimates.append(Estimator(XGBR,'XGBR'))
                            #RR =  Ridge()
-                           LAS= Lasso()
+                           #LAS= Lasso()
                            #ELNET = ElasticNet()
-                           estimates.append(Estimator(LAS,'LASSO'))
+                           #estimates.append(Estimator(LAS,'LASSO'))
                            #estimates.append(Estimator(ELNET,'ELNET'))
                            #estimates.append(Estimator(RR,'RIDGE'))
                            #KNNR = KNeighborsRegressor()

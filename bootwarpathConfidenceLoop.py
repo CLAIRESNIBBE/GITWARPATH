@@ -492,8 +492,6 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                 model = GradientBoostingRegressor(**GBR_params)
 
             elif est.identifier == "MLPR":
-
-
                 #activation = 'identity', alpha = 0.009260944818691528,
                 #beta_1 = 0.8304148442169565, beta_2 = 0.9847593650340831,
                 #epsilon = 4.968151316490382e-06, learning_rate = 'adaptive',
