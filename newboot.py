@@ -57,6 +57,14 @@ from scipy.stats import norm, iqr, scoreatpercentile
 from mlxtend.regressor import StackingCVRegressor
 import warnings
 import statistics
+def find(lst, key, value):
+    for i, dic in enumerate(lst):
+        if dic[key] == value:
+            return i
+    return -1
+
+
+
 def fxn():
     warnings.warn("deprecated", DeprecationWarning)
 
@@ -98,13 +106,6 @@ from tpot.builtins import StackingEstimator, ZeroCount
 from tpot import TPOTRegressor
 from numpy import loadtxt
 from copy import copy
-
-def find(lst, key, value):
-    for i, dic in enumerate(lst):
-        if dic[key] == value:
-            return i
-    return -1
-
 
 def ExitSquareBracket(variable, floatbool):
     stringvar = str(variable)
@@ -880,9 +881,63 @@ def main():
                                         ";")
                                     # fixedtraintest = True
                 metric_columns = ['MAE', 'PW20', 'R2', 'Time']
-                counter = 0
-                for root, dirs, files in os.walk(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations"):
-                    if root == 'C:\\Users\\Claire\\GIT_REPO_1\\CSCthesisPY\\WarImputations':
+                if False:
+                    # for imp in range(impNumber):
+                    patients_train = []
+                    patients_train = trainID[".id"].to_list()
+
+                    dftrain = df[df['.id'].isin(patients_train)]
+                    dftrain.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Training\train" + suffix + ".csv", ";")
+                    for imp in range(impNumber):
+                        counter = imp + 1
+                        dftrainimp = dftrain.loc[df[".imp"] == counter]
+                        suffix = str(counter).zfill(3)
+                        dftrainimp.to_csv(
+                            r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Training\train_" + suffix + ".csv",
+                            ";")
+                    patients_test = []
+                    patients_test = testID[".id"].to_list()
+                    dftest = df[df['.id'].isin(patients_test)]
+                    dftest.to_csv(
+                        r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Testing\test" + suffix + ".csv", ";")
+                    for imp in range(impNumber):
+                        counter = imp + 1
+                        dftestimp = dftest.loc[df[".imp"] == counter]
+                        suffix = str(counter).zfill(3)
+                        dftestimp.to_csv(
+                            r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Testing\test_" + suffix + ".csv",
+                            ";")
+                    counter = 0
+                    for root, dirs, files in os.walk(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations"):
+                        if root == 'C:\\Users\\Claire\\GIT_REPO_1\\CSCthesisPY\\WarImputations':
+                            for file in files:
+                                if runImp < maxImp and file.endswith('.csv') and (
+                                        "train_" not in file and "test_" not in file and "SPLIT" not in file and "TRAIN" not in file and "TEST" not in file) and "ImpWarPATH" in file:
+                                    filedf = pd.read_csv(root + '\\' + file, ";")
+                                    if False:
+                                        if "Status" not in filedf.columns:
+                                            filedf["Status"] = ""
+                                            counter = counter + 1
+                                        for row in filedf.itertuples():
+                                            checkID = row[4]
+                                            rowindex = filedf.loc[filedf[".id"] == checkID].index.tolist()[
+                                                0]  # OR row[0]
+                                            if checkID in patients_train:
+                                                filedf.loc[rowindex, 'Status'] = 'train'
+                                            elif checkID in patients_test:
+                                                filedf.loc[rowindex, 'Status'] = 'test'
+                                    counter = counter + 1
+                                    suffix = str(counter).zfill(3)
+                                    filedf.to_csv(
+                                        r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Split\ImpWarPATHSPLIT_" + suffix + ".csv",
+                                        ";")
+                                    filesImp.append(
+                                        r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Split\ImpWarPATHSPLIT_" + suffix + ".csv")
+                                    runImp = runImp + 1
+                else:
+                    counter = 0
+                    for root, dirs, files in os.walk(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations"):
+                        if root == 'C:\\Users\\Claire\\GIT_REPO_1\\CSCthesisPY\\WarImputations':
                             for file in files:
                                 if runImp < maxImp and file.endswith('.csv') and (
                                         "train_" not in file and "test_" not in file and "SPLIT" not in file and "TRAIN" not in file and "TEST" not in file) and "ImpWarPATH" in file:
