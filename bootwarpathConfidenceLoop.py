@@ -744,21 +744,25 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
     return resultsdict
 
 def main():
-    models=[]
-    KNNR = KNeighborsRegressor()
+    mlmodels=[]
+    RF = RandomForestRegressor()
+    mlmodels.append(Estimator(RF, 'RF'))
+    #LR = LinearRegression()
+    #mlmodels.append(Estimator(LR, 'LR'))
+    #KNNR = KNeighborsRegressor()
     #RR = Ridge()
-    LAS = Lasso()
+    #LAS = Lasso()
     #ELNR = ElasticNet()
     #svr = sklearn.svm.SVR()
     #GBR = GradientBoostingRegressor()
     #MLPR = MLPRegressor()
-    #models.append(Estimator(GBR,'GBR'))
-    #models.append(Estimator(svr,'SVREG'))
-    #models.append(Estimator(LAS,'LASSO'))
-    #models.append(Estimator(ElNET,"Elnet"))
-    #models.append(Estimator(RR, "RIDGE"))
-    models.append(Estimator(KNNR, "KNNR"))
-    for _, est in enumerate(models):
+    #mlmodels.append(Estimator(GBR,'GBR'))
+    #mlmodels.append(Estimator(svr,'SVREG'))
+    #mlmodels.append(Estimator(LAS,'LASSO'))
+    #mlmodels.append(Estimator(ELNR,"ELNET"))
+    # mlmodels.append(Estimator(RR, "RIDGE"))
+    #mlmodels.append(Estimator(KNNR, "KNNR"))
+    for _, est in enumerate(mlmodels):
         dfConf = pd.DataFrame()
         estimates = []
         print("Processing ML model ", est.identifier)
@@ -1268,7 +1272,6 @@ def main():
                         modelpos2 = find(variance_Summ, 'model', model)
                         variance_Summ[modelpos2][metric] += Bfactor
 
-
                     for k in range(len(models)):
                         fieldname = models[k]['model']
                         for m in range(len(bootresults)):
@@ -1301,7 +1304,9 @@ def main():
                        dfCurr = pd.DataFrame()
                        dfCurr['HEADER']=['WARPATH',alg, randomseed]
                        dfCurr["MAE"]= [round(mae_value,6), mae_CI_minus, mae_CI_plus]
+                       dfCurr["MAE_Rubin"] = [0, round(mae_std_dev,6), round(mae_variance,6)]
                        dfCurr["PW2O"]=[round(pw20_value,6), pw20_CI_minus, pw20_CI_plus]
+                       dfCurr["PW20_Rubin"] = [0, round(pw20_std_dev,6), round(pw20_variance,6)]
                        dfCurr["TIME"] = timePeriod
                        frames = (dfPrev, dfCurr)
                        dfConf = pd.concat(frames)

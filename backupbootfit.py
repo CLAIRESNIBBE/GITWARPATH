@@ -9,6 +9,7 @@ from pandas.api.types import is_string_dtype
 from pandas.api.types import is_numeric_dtype
 from pathlib import Path
 import numpy as np
+from random import sample
 from tabulate import tabulate
 from itertools import combinations, permutations, product
 from os.path import isfile, join
@@ -57,7 +58,6 @@ from scipy.stats import norm, iqr, scoreatpercentile
 from mlxtend.regressor import StackingCVRegressor
 import warnings
 import statistics
-
 def fxn():
     warnings.warn("deprecated", DeprecationWarning)
 
@@ -106,6 +106,7 @@ def find(lst, key, value):
             return i
     return -1
 
+
 def ExitSquareBracket(variable, floatbool):
     stringvar = str(variable)
     if stringvar.find('[') >= 0 and stringvar.find(']') >= 0:
@@ -119,22 +120,53 @@ def ExitSquareBracket(variable, floatbool):
         else:
           return stringvar
 
+def listAverage(list):
+    if len(list) > 0:
+        return sum(list)/len(list)
+    else:
+        return 0
+
+
+#def collect_Metrics(metrics, model, metric):
+#    container = []
+#    for i in range(len(metrics)):
+#        if metrics[metric][metrics['Estimator'].any() == model]:
+#            container.append(metrics[metric][metrics['Estimator'] == model].values)
+#    return container
 
 def collect_Metrics(metrics, model, metric):
     container = []
     for i in range(len(metrics)):
         if (metrics[i]['model'] == model) & (metrics[i]['metric'] == metric):
-            # print(metrics[i]['model'], metrics[i]['metric'], metrics[i]['value'])
-            container.append(metrics[i]['value'])
+           #print(metrics[i]['model'], metrics[i]['metric'], metrics[i]['value'])
+           container.append(metrics[i]['value'])
     return container
-
 
 def collect_Results(metrics, model, metric):
     container = []
     for i in range(len(metrics)):
-        if (metrics[i]['model'] == model):
+        if (metrics[i]['model']== model):
             container.append(metrics[i][metric])
     return container
+
+#def collect_Results(model, metric):
+#    container = []
+#    if Estimator == model:
+#        container.append(metric)
+#    return container
+
+#def variance(metric,mean):
+#    #meanvalue = np.nanmean(metric)
+#    meanvalue = mean
+#    sumsquares = 0
+#    for i in range(len(metric)):
+#        core = abs(metric[i] - meanvalue)
+#        sumsquares += np.square(core)
+#    if len(metric) == 1:
+#        variance = 0
+#    else:
+#        variance = sumsquares / ((len(metric) - 1))
+#    return variance
 
 def variance(metric):
     meanvalue = np.mean(metric)
@@ -146,12 +178,18 @@ def variance(metric):
     return variance
 
 
+
+
+#def std_deviation(metric,mean):
+ #   return np.sqrt(variance(metric,mean))
+
 def std_deviation(metric):
     return np.sqrt(variance(metric))
 
 
 def SList(series):
     return np.array(series.values.tolist())
+
 
 def confintlimit95(metric,mean):
     return 1.96 * np.sqrt(variance(metric,mean) / len(metric))
@@ -164,6 +202,18 @@ def TrainOrTest(patientID,TrainList, TestList):
     elif (patientID in TestList):
         return 'test'
 
+
+    #newList = []
+    #for patient in patientIDList:
+    #  currpatient = patient
+    #  for fixedpatient in TrainList:
+    #    if (fixedpatient == currpatient):
+    #      newList.append('train')
+    #  for fixedpatient in TestList:
+    #    if (fixedpatient == currpatient):
+    #      newList.append('test')
+    #return newList
+
 def format_summary(df_res):
     df_summary = df_res.groupby(['Estimator']).mean()
     df_summary.reset_index(inplace=True)
@@ -175,10 +225,8 @@ def format_summary(df_res):
             lo1 = np.percentile(data, 2.5)
             lo, hi = confidence_interval(df_res[metric][df_res['Estimator'] == alg].values)
             mean = df_res[metric][df_res['Estimator'] == alg].mean()
-            #lo2 = mean - confintlimit95(data,mean)
-            #hi2 = mean + confintlimit95(data,mean)
-            lo2 = mean
-            hi2 = mean
+            lo2 = mean - confintlimit95(data,mean)
+            hi2 = mean + confintlimit95(data,mean)
             conf2 = f"{mean:.2f}({lo2:.2f}-{hi2:.2f})"
             print("new method", alg, metric, lo2, hi2, mean, conf2)
             for v in [mean, lo, hi]:
@@ -215,6 +263,7 @@ def RSquared(trueval, predval):
         topsum += np.square((predval[i] - true_mean))
         lowersum += np.square(trueval[i] - true_mean)
     return topsum / lowersum * 100
+
 
 def BSA(height, weight):
     return 0.007184 * height ** 0.725 * weight ** 0.425
@@ -276,20 +325,18 @@ def tune(objective,df,model,randomseed):
     print(f"Best score: {best_score} \nOptimized parameters: {params}")
     return params
 
-def dropColumn(IWPCparam, columnname, dfColumns, dfmod, dfIWPC, IWPCDF):
+def dropColumn(IWPCparam, columnname, dfColumns, dfmod, dfIWPC):
     if columnname in dfColumns:
         if IWPCparam == "IWPC":
-           dfIWPC.drop([columnname],axis=1,inplace=True)
-        elif IWPCparam == "IWPCDF":
-           IWPCDF.drop([columnname],axis=1,inplace=True)
+          dfIWPC.drop([columnname],axis=1,inplace=True)
         else:
-           dfmod.drop([columnname], axis=1, inplace=True)
+          dfmod.drop([columnname], axis=1, inplace=True)
 
 def indexTo1(df):
     df.index = np.arange(1, len(df) + 1)
 
 def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, randomseed):
-    resultsdict = {'PW20': 0, 'MAE': 0, 'R2': 0, 'Time': ''}
+    resultsdict = {'PW20': 0, 'MAE': 0, 'R2': 0, 'Time': '','Alg': ''}
     ml_learner = est.identifier
     #RANDOM_SEED = 66
     RANDOM_SEED = randomseed
@@ -298,7 +345,7 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
     kfolds = KFold(n_splits=10, shuffle=True, random_state=RANDOM_SEED)
     model = est.estimator
     gridFit = True
-    print(f'\n{est.identifier}...')
+    #print(f'\n{est.identifier}...')
     modelID = est.identifier
     if est.identifier != "LR":  # tuning is not required for LR
         if est.identifier == "XGBR":
@@ -446,8 +493,6 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                 model = GradientBoostingRegressor(**GBR_params)
 
             elif est.identifier == "MLPR":
-
-
                 #activation = 'identity', alpha = 0.009260944818691528,
                 #beta_1 = 0.8304148442169565, beta_2 = 0.9847593650340831,
                 #epsilon = 4.968151316490382e-06, learning_rate = 'adaptive',
@@ -469,6 +514,7 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                     #_mlpr_max_iter = trial.suggest_categorical("max_iter", [4500, 5000, 5500, 6000, 6500, 7000, 7500,8000])  # WAS [1000,1500,2000]
                     _mlpr_solver = trial.suggest_categorical("solver",['lbfgs'])
                     _mlpr_tol = trial.suggest_categorical("tol",[0.008075623520655316])
+
                     #_mlpr_activation = trial.suggest_categorical('activation',['logistic','relu'])
                     _mlpr_learning_rate_init = trial.suggest_categorical('learning_rate_init', [0.014389028832229495])
                     _mlpr_epsilon = trial.suggest_categorical('epsilon',[4.968151316490382e-06])
@@ -542,6 +588,7 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                         ridge_model = Ridge(alpha=_alpha, max_iter=_max_iter)
                         scaler = MinMaxScaler()
                         pipeline = make_pipeline(scaler, ridge_model)
+
                         score = cross_val_score(pipeline, xtrain, ytrain, cv=kfolds,scoring="neg_mean_absolute_error").mean()
                         return score
 
@@ -616,7 +663,38 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                     end = time.time()
                     model = GradientBoostingRegressor(**GBR_params)
 
+                elif est.identifier == "LGB":
+                    start = time.time()
+                    def LGB_Objective(trial):
+                        _num_leaves = trial.suggest_categorical("num_leaves", [50,55,60,65,70,75,80,85,90,95,100])
+                        _max_depth = trial.suggest_categorical("max_depth", [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20])
+                        _learning_rate = trial.suggest_categorical("learning_rate", [0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0])
+                        _n_estimators = trial.suggest_categorical("n_estimators", [50,100,150,200,250,300,350,400,450,500,550,600,650,700,750,800,850,900,950,1000,1050,1100,1150,1200,1250,1300,1350,1400,1450,1500,1550,1600,1650,1700,1750,1800,1850,1900,1950,2000])
+                        _min_child_weight = trial.suggest_categorical("min_child_weight", [0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,1.5,2.0,2.5,3.0,3.5,4.0,4.5,5.0,5.5,6.0,6.5,7.0,7.5,8.0,8.5,9.0,9.5,10.0])
+                        _reg_alpha = trial.suggest_categorical('reg_alpha',[0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,1.5,2.0,2.5,3.0,3.5,4.0,4.5,5.0,5.5,6.0,6.5,7.0,7.5,8.0,8.5,9.0,9.5,10.0])
+                        _reg_lambda = trial.suggest_categorical('reg_lambda', [0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,1.5,2.0,2.5,3.0,3.5,4.0,4.5,5.0,5.5,6.0,6.5,7.0,7.5,8.0,8.5,9.0,9.5,10.0])
+                        _subsample = trial.suggest_categorical('subsample', [0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,1.5,2.0,2.5,3.0,3.5,4.0,4.5,5.0,5.5,6.0,6.5,7.0,7.5,8.0,8.5,9.0,9.5,10.0])
 
+                        lgbr = lgb.LGBMRegressor(objective='regression',
+                                                 num_leaves=_num_leaves,
+                                                 max_depth=_max_depth,
+                                                 learning_rate=_learning_rate,
+                                                 n_estimators=_n_estimators,
+                                                 min_child_weight=_min_child_weight,
+                                                 subsample=_subsample,
+                                                 reg_alpha=_reg_alpha,
+                                                 reg_lambda=_reg_lambda,
+                                                 random_state=RANDOM_SEED,
+                                                 )
+
+                        score = cross_val_score(
+                            lgbr, xtrain, ytrain, cv=kfolds, scoring="neg_mean_absolute_error"
+                        ).mean()
+                        return score
+
+                    LGB_params = tune(LGB_Objective, df, modelID, randomseed)
+                    end = time.time()
+                    model = lgb.LGBMRegressor(**LGB_params)
 
                 elif est.identifier == "STACK":
                     # stack models
@@ -631,7 +709,7 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                             ('lgb', lgbr),
                             # ('svr', svr), # Not using this for now as its score is significantly worse than the others
                         ],
-                        cv=kfol0ds)
+                        cv=kfolds)
                     stack.fit(X, y)
 
 
@@ -665,32 +743,28 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
     resultsdict['MAE'] = [MAE]
     resultsdict['R2'] = [R2]
     resultsdict['Time'] = [timeElapsed]
+    resultsdict['Alg'] = model
     return resultsdict
 
 def main():
-    mlmodels = []
-    #XGBR = XGBRegressor()
-    #mlmodels.append(Estimator(XGBR, 'XGBR'))
+    mlmodels=[]
     #RF = RandomForestRegressor()
     #mlmodels.append(Estimator(RF, 'RF'))
-    #KNNR = KNeighborsRegressor()
+    #LR = LinearRegression()
+    #mlmodels.append(Estimator(LR, 'LR'))
+    KNNR = KNeighborsRegressor()
     #RR = Ridge()
     #LAS = Lasso()
-    #ELNET = ElasticNet()
+    #ELNR = ElasticNet()
     #svr = sklearn.svm.SVR()
     #GBR = GradientBoostingRegressor()
-    #DTR = DecisionTreeRegressor()
     #MLPR = MLPRegressor()
-    #mlmodels.append(Estimator(MLPR, 'MLPR'))
-    LR = LinearRegression()
-    mlmodels.append(Estimator(LR,'LR'))
     #mlmodels.append(Estimator(GBR,'GBR'))
     #mlmodels.append(Estimator(svr,'SVREG'))
-    #mlmodels.append(Estimator(DTR, 'DTR'))
     #mlmodels.append(Estimator(LAS,'LASSO'))
-    #mlmodels.append(Estimator(ELNET, "ELNET"))
-    #mlmodels.append(Estimator(RR, "RIDGE"))
-    #mlmodels.append(Estimator(KNNR, "KNNR"))
+    #mlmodels.append(Estimator(ELNR,"ELNET"))
+    # mlmodels.append(Estimator(RR, "RIDGE"))
+    mlmodels.append(Estimator(KNNR, "KNNR"))
     for _, est in enumerate(mlmodels):
         dfConf = pd.DataFrame()
         estimates = []
@@ -706,63 +780,89 @@ def main():
         randomStates.append(113)
         randomStates.append(143)
         for state in range(len(randomStates)):
-            randomseed = randomStates[state]
-            timeBegin = time.time()
-            print("Processing random state", randomseed)
-            # filewritena       me = input("Enter file name: \n")
-            # ileoutput = open(filewritename, 'w')
-            # std_Dev_Summ = ({'model': 'WarPATH', 'MAE': 0, 'PW20': 0})
-            # variance_Summ = ({'model': 'WarPATH', 'MAE': 0, 'PW20': 0})
-            std_Dev_Summ = ({'model': 'IWPC', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MALAR': 0, 'MLAR': 0},
-                            {'model': 'WarPATH', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MALAR': 0, 'MLAR': 0},
-                            {'model': 'Gage', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MALAR': 0, 'MLAR': 0},
-                            {'model': 'Fixed', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MALAR': 0, 'MLAR': 0})
+                randomseed = randomStates[state]
+                timeBegin = time.time()
+                print("Processing random state", randomseed)
+                #filewritena       me = input("Enter file name: \n")
+                #ileoutput = open(filewritename, 'w')
+                #std_Dev_Summ = ({'model': 'WarPATH', 'MAE': 0, 'PW20': 0})
+                #variance_Summ = ({'model': 'WarPATH', 'MAE': 0, 'PW20': 0})
+                std_Dev_Summ = ({'model': 'IWPC', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MALAR': 0, 'MLAR': 0},
+                                {'model': 'WarPATH', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MALAR': 0, 'MLAR': 0},
+                                {'model': 'Gage', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MALAR': 0, 'MLAR': 0},
+                                {'model': 'Fixed', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MALAR': 0, 'MLAR': 0})
 
-            variance_Summ = ({'model': 'IWPC', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MALAR': 0, 'MLAR': 0},
-                             {'model': 'WarPATH', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MALAR': 0, 'MLAR': 0},
-                             {'model': 'Gage', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MALAR': 0, 'MLAR': 0},
-                             {'model': 'Fixed', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MALAR': 0, 'MLAR': 0})
-            number_of_samples = 1000
-            bootresults = []
-            std_Dev = []
-            combinedata = True
-            onlyIWPC = True
-            scaler = MinMaxScaler()
-            fileName1 = "AllImputations.csv"
-            fileName1 = fileName1.upper()
-            fileName2 = 'IMPWARPATHSUPER.CSV'
-            filescheck = []
-            filescheck.append(fileName1)
-            filescheck.append(fileName2)
-            dftemplate = pd.DataFrame()
-            dfWarPath = pd.DataFrame()
-            impNumber = 50  # was 3
-            maxImp = 50
-            runImp = 0
-            flagHIV = False
-            #99_42 143 33 113 102 0 66
-            pd.set_option("display.max_rows", None, "display.max_columns", None)
-            pd.set_option('expand_frame_repr', False)
-            pd.set_option("display.max_rows", False)
-            df = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\MiceRWarPATHData.csv", ";")
-            filesIWPC = []
-            if True:
+                variance_Summ = ({'model': 'IWPC', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MALAR': 0, 'MLAR': 0},
+                                 {'model': 'WarPATH', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MALAR': 0, 'MLAR': 0},
+                                 {'model': 'Gage', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MALAR': 0, 'MLAR': 0},
+                                 {'model': 'Fixed', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MALAR': 0, 'MLAR': 0})
+
+                number_of_samples = 1000
+                bootresults = []
+                std_Dev = []
+
+                combinedata = False
+                scaler = MinMaxScaler()
+                fileName1 = "AllImputations.csv"
+                fileName1 = fileName1.upper()
+                fileName2 = 'IMPWARPATHSUPER.CSV'
+                filescheck = []
+                filescheck.append(fileName1)
+                filescheck.append(fileName2)
+                dftemplate = pd.DataFrame()
+                dfWarPath = pd.DataFrame()
+                impNumber = 50 # was 50 as was maximp
+                maxImp = 50
+                runImp = 0
+                #randomseed = 0
+                flagHIV = False
+                #99_42 143 33 113 102 0 66`6
+                pd.set_option("display.max_rows", None, "display.max_columns", None)
+                pd.set_option('expand_frame_repr', False)
+                pd.set_option("display.max_rows", False)
+                df = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\MiceRWarPATHData.csv", ";")
+                filesIWPC = []
+                if True:
                     runningImp = 0
                     for root, dirs, files in os.walk(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\MICESTATSMODEL"):
                         for file in files:
                             if file.endswith('.csv') and runningImp < maxImp:
                                 filesIWPC.append(file)
                                 runningImp = runningImp+1
-                    imp = 50
-                    for imp in range(impNumber):
-                        counter = imp + 1
-                        dfcurrent = df.loc[df[".imp"] == counter]
-                        suffix = str(counter).zfill(3)
-                        dfcurrent.to_csv(
+                imp = 50
+                for imp in range(impNumber):
+                    counter = imp + 1
+                    dfcurrent = df.loc[df[".imp"] == counter]
+                    suffix = str(counter).zfill(3)
+                    dfcurrent.to_csv(
                         r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\ImpWarPATH_" + suffix + ".csv", ";")
-                    filesImp = []
-                    combineImputations = False
-                    test_size = 0.2
+                filesImp = []
+                combineImputations = False
+                test_size = 0.2
+                if combineImputations == True and os.path.exists(
+                        r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\CombinedWarImputations\AllImputations" + ".csv"):
+                    if os.path.exists(
+                            r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\CombinedWarImputations\TRAINSPLIT" + ".csv"):
+                        trainID = pd.read_csv(
+                            r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\CombinedWarImputations\TRAINSPLIT" + ".csv")
+                        if os.path.exists(
+                                r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\CombinedWarImputations\TESTSPLIT" + ".csv"):
+                            testID = pd.read_csv(
+                                r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\CombinedWarImputations\TESTSPLIT" + ".csv")
+                    if False:
+                        if os.path.exists(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TRAINSPLIT" + ".csv"):
+                            if os.path.exists(
+                                    r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TESTSPLIT" + ".csv"):
+                                trainID = pd.read_csv(
+                                    r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TRAINSPLIT" + ".csv",
+                                    ";")
+                                testID = pd.read_csv(
+                                    r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TESTSPLIT" + ".csv",
+                                    ";")
+                                trainDF = pd.DataFrame(trainID)
+                                trainSize = len(trainDF)
+
+                else:
                     # fixedtraintest = False
                     if True:
                         for root, dirs, files in os.walk(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations"):
@@ -786,10 +886,10 @@ def main():
                                         r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TESTSPLIT" + ".csv",
                                         ";")
                                     # fixedtraintest = True
-                    metric_columns = ['MAE', 'PW20', 'R2', 'Time']
-                    counter = 0
-                    for root, dirs, files in os.walk(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations"):
-                        if root == 'C:\\Users\\Claire\\GIT_REPO_1\\CSCthesisPY\\WarImputations':
+                metric_columns = ['MAE', 'PW20', 'R2', 'Time']
+                counter = 0
+                for root, dirs, files in os.walk(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations"):
+                    if root == 'C:\\Users\\Claire\\GIT_REPO_1\\CSCthesisPY\\WarImputations':
                             for file in files:
                                 if runImp < maxImp and file.endswith('.csv') and (
                                         "train_" not in file and "test_" not in file and "SPLIT" not in file and "TRAIN" not in file and "TEST" not in file) and "ImpWarPATH" in file:
@@ -803,424 +903,439 @@ def main():
                                         r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Split\ImpWarPATHSPLIT_" + suffix + ".csv")
                                     runImp = runImp + 1
                         # filesImp.append(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\CombinedWarImputations\AllImputations" + ".csv")
-            results = []
+                results = []
 
-            if os.path.exists(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TRAINSPLIT" + ".csv"):
+                if os.path.exists(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TRAINSPLIT" + ".csv"):
                     if os.path.exists(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TESTSPLIT" + ".csv"):
                         trainID = pd.read_csv(
                             r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TRAINSPLIT" + ".csv", ";")
                         testID = pd.read_csv(
                             r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TESTSPLIT" + ".csv", ";")
 
-            root = 'C:\\Users\\Claire\\GIT_REPO_1\\CSCthesisPY\\WarImputations'
-            randstring = "_" + str(randomseed) + "_"
-            for file in filesImp:
-               #indexTo1(file)
-               #file.reset_index()
-               dfnew = pd.read_csv(file, ";")
-               dfmod = dfnew
-               fileindex = filesImp.index(file)
-               df=fileindex+1
-               suffix = str(df).zfill(3)
-               if combinedata == True:
-                  rootIWPC = root.replace("WarImputations", "MICESTATSMODELHIV\\")
-                  IWPC_csv = rootIWPC + filesIWPC[fileindex]
-                  IWPCDF = pd.read_csv(IWPC_csv, ';')
-                  IWPCDF.reset_index()
-                  if onlyIWPC == True:
-                    IWPCDF['AgeYears'] = np.where((IWPCDF['AgeYears'] <= 18), 18, IWPCDF['AgeYears'])
-                    IWPCDF["Target_INR"] = IWPCDF.apply(lambda x: INRThree(x["Target_INR"]), axis=1)
-                    IWPCDF["Target_INR"] = IWPCDF['Target_INR'].astype("float")
-                    IWPCDF['Dose_mg_week'] = IWPCDF['Dose_mg_week'].apply(np.sqrt)
-                    dropColumn("IWPCDF", "AgeDecades", IWPCDF.columns, dfmod, IWPCDF, IWPCDF)
-                    dropColumn("IWPCDF", "INR_Three", IWPCDF.columns, dfmod, IWPCDF, IWPCDF)
-                    #IWPCDF["HIVPositive"] = 0
-                    #IWPCDF["HIVUnknown"] = 0
-                    dfIWPConly, dfIWPC_test = train_test_split(IWPCDF, test_size=0.2, random_state=randomseed)
-                    dfIWPConly.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Claire_IWPC" + randstring + suffix + ".csv",
-                    ";")
-                  else:
-                    sampleSize = int(round(trainSize))
-                    dfIWPC,testset=   train_test_split(IWPCDF, test_size=0.1, train_size=sampleSize, random_state=randomseed)
-                    dfIWPC["Status"] = "train"
-                    dropColumn("IWPC", "Unnamed: 0", dfIWPC.columns, dfmod, dfIWPC,IWPCDF)
-                    dfIWPC.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Claire_IWPC" + randstring + suffix + ".csv", ";")
-                  dfnew.reset_index()
-                  dfmod = dfnew
-                  dfmod.drop(['Gender', 'Country_recruitment'], axis=1, inplace=True)
-                  # dfIWPC.drop(['AgeDecades'], axis =1, inplace = True)
-                  # dfIWPC.drop(['INR_Three'], axis=1, inplace=True)
-                  # dfmod["INR_Three"] = np.where(dfmod["Target_INR"] == "Three", 1, 0)
-                  dfmod["Target_INR"] = np.where(dfmod["Target_INR"] == "Three", 3.0,
-                                                  np.where(dfmod["Target_INR"] == "aTwo_point_five", 2.5, 2.0))
-                  dfmod["Target_INR"] = dfmod.apply(lambda x: INRThree(x["Target_INR"]), axis=1)
-                  dfmod["Target_INR"] = dfmod['Target_INR'].astype("float")
-                  if combinedata == True:
-                      if onlyIWPC == False:
-                          dfIWPC["Target_INR"] = dfIWPC.apply(lambda x: INRThree(x["Target_INR"]), axis=1)
-                          dfIWPC["Target_INR"] = dfIWPC['Target_INR'].astype("float")
-                  dfmod["Inducer"] = dfmod.apply(lambda x: ConvertYesNo(x["Inducer_status"]), axis=1)
-                  dfmod["Amiodarone"] = dfmod.apply(lambda x: ConvertYesNo(x["Amiodarone_status"]), axis=1)
-                  dfmod["Smoker"] = dfmod.apply(lambda x: ConvertYesNo(x["Smoking_status"]), axis=1)
-                  dfmod["Indicationflag"] = dfmod.apply(lambda x: ConvertYesNo(x["Indication"]), axis=1)
-                  dfmod.drop(["Inducer_status", "Amiodarone_status", "Smoking_status", "Indication"], axis=1, inplace=True)
-                  dfmod["AgeYears"] = dfmod["Age_years"]
-                  dfmod['AgeYears'] = np.where((dfmod['AgeYears'] <= 18), 18, dfmod['AgeYears'])
-                  if flagHIV == True:
-                     dfIWPC["HIVPositive"] = np.where(dfmod["HIV_status"] == "Positive", 1, 0)
-                     dfIWPC["HIVUnknown"] = np.where(dfmod["HIV_status"] == "Unknown", 1, 0)
-                  dfmod["Status"] = ""
-                  if onlyIWPC == False:
-                      dropColumn("WARPATH", 'HIV_status', dfmod.columns, dfmod, dfIWPC, IWPCDF)
-                      dropColumn("WARPATH", "Unnamed: 0", dfmod.columns, dfmod, dfIWPC, IWPCDF)
-                      dropColumn("WARPATH", "Unnamed: 0.1", dfmod.columns, dfmod, dfIWPC, IWPCDF)
-                      dropColumn("WARPATH", "Unnamed: 0.2", dfmod.columns, dfmod, dfIWPC, IWPCDF)
-                      dropColumn("WARPATH", "Age_years", dfmod.columns, dfmod, dfIWPC, IWPCDF)
-                      dropColumn("WARPATH", ".imp", dfmod.columns, dfmod, dfIWPC, IWPCDF)
-                      dropColumn("WARPATH", ".id", dfmod.columns, dfmod, dfIWPC, IWPCDF)
-                      dropColumn("WARPATH", "Unnamed: 0.1.1", dfmod.columns, dfmod, dfIWPC, IWPCDF)
+                root = 'C:\\Users\\Claire\\GIT_REPO_1\\CSCthesisPY\\WarImputations'
+                randstring = "_" + str(randomseed) + "_"
+                for file in filesImp:
+                    #indexTo1(file)
+                    #file.reset_index()
+                    dfnew = pd.read_csv(file, ";")
+                    dfmod = dfnew
+                    dfIWPC = pd.DataFrame()
+                    fileindex = filesImp.index(file)
+                    df=fileindex+1
+                    suffix = str(df).zfill(3)
+                    if combinedata == True:
+                        rootIWPC = root.replace("WarImputations", "MICESTATSMODELHIV\\")
+                        IWPC_csv = rootIWPC + filesIWPC[fileindex]
+                        IWPCDF = pd.read_csv(IWPC_csv, ';')
+                        IWPCDF.reset_index()
+                        sampleSize = int(round(trainSize))
+                        dfIWPC,testset=   train_test_split(IWPCDF, test_size=0.1, train_size=sampleSize, random_state=randomseed)
+                        dfIWPC["Status"] = "train"
+                        dropColumn("IWPC", "Unnamed: 0", dfIWPC.columns, dfmod, dfIWPC)
+                        dfIWPC.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Claire_IWPC" + randstring + suffix + ".csv", ";")
+                        #dfIWPC.drop(["Unnamed: 0"], axis=1, inplace=True)
 
-                  if False:
+                    #df = fileindex + 1
+                    dfnew.reset_index()
+                    dfmod = dfnew
+                    dfmod.drop(['Gender', 'Country_recruitment'], axis=1, inplace=True)
+                    # dfIWPC.drop(['AgeDecades'], axis =1, inplace = True)
+                    # dfIWPC.drop(['INR_Three'], axis=1, inplace=True)
+                    # dfmod["INR_Three"] = np.where(dfmod["Target_INR"] == "Three", 1, 0)
+                    dfmod["Target_INR"] = np.where(dfmod["Target_INR"] == "Three", 3.0,
+                                                   np.where(dfmod["Target_INR"] == "aTwo_point_five", 2.5, 2.0))
+                    dfmod["Target_INR"] = dfmod.apply(lambda x: INRThree(x["Target_INR"]), axis=1)
+                    dfmod["Target_INR"] = dfmod['Target_INR'].astype("float")
+                    if combinedata == True:
+                        dfIWPC["Target_INR"] = dfIWPC.apply(lambda x: INRThree(x["Target_INR"]), axis=1)
+                        dfIWPC["Target_INR"] = dfIWPC['Target_INR'].astype("float")
+                    dfmod["Inducer"] = dfmod.apply(lambda x: ConvertYesNo(x["Inducer_status"]), axis=1)
+                    dfmod["Amiodarone"] = dfmod.apply(lambda x: ConvertYesNo(x["Amiodarone_status"]), axis=1)
+                    dfmod["Smoker"] = dfmod.apply(lambda x: ConvertYesNo(x["Smoking_status"]), axis=1)
+                    dfmod["Indicationflag"] = dfmod.apply(lambda x: ConvertYesNo(x["Indication"]), axis=1)
+                    dfmod.drop(["Inducer_status", "Amiodarone_status", "Smoking_status", "Indication"], axis=1, inplace=True)
+                    dfmod["AgeYears"] = dfmod["Age_years"]
+                    dfmod['AgeYears'] = np.where((dfmod['AgeYears'] <= 18), 18, dfmod['AgeYears'])
+                    if flagHIV == True:
+                       dfmod["HIVPositive"] = np.where(dfmod["HIV_status"] == "Positive", 1, 0)
+                       dfmod["HIVUnknown"] = np.where(dfmod["HIV_status"] == "Unknown", 1, 0)
+                    dfmod["Status"] = ""
+                    if combinedata == True:
+                        dfIWPC['AgeYears'] = np.where((dfIWPC['AgeYears'] <= 18), 18, dfIWPC['AgeYears'])
+                        dropColumn("IWPC", "AgeDecades", dfIWPC.columns, dfmod, dfIWPC)
+                        dropColumn("IWPC", "INR_Three", dfIWPC.columns, dfmod, dfIWPC)
+                        if flagHIV == True:
+                            dfIWPC["HIVPositive"]=0
+                            dfIWPC["HIVUnknown"]=0
+                    dropColumn("WARPATH", 'HIV_status', dfmod.columns, dfmod, dfIWPC)
+                    dropColumn("WARPATH", "Unnamed: 0", dfmod.columns, dfmod, dfIWPC)
+                    dropColumn("WARPATH", "Unnamed: 0.1", dfmod.columns, dfmod, dfIWPC)
+                    dropColumn("WARPATH", "Unnamed: 0.2", dfmod.columns, dfmod, dfIWPC)
+                    dropColumn("WARPATH", "Age_years", dfmod.columns, dfmod, dfIWPC)
+                    dropColumn("WARPATH", ".imp", dfmod.columns, dfmod, dfIWPC)
+                    dropColumn("WARPATH", ".id", dfmod.columns, dfmod, dfIWPC)
+                    dropColumn("WARPATH", "Unnamed: 0.1.1", dfmod.columns, dfmod, dfIWPC)
+
+                    #suffix = str(df).zfill(3)
+                    if combineImputations == True:
+                        filename = "dfWarfarin001allPatients"
+                        dfmod.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\PreProcessed\\" + filename + ".csv", ";")
+                    if False:
                        dfmod = dfmod.sample(frac=1)
                        dfIWPC = dfIWPC.sample(frac=1)
                        frames = [dfmod, dfIWPC]
                        dfmod = pd.concat(frames,ignore_index=True, sort=True)
                        dfmod = dfmod.sample(frac=1)
                        combfilename = "comb" + suffix
-                       dfmod.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\combinedata\\" + combfilename + ".csv", ";")
-                  else:
-                     filename = "dfWarfarin" + suffix
-                     dfmod.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\PreProcessed\\" + filename + ".csv", ";")
-                  if True:
-                      print("On imputation ", df)
-                      if onlyIWPC == False:
-                           dfIWPC.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Claire_IWPC_Formatted" + ".csv", ";")
-                      data = dfmod
-                      data.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Claire_Warpath" + ".csv", ";")
-                      #data.index = data.index + 1
-                      print(data.shape)
-                      data['Dose_mg_week'] = data['Dose_mg_week'].apply(np.sqrt)
-                      IWPCDF['Dose_mg_week'] = IWPCDF['Dose_mg_week'].apply(np.sqrt)
-                      impResults = []
-                      models = []
-                      boot = 0
-                      samples = []
-                      metrics = []
-                      smpResults = []
-                      metric_columns = ['MAE', 'PW20']
-                      listmodels = ['WarPATH']
-                      if (find(models, 'model', 'WarPATH') == -1):
-                          models.append({'model': 'WarPATH', 'MAE': 0, 'PW20': 0})
+                       dfmod.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\combinedata\\" + combfilename + ".csv",
+                                     ";")
+                    else:
+                       filename = "dfWarfarin" + suffix
+                       dfmod.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\PreProcessed\\" + filename + ".csv", ";")
+                    if True:
+                        #print("On imputation ", df, " and random seed ", randomseed)
+                        dfIWPC.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Claire_IWPC_Formatted" + ".csv", ";")
+                        data = dfmod
+                        data.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Claire_Warpath" + ".csv", ";")
+                        #data.index = data.index + 1
+                        #print(data.shape)
+                        data['Dose_mg_week'] = data['Dose_mg_week'].apply(np.sqrt)
+                        impResults = []
+                        models = []
+                        boot = 0
+                        samples = []
+                        metrics = []
+                        smpResults = []
+                        metric_columns = ['MAE', 'PW20']
+                        listmodels = ['WarPATH']
+                        if (find(models, 'model', 'WarPATH') == -1):
+                            models.append({'model': 'WarPATH', 'MAE': 0, 'PW20': 0})
 
-
-                      target_column = 'Dose_mg_week'
-                      status_column = "Status"
-                      test_size = 0.2
-                      data.reset_index()
-                      train, test = train_test_split(data, test_size=test_size, random_state=randomseed)  # was 66
-                      traindf = pd.DataFrame(train)
-                      traindf.reset_index()
-                      traindf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Claire_train" + ".csv", ";")
-                      testdf = pd.DataFrame(test)
-                      if combinedata == True:
-                          if onlyIWPC == False:
+                        if combinedata == True:
+                            dfIWPC['Dose_mg_week'] = dfIWPC['Dose_mg_week'].apply(np.sqrt)
+                        #estimates = []
+                        target_column = 'Dose_mg_week'
+                        status_column = "Status"
+                        test_size = 0.2
+                        data.reset_index()
+                        train, test = train_test_split(data, test_size=test_size, random_state=randomseed)  # was 66
+                        traindf = pd.DataFrame(train)
+                        traindf.reset_index()
+                        traindf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Claire_train" + ".csv", ";")
+                        #dfIWPC.reset_index()
+                        testdf = pd.DataFrame(test)
+                        if combinedata == True:
                             dfIWPC.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Claire_IWPC_precombine" + ".csv", ";")
                             frames = [traindf,dfIWPC]
                             traindf = pd.concat(frames)
-                          if onlyIWPC == True:
-                            traindf = pd.DataFrame()
-                            frames = [traindf,dfIWPConly]
-                            traindf = pd.concat(frames)
-                            testdf = pd.DataFrame()
-                            frames = [testdf,dfIWPC_test]
-                            testdf = pd.concat(frames)
-                          traindf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Claire_trainplusIWPC" + ".csv", ";")
-                      traindf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Train" + suffix + ".csv", ";")
-                      testdf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Test" + suffix + ".csv", ";")
-                      testdf['Status'] = 'test'
-                      traindf['Status'] = 'train'
-                      frames = (traindf, testdf)
-                      combdf = pd.concat(frames)
-                      combdf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\TrainPlusTest" + suffix + ".csv", ";")
-                      combID = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\TrainPlusTest" + suffix + ".csv",";")
-                      combID.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\TrainTestStatus" + suffix + ".csv", ";")
-                      combID['NewStatus'] = combID['Status']
-                      combID.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\TrainTestStatus" + suffix + ".csv", ";")
-                      squaring = True
+                            #traindf = pd.concat(frames, ignore_index=True, sort=True)
+                            traindf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Claire_trainplusIWPC" + ".csv", ";")
+                            #combfilename = "comb" + suffix
+                            #combfilename.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\combinedata\\" + combfilename + ".csv",";")
+                        traindf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Train" + suffix + ".csv", ";")
+                        testdf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Test" + suffix + ".csv", ";")
+                        testdf['Status'] = 'test'
+                        traindf['Status'] = 'train'
+                        frames = (traindf, testdf)
+                        combdf = pd.concat(frames)
+                        # combdf.index = combdf.index + 1
+                        combdf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\TrainPlusTest" + suffix + ".csv", ";")
+                        combID = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\TrainPlusTest" + suffix + ".csv",
+                                             ";")
+                        # combID.index = combID.index+1
+                        combID.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\TrainTestStatus" + suffix + ".csv", ";")
+                        combID['NewStatus'] = combID['Status']
+                        # combID['NewStatus'] = 'train'
+                        # combID['NewStatus'] = combID.apply(lambda x:TrainOrTest(x["Unnamed: 0"],trainID[".id"].tolist(), testID[".id"].tolist()), axis=1)
+                        combID.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\TrainTestStatus" + suffix + ".csv", ";")
+                        squaring = True
+                        combIDcopy = combID
+                        train = combID[combID.NewStatus == "train"]
+                        test = combID[combID.NewStatus == "test"]
+                        train = train.drop([status_column], axis=1)
+                        test = test.drop([status_column], axis=1)
+                        train = train.drop(['NewStatus'], axis=1)
+                        test = test.drop(['NewStatus'], axis=1)
+                        x_cols = list(train.columns)
+                        # _cols_notarg = x_cols.remove(target_column)
+                        targ_col = list(target_column)
+                        # train = scaler.fit_transform(train)
+                        # test = scaler.transform(test)
+                        # train = pd.DataFrame(train, columns = x_cols)
+                        # test = pd.DataFrame(test, columns = x_cols)
+                        targetindex = x_cols.index(target_column)
+                        y_train = train[target_column].values
+                        x_train = train.drop([target_column], axis=1)
+                        y_test = test[target_column].values
+                        x_test = test.drop([target_column], axis=1)
 
-                      combIDcopy = combID
-                      train = combID[combID.NewStatus == "train"]
-                      test = combID[combID.NewStatus == "test"]
-                      train = train.drop([status_column], axis=1)
-                      test = test.drop([status_column], axis=1)
-                      train = train.drop(['NewStatus'], axis=1)
-                      test = test.drop(['NewStatus'], axis=1)
-                      x_cols = list(train.columns)
-                      targ_col = list(target_column)
-                      targetindex = x_cols.index(target_column)
-                      y_train = train[target_column].values
-                      x_train = train.drop([target_column], axis=1)
-                      y_test = test[target_column].values
-                      x_test = test.drop([target_column], axis=1)
+                    #estimates = []
+                    #LR = LinearRegression()
+                    #estimates.append(Estimator(LR, 'LR'))
+                    MLPR_Scaling = False
+                    if MLPR_Scaling == True:
+                        sc_X = StandardScaler()
+                        x_traincopy = x_train
+                        x_testcopy = x_test
+                        x_train = sc_X.fit_transform(x_train)
+                        x_test = sc_X.transform(x_test)
+                    if True:
+                        # MLPR1 = MLPRegressor(hidden_layer_sizes=(90,5,), activation="relu", learning_rate='adaptive', max_iter=1000,learning_rate_init=0.001)
+                        MLPR2 = MLPRegressor(hidden_layer_sizes=(196,), learning_rate='adaptive',
+                                             learning_rate_init=0.002,
+                                             max_iter=2000, activation="relu")
 
-                  #estimates = []
-                  #LR = LinearRegression()
-                  #estimates.append(Estimator(LR, 'LR'))
+                        if True:
+                           #GBR = GradientBoostingRegressor()
+                           #estimates.append(Estimator(GBR,'GBR'))
+                           #XGBR = XGBRegressor()
+                           #estimates.append(Estimator(XGBR,'XGBR'))
+                           #RR =  Ridge()
+                           #LAS= Lasso()
+                           #ELNET = ElasticNet()
+                           #estimates.append(Estimator(LAS,'LASSO'))
+                           #estimates.append(Estimator(ELNET,'ELNET'))
+                           #estimates.append(Estimator(RR,'RIDGE'))
+                           #KNNR = KNeighborsRegressor()
+                           #estimates.append(Estimator(KNNR, 'KNN'))
+                           #svr = sklearn.svm.SVR()
+                           #estimates.append(Estimator(svr,'SVREG'))
+                           #MLPR = MLPRegressor()
+                           #estimates.append(Estimator(MLPR,'MLPR'))
+                           #RF = RandomForestRegressor()
+                           #estimates.append(Estimator(RF, 'RF'))
+                           #DTR = DecisionTreeRegressor()
+                           #estimates.append(Estimator(DTR,'DTR'))
+                           #LGB = lgb.LGBMRegressor()
+                           #estimates.append(Estimator(LGB,'LGB'))
+                           if "Unnamed: 0.1" in x_train.columns:
+                             x_train.drop(["Unnamed: 0.1"], axis=1, inplace=True)
+                           if "Unnamed: 0.1" in x_test.columns:
+                             x_test.drop(["Unnamed: 0.1"], axis=1, inplace=True)
+                           for _, est in enumerate(estimates):
+                               resultsdict = traineval(est, x_train, y_train, x_test, y_test, squaring=squaring, df=df,randomseed=randomseed)
+                               alg = est.identifier
+                               x_train.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\training\\" + alg.replace(" ","") + str(df) + ".csv", ";")
+                               res_dict = {
+                                   'Estimator': [est.identifier for x in range(len(resultsdict['PW20']))],
+                                   'PW20': resultsdict['PW20'],
+                                   'MAE': resultsdict['MAE'],
+                                   'R2': resultsdict['R2'],
+                                   'Time': resultsdict['Time'],
+                                   'Alg' : resultsdict['Alg']}
+                               data["WarPATH_MAE"] =  ExitSquareBracket(resultsdict['MAE'],True)
+                               data["WarPATH_PW20"] = ExitSquareBracket(resultsdict['PW20'],True)
+                               ml_model = resultsdict['Alg']
+                               dfKey = data[["WarPATH_MAE","WarPATH_PW20"]]
+                               impResults.append({'Imp': df, 'model': 'WarPATH', 'METRICS': dfKey, 'MAE': 0, 'PW20': 0})
+                               for k in range(len(impResults)):
+                                   dfKey = impResults[k]['METRICS']
+                                   model = impResults[k]['model']
+                                   imputation = impResults[k]['Imp']
+                                   model_MAE = dfKey["WarPATH_MAE"].astype('float')
+                                   model_PW20 = dfKey["WarPATH_PW20"].astype('float')
+                                   impResults[k]['MAE'] = model_MAE[k]
+                                   impResults[k]['PW20'] = model_PW20[k]
 
-                  MLPR_Scaling = False
-                  if MLPR_Scaling == True:
-                      sc_X = StandardScaler()
-                      x_traincopy = x_train
-                      x_testcopy = x_test
-                      x_train = sc_X.fit_transform(x_train)
-                      x_test = sc_X.transform(x_test)
-                  if True:
-                      # MLPR1 = MLPRegressor(hidden_layer_sizes=(90,5,), activation="relu", learning_rate='adaptive', max_iter=1000,learning_rate_init=0.001)
-                      MLPR2 = MLPRegressor(hidden_layer_sizes=(196,), learning_rate='adaptive',
-                                           learning_rate_init=0.002,
-                                           max_iter=2000, activation="relu")
+                               for k in range(len(impResults)):
+                                   a = impResults[k]['model']
+                                   b = impResults[k]['Imp']
+                                   c = impResults[k]['MAE'].astype('float')
+                                   d = impResults[k]['PW20'].astype('float')
+                               bootresults.append(
+                                   #{'Imp': b, 'model': a, 'MAE': c, 'PW20': d})
+                                   {'Imp': b, 'model': a, 'MAE': c, 'PW20': d})
+                               resultsdf = pd.DataFrame(bootresults)
+                               resultsdf.to_csv(
+                                   r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\IWPCResults_" + str(df) + ".csv", ";")
+                               boot = 0
+                               samples = []
+                               metrics = []
+                               smpResults = []
+                               dataSet = np.random.randint(10, size=(number_of_samples, 2))
+                               df_WARPATH = pd.DataFrame(data=dataSet, columns=metric_columns)
+                               data.drop(["WarPATH_MAE", "WarPATH_PW20", "Status"], axis=1, inplace=True)
+                               data.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Data" + str(alg) + str(boot) + str(randomseed) + ".csv", ";")
+                               traindata, testdata = train_test_split(data, test_size=test_size,random_state=randomseed)
+                               y_traindata = traindata[target_column].values
+                               x_traindata = traindata.drop([target_column], axis=1)
+                               y_testdata = testdata[target_column].values
+                               x_testdata = testdata.drop([target_column], axis=1)
+                               fitted2 = ml_model.fit(x_traindata, y_traindata)
+                               ypred2 = fitted2.predict(x_testdata)
+                               if squaring:
+                                   y_testdata = np.square(y_testdata)
+                                   ypred2 = np.square(ypred2)
+                               PW20_data = PercIn20(y_testdata, ypred2)
+                               MAE_data = mean_absolute_error(y_testdata, ypred2)
+                               dfy_testdata = pd.DataFrame(y_testdata)
+                               dfypred2 = pd.DataFrame(ypred2)
+                               dfy_testdata.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Dataytest" + str(alg) + " " + str(boot) + ".csv", ";")
+                               dfypred2.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Dataypred" + str(alg) + " " + str(boot) + ".csv", ";")
+                               boot = 0
+                               while boot < number_of_samples:
+                                   dfsample = data.sample(n=364, frac=None, replace=True)
+                                   #dfsample = data
+                                   ## CHECK dfsample
+                                   dfsample = dfsample.reset_index(drop=True)
+                                   #data.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Data" + str(alg) + str(boot) + str(randomseed) + ".csv", ";")
+                                   dfsample.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Boot" + str(alg) + str(boot) + str(randomseed) + ".csv", ";")
+                                   #dfsample.drop(["WarPATH_MAE","WarPATH_PW20","Status"], axis=1, inplace = True)
+                                   trainboot, testboot = train_test_split(dfsample, test_size=test_size, random_state=randomseed)
+                                   #traindata, testdata = train_test_split(data,test_size=test_size,random_state=randomseed)
+                                   y_trainboot = trainboot[target_column].values
+                                   x_trainboot = trainboot.drop([target_column], axis=1)
+                                   y_testboot = testboot[target_column].values
+                                   x_testboot = testboot.drop([target_column], axis=1)
+                                   fitted = ml_model.fit(x_trainboot, y_trainboot)
+                                   ypredboot = fitted.predict(x_testboot)
+                                   if squaring:
+                                       y_testboot = np.square(y_testboot)
+                                       ypredboot = np.square(ypredboot)
+                                   PW20 = PercIn20(y_testboot, ypredboot)
+                                   MAE = mean_absolute_error(y_testboot, ypredboot)
+                                   print("imputation ", df, "MAE ",MAE," PW20 ",PW20," sample ", boot, " ML model ", alg, " randomseed ",randomseed)
+                                   dfy_testboot = pd.DataFrame(y_testboot)
+                                   dfypredboot = pd.DataFrame(ypredboot)
+                                   dfy_testboot.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Bootytest" + str(alg) + " " + str(boot) + ".csv", ";")
+                                   dfypredboot.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Bootypred" + str(alg) + " " + str(boot) + ".csv", ";")
+                                   dfy_testdata.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Dataytest" + str(alg) + " " + str(boot) + ".csv", ";")
+                                   dfypred2.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Dataypred" + str(alg) + " " + str(boot) + ".csv", ";")
+                                   dfsample["WarPATH_MAE"] = MAE
+                                   dfsample["WarPATH_PW20"] = PW20
+                                   dfMetricfactors = dfsample[["WarPATH_MAE", "WarPATH_PW20"]]
+                                   boot = boot + 1
+                                   samples.append(dfMetricfactors)
+                                   for m in range(len(listmodels)):
+                                       model = listmodels[m]
+                                       curr_MAE = float(dfMetricfactors[model + '_MAE'][m])
+                                       curr_PW20 = float(dfMetricfactors[model + '_PW20'][m])
+                                       smpResults.append({'Imp': df, 'Sample': boot, 'model': model, 'MAE': curr_MAE,'PW20': curr_PW20})
 
-                      if True:
-                         #GBR = GradientBoostingRegressor()
-                         #estimates.append(Estimator(GBR,'GBR'))
-                         #XGBR = XGBRegressor()
-                         #estimates.append(Estimator(XGBR,'XGBR'))
-                         #ELNET = ElasticNet()
-                         #LAS = Lasso()
-                         #estimates.append(Estimator(LAS,'LASSO'))
-                         #estimates.append(Estimator(ELNET,'ELNET'))
-                         #RR = Ridge()
-                         #estimates.append(Estimator(RR,'RIDGE'))
-                         #KNNR = KNeighborsRegressor()
-                         #estimates.append(Estimator(KNNR, 'KNN'))
-                         #svr = sklearn.svm.SVR()
-                         #estimates.append(Estimator(svr,'SVREG'))
-                         #MLPR = MLPRegressor()
-                         #estimates.append(Estimator(MLPR,'MLPR'))
-                         #RF = RandomForestRegressor()
-                         #estimates.append(Estimator(RF, 'RF'))
-                         #DTR = DecisionTreeRegressor()
-                         #estimates.append(Estimator(DTR,'DTR'))
-                         if "Unnamed: 0" in x_train.columns:
-                            x_train.drop(["Unnamed: 0"], axis=1, inplace=True)
-                         if "Unnamed: 0" in x_test.columns:
-                            x_test.drop(["Unnamed: 0"], axis=1, inplace=True)
-                         if "Unnamed: 0.1" in x_train.columns:
-                            x_train.drop(["Unnamed: 0.1"], axis=1, inplace=True)
-                         if "Unnamed: 0.1" in x_test.columns:
-                            x_test.drop(["Unnamed: 0.1"], axis=1, inplace=True)
-                         for _, est in enumerate(estimates):
-                                 resultsdict = traineval(est, x_train, y_train, x_test, y_test, squaring=squaring,
-                                                           df=df, randomseed=randomseed)
-                                 alg = est.identifier
-                                 x_train.to_csv(
-                                 r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\training\\" + alg.replace(" ","") + str(df) + ".csv", ";")
-                                 res_dict = {
-                                       'Estimator': [est.identifier for x in range(len(resultsdict['PW20']))],
-                                       'PW20': resultsdict['PW20'],
-                                       'MAE': resultsdict['MAE'],
-                                       'R2': resultsdict['R2'],
-                                       'Time': resultsdict['Time']}
-                                 data["WarPATH_MAE"] = ExitSquareBracket(resultsdict['MAE'], True)
-                                 data["WarPATH_PW20"] = ExitSquareBracket(resultsdict['PW20'], True)
-                                 dfKey = data[["WarPATH_MAE", "WarPATH_PW20"]]
-                                 impResults.append(
-                                       {'Imp': df, 'model': 'WarPATH', 'METRICS': dfKey, 'MAE': 0, 'PW20': 0})
-                                 for k in range(len(impResults)):
-                                     dfKey = impResults[k]['METRICS']
-                                     model = impResults[k]['model']
-                                     imputation = impResults[k]['Imp']
-                                     model_MAE = dfKey["WarPATH_MAE"].astype('float')
-                                     model_PW20 = dfKey["WarPATH_PW20"].astype('float')
-                                     impResults[k]['MAE'] = model_MAE[k]
-                                     impResults[k]['PW20'] = model_PW20[k]
+                               for m in range(len(listmodels)):
+                                   modelinlist = listmodels[m]
+                                   for l in range(len(metric_columns)):
+                                       metric = metric_columns[l]
+                                       for j in range(len(smpResults)):
+                                           model = smpResults[j]['model']
+                                           metric_value = smpResults[j][metric]
+                                           if model == modelinlist:
+                                               metrics.append({'model': model, 'metric': metric, 'value': metric_value})
 
-                                 for k in range(len(impResults)):
-                                     a = impResults[k]['model']
-                                     b = impResults[k]['Imp']
-                                     c = impResults[k]['MAE'].astype('float')
-                                     d = impResults[k]['PW20'].astype('float')
-                                 bootresults.append(
-                                       # {'Imp': b, 'model': a, 'MAE': c, 'PW20': d})
-                                     {'Imp': b, 'model': a, 'MAE': c, 'PW20': d})
-                                 resultsdf = pd.DataFrame(bootresults)
-                                 resultsdf.to_csv(
-                                       r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\IWPCResults_" + str(df) + ".csv", ";")
-                                 boot = 0
-                                 samples = []
-                                 metrics = []
-                                 smpResults = []
+                               for i in range(len(metric_columns)):
+                                   current_metric = metric_columns[i]
+                                   df_WARPATH[current_metric] = np.array(
+                                   collect_Metrics(metrics, 'WarPATH', current_metric))
+                                   #std = std_deviation(df_WARPATH[current_metric])
+                                   std = np.square(std_deviation(df_WARPATH[current_metric]))
+                                   var = variance(df_WARPATH[current_metric])
+                                   # std = np.sqrt(var)
+                                   std_Dev.append({'model': 'WarPATH', 'metric': current_metric, 'SD': std, 'VAR': var})
 
-                                 dataSet = np.random.randint(10, size=(number_of_samples, 2))
-                                 df_WARPATH = pd.DataFrame(data=dataSet, columns=metric_columns)
-                                 boot = 0
-                                 # print("bootstrapping..")
-                                 while boot < number_of_samples:
-                                    print("imputation ", df, " on sample ", boot)
-                                    dfsample = data.sample(n=690, frac=None, replace=True)
-                                    ## CHECK dfsample
-                                    dfsample = dfsample.reset_index(drop=True)
-                                    dfMetricfactors = dfsample[["WarPATH_MAE", "WarPATH_PW20"]]
-                                    dfsample.to_csv(
-                                        r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\IWPC_Imp" + str(df) + "Samp" + str(
-                                             boot) + ".csv", ";")
-                                    boot = boot + 1
-                                    samples.append(dfMetricfactors)
-                                    for m in range(len(listmodels)):
-                                         model = listmodels[m]
-                                         curr_MAE = float(dfMetricfactors[model + '_MAE'][m])
-                                         curr_PW20 = float(dfMetricfactors[model + '_PW20'][m])
-                                         smpResults.append(
-                                             {'Imp': df, 'Sample': boot, 'model': model, 'MAE': curr_MAE,
-                                              'PW20': curr_PW20})
+                               if resultsdict['MAE'] > [5]:
+                                   results.append(res_dict)
 
-                                 for m in range(len(listmodels)):
-                                     modelinlist = listmodels[m]
-                                     for l in range(len(metric_columns)):
-                                        metric = metric_columns[l]
-                                        for j in range(len(smpResults)):
-                                            model = smpResults[j]['model']
-                                            metric_value = smpResults[j][metric]
-                                            if model == modelinlist:
-                                                 metrics.append(
-                                                       {'model': model, 'metric': metric, 'value': metric_value})
+                           df_res = pd.DataFrame()
+                           for res in results:
+                               df_res = df_res.append(pd.DataFrame.from_dict(res))
+                           print(f"\n\n{df_res.groupby(['Estimator']).agg(np.mean)}\n")
 
-                                 for i in range(len(metric_columns)):
-                                     current_metric = metric_columns[i]
-                                     df_WARPATH[current_metric] = np.array(
-                                         collect_Metrics(metrics, 'WarPATH', current_metric))
-                                     # std = std_deviation(df_WARPATH[current_metric])
-                                     std = np.square(std_deviation(df_WARPATH[current_metric]))
-                                     var = variance(df_WARPATH[current_metric])
-                                     # std = np.sqrt(var)
-                                     std_Dev.append(
-                                           {'model': 'WarPATH', 'metric': current_metric, 'SD': std, 'VAR': var})
-
-                                 if resultsdict['MAE'] > [5]:
-                                    results.append(res_dict)
-
-                         df_res = pd.DataFrame()
-                         for res in results:
-                             df_res = df_res.append(pd.DataFrame.from_dict(res))
-                         print(f"\n\n{df_res.groupby(['Estimator']).agg(np.mean)}\n")
                 #dfResults = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfResults" + ".csv", ";")
 
+                dfResults = pd.DataFrame(results)
+                dfResults["PW20"] = dfResults.apply(lambda x: ExitSquareBracket(x["PW20"],False), axis=1).astype(float)
+                dfResults["MAE"] = dfResults.apply(lambda x: ExitSquareBracket(x["MAE"],False), axis=1).astype(float)
+                dfResults["R2"] = dfResults.apply(lambda x: ExitSquareBracket(x["R2"],False), axis=1).astype(float)
+                dfResults["Time"] = dfResults.apply(lambda x: ExitSquareBracket(x["Time"],False), axis=1).astype(float)
+                dfResults["Estimator"] = dfResults.apply(lambda x: ExitSquareBracket(x["Estimator"],False), axis=1)
 
-            dfResults = pd.DataFrame(results)
-            dfResults["PW20"] = dfResults.apply(lambda x: ExitSquareBracket(x["PW20"],False),axis=1).astype(float)
-            dfResults["MAE"] = dfResults.apply(lambda x: ExitSquareBracket(x["MAE"], False), axis=1).astype(float)
-            dfResults["R2"] = dfResults.apply(lambda x: ExitSquareBracket(x["R2"],False), axis=1).astype(float)
-            dfResults["Time"] = dfResults.apply(lambda x: ExitSquareBracket(x["Time"],False), axis=1).astype(float)
-            dfResults["Estimator"] = dfResults.apply(lambda x: ExitSquareBracket(x["Estimator"],False),axis=1)
-            dfResults.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfResultsPRE" + ".csv", ";")
-            if "Unnamed: 0" in dfResults.columns:
-              dfResults.drop(["Unnamed: 0"], axis=1, inplace=True)
-              MLPR_rows = dfResults.loc[dfResults['Estimator'] == 'MLPR']
-              if len(MLPR_rows) > 0:
-                  MAElist = MLPR_rows['MAE'].tolist()
-                  maxlimit = iqr(MAElist) + 1.5*scoreatpercentile(MAElist, 75)
-                  newMAElist = [x for x in MAElist if x <= maxlimit]
-                  newMeanMae = np.mean(newMAElist)
-                  for i in dfResults.index:
-                    if dfResults.loc[i, 'MAE'] > maxlimit:
-                      dfResults.at[i, 'MAE'] = np.nan
-                      dfResults.at[i, 'PW20'] = np.nan
-                      dfResults.at[i, 'R2'] = np.nan
-                      dfResults.at[i, 'Time'] = np.nan
+                #dfResults["PW20"] = dfResults.apply(lambda x: ExitSquareBracket(x["PW20"],True),axis = 1)
+                #dfResults["MAE"] = dfResults.apply(lambda x: ExitSquareBracket(x["MAE"],True),axis=1)
+                #dfResults["R2"] = dfResults.apply(lambda x: ExitSquareBracket(x["R2"],True), axis=1)
+                #dfResults["Time"] = dfResults.apply(lambda x: ExitSquareBracket(x["Time"],True), axis=1)
+                #dfResults["Estimator"] = dfResults.apply(lambda x: ExitSquareBracket(x["Estimator"],False), axis=1)
+                dfResults.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfResultsPRE" + ".csv", ";")
+                if "Unnamed: 0" in dfResults.columns:
+                    dfResults.drop(["Unnamed: 0"], axis=1, inplace=True)
+                MLPR_rows = dfResults.loc[dfResults['Estimator'] == 'MLPR']
+                if len(MLPR_rows) > 0:
+                    MAElist = MLPR_rows['MAE'].tolist()
+                    maxlimit = iqr(MAElist) + 1.5*scoreatpercentile(MAElist, 75)
+                    newMAElist = [x for x in MAElist if x <= maxlimit]
+                    newMeanMae = np.mean(newMAElist)
+                    for i in dfResults.index:
+                      if dfResults.loc[i, 'MAE'] > maxlimit:
+                        dfResults.at[i, 'MAE'] = np.nan
+                        dfResults.at[i, 'PW20'] = np.nan
+                        dfResults.at[i, 'R2'] = np.nan
+                        dfResults.at[i, 'Time'] = np.nan
 
-            dfSummary = dfResults.groupby('Estimator').apply(np.mean)
-            stddev = []
-            confinterval = []
-            for i in range(len(metric_columns)):
-                for _, est in enumerate(estimates):
-                    current_estimator = est.identifier
-                    current_metric = metric_columns[i]
-                    current_mean = dfSummary.loc[current_estimator][current_metric]
-                    # metric_values = dfResults.apply(lambda x:collect_Results(x['Estimator'],current_metric,axis=1))
-                    metric_values = np.where(dfResults['Estimator'] == current_estimator, dfResults[current_metric],
-                                             9999)
-                    metriclist = np.array(metric_values)
-                    #metriclist = [j for j in metriclist if j != np.nan]
-                    metriclistcopy = []
-                    for j in metriclist:
-                      if j != 9999:
-                        if  math.isnan(j) == False:
-                          metriclistcopy.append(j)
-                    metriclist = metriclistcopy
-                    current_stddev = 0
-                    confinterval.append(
-                          {'estimator': current_estimator, 'metric': current_metric, 'mean': current_mean,
-                           '95% CI lower bound': current_mean - current_stddev,
-                           '95% CI upper bound': current_mean + current_stddev})
-                  # stddev.append({'metric':current_metric,'standarddev':current_stdde  v,'mean':current_mean})
-            dfResults.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfResults" + ".csv", ";")
+                dfSummary = dfResults.groupby('Estimator').apply(np.mean)
+                dfResults.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfResults" + ".csv", ";")
+                dfSummary.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfSummary_" + str(randomseed) + ".csv", ";")
 
-            dfSummary.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfSummary_" + str(randomseed) + ".csv", ";")
+                #dfConfidence = pd.DataFrame(confinterval,  columns=['estimator', 'metric', 'mean', '95% CI lower bound','95% CI upper bound'])
+                #dfConfidence.to_csv(r"C:\Users\C   laire\GIT_REPO_1\CSCthesisPY\WARPATH_dfConfidence" + ".csv", ";")
+                print("STOP HERE")
 
-            dfConfidence = pd.DataFrame(confinterval,
-                                         columns=['estimator', 'metric', 'mean', '95% CI lower bound',
-                                                  '95% CI upper bound'])
-            dfConfidence.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfConfidence" + ".csv", ";")
-            print("STOP HERE")
+                if df  == impNumber:
+                    for k in range(len(std_Dev)):
+                        model = std_Dev[k]['model']
+                        metric = std_Dev[k]['metric']
+                        Wfactor = std_Dev[k]['SD']
+                        Bfactor = std_Dev[k]['VAR']
+                        modelpos = find(std_Dev_Summ, 'model', model)
+                        std_Dev_Summ[modelpos][metric] += Wfactor
+                        modelpos2 = find(variance_Summ, 'model', model)
+                        variance_Summ[modelpos2][metric] += Bfactor
 
+                    for k in range(len(models)):
+                        fieldname = models[k]['model']
+                        for m in range(len(smpResults)):
+                            if smpResults[m]['model'] == fieldname:
+                                models[k]['MAE']  +=  smpResults[m]['MAE']
+                                models[k]['PW20'] += smpResults[m]['PW20']
+                    Bfactor = (impNumber + 1) / impNumber
 
-            if df == impNumber:
-                 for k in range(len(std_Dev)):
-                     model = std_Dev[k]['model']
-                     metric = std_Dev[k]['metric']
-                     Wfactor = std_Dev[k]['SD']
-                     Bfactor = std_Dev[k]['VAR']
-                     modelpos = find(std_Dev_Summ, 'model', model)
-                     std_Dev_Summ[modelpos][metric] += Wfactor
-                     modelpos2 = find(variance_Summ, 'model', model)
-                     variance_Summ[modelpos2][metric] += Bfactor
-
-                 for k in range(len(models)):
-                   fieldname = models[k]['model']
-                   for m in range(len(bootresults)):
-                        if bootresults[m]['model'] == fieldname:
-                            models[k]['MAE'] += bootresults[m]['MAE']
-                            models[k]['PW20'] += bootresults[m]['PW20']
-                 Bfactor = (impNumber + 1) / impNumber
-
-                 for k in range(len(models)):
-                   fieldname = models[k]['model']
-                   mae_value = models[k]['MAE'] / impNumber
-                   mae_list = collect_Results(bootresults, fieldname, 'MAE')
-                   mae_variance = variance(mae_list) * Bfactor
-                   stdpos = find(std_Dev_Summ, 'model', fieldname)
-                   varpos = find(variance_Summ, 'model', fieldname)
-                   mae_var = variance_Summ[varpos]['MAE'] * 2
-                   mae_std_dev = std_Dev_Summ[stdpos]['MAE'] / impNumber
-                   mae_CI_minus = round(mae_value - 1.96 * np.sqrt(mae_std_dev + mae_variance), 4)
-                   mae_CI_plus = round(mae_value + 1.96 * np.sqrt(mae_std_dev + mae_variance), 4)
-                   pw20_value = models[k]['PW20'] / impNumber
-                   pw20_list = collect_Results(bootresults, fieldname, 'PW20')
-                   pw20_variance = variance(pw20_list) * Bfactor
-                   pw20_std_dev = std_Dev_Summ[stdpos]['PW20'] / impNumber
-                   pw20_var = variance_Summ[varpos]['MAE'] * 2
-                   pw20_CI_minus = round(pw20_value - 1.96 * np.sqrt(pw20_std_dev + pw20_variance), 4)
-                   pw20_CI_plus = round(pw20_value + 1.96 * np.sqrt(pw20_std_dev + pw20_variance), 4)
-                   dfPrev = dfConf
-                   timeConclude = time.time()
-                   timePeriod = timeConclude - timeBegin
-                   dfCurr = pd.DataFrame()
-                   dfCurr['HEADER'] = ['WARPATH', alg, randomseed]
-                   dfCurr["MAE"] = [round(mae_value, 6), mae_CI_minus, mae_CI_plus]
-                   dfCurr["MAE_Rubin"] = [0, round(mae_std_dev, 6), round(mae_variance, 6)]
-                   dfCurr["PW2O"] = [round(pw20_value, 6), pw20_CI_minus, pw20_CI_plus]
-                   dfCurr["PW20_Rubin"] = [0, round(pw20_std_dev, 6), round(pw20_variance, 6)]
-                   dfCurr["TIME"] = timePeriod
-                   frames = (dfPrev, dfCurr)
-                   dfConf = pd.concat(frames)
-                   name = "WARPATH" + alg.replace(" ", "")
-                   dfConf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\CI\\" + name + ".csv", ";")
-                   print(fieldname, 'MAE:', round(mae_value, 6), "StdDev:", round(mae_std_dev, 6), "B: ",
-                   round(mae_variance, 4), "  CI: [", mae_CI_minus, mae_CI_plus, "]", )
-                   print(fieldname, 'PW20:', round(pw20_value, 6), "StdDev:", round(pw20_std_dev, 6), "B: ",
-                   round(pw20_variance, 4), " CI: [", pw20_CI_minus, pw20_CI_plus, "]")
-                   print('RANDOM STATE,   ', randomseed)
-                   print(dfSummary)
+                    for k in range(len(models)):
+                       fieldname = models[k]['model']
+                       mae_list = collect_Results(smpResults, fieldname, 'MAE')
+                       mae_value = listAverage(mae_list)
+                       mae_variance = variance(mae_list) * Bfactor
+                       stdpos = find(std_Dev_Summ, 'model', fieldname)
+                       varpos = find(variance_Summ, 'model', fieldname)
+                       mae_var = variance_Summ[varpos]['MAE'] * 2
+                       mae_std_dev = std_Dev_Summ[stdpos]['MAE'] / impNumber
+                       mae_CI_minus = round(mae_value - 1.96 * np.sqrt(mae_std_dev + mae_variance), 4)
+                       mae_CI_plus = round(mae_value + 1.96 * np.sqrt(mae_std_dev + mae_variance), 4)
+                       pw20_list = collect_Results(smpResults, fieldname, 'PW20')
+                       pw20_value = listAverage(pw20_list)
+                       pw20_variance = variance(pw20_list) * Bfactor
+                       pw20_std_dev = std_Dev_Summ[stdpos]['PW20'] / impNumber
+                       pw20_var = variance_Summ[varpos]['MAE'] * 2
+                       pw20_CI_minus = round(pw20_value - 1.96 * np.sqrt(pw20_std_dev + pw20_variance), 4)
+                       pw20_CI_plus = round(pw20_value + 1.96 * np.sqrt(pw20_std_dev + pw20_variance), 4)
+                       dfPrev = dfConf
+                       timeConclude = time.time()
+                       timePeriod = timeConclude - timeBegin
+                       dfCurr = pd.DataFrame()
+                       dfCurr['HEADER']=['WARPATH',alg, randomseed]
+                       dfCurr["MAE"]= [round(mae_value,6), mae_CI_minus, mae_CI_plus]
+                       dfCurr["MAE_Rubin"] = [0, round(mae_std_dev,6), round(mae_variance,6)]
+                       dfCurr["PW2O"]=[round(pw20_value,6), pw20_CI_minus, pw20_CI_plus]
+                       dfCurr["PW20_Rubin"] = [0, round(pw20_std_dev,6), round(pw20_variance,6)]
+                       dfCurr["TIME"] = timePeriod
+                       dfCurr["ML_MODEL"] = ['',ml_model,'']
+                       frames = (dfPrev, dfCurr)
+                       dfConf = pd.concat(frames)
+                       name= "WARPATH"+alg.replace(" ","")
+                       dfConf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\CI\\" + name + ".csv", ";")
+                       print(fieldname, 'MAE:', round(mae_value, 6), "StdDev:", round(mae_std_dev,6),"B: ",
+                       round(mae_variance,4),"  CI: [",mae_CI_minus, mae_CI_plus,"]",)
+                       print(fieldname, 'PW20:', round(pw20_value, 6), "StdDev:", round(pw20_std_dev, 6), "B: ",
+                       round(pw20_variance, 4)," CI: [", pw20_CI_minus, pw20_CI_plus, "]")
+                       print('RANDOM STATE,   ', randomseed)
+                       print(dfSummary)
 
 if __name__ == "__main__":
     main()
