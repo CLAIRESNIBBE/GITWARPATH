@@ -781,6 +781,8 @@ def main():
         randomStates.append(143)
         for state in range(len(randomStates)):
                 randomseed = randomStates[state]
+                smpResults = []
+                metrics = []
                 timeBegin = time.time()
                 print("Processing random state", randomseed)
                 #filewritena       me = input("Enter file name: \n")
@@ -1004,8 +1006,8 @@ def main():
                         models = []
                         boot = 0
                         samples = []
-                        metrics = []
-                        smpResults = []
+                        #metrics = []
+                        #smpResults = []
                         metric_columns = ['MAE', 'PW20']
                         listmodels = ['WarPATH']
                         if (find(models, 'model', 'WarPATH') == -1):
@@ -1150,12 +1152,51 @@ def main():
                                    r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\IWPCResults_" + str(df) + ".csv", ";")
                                boot = 0
                                samples = []
-                               metrics = []
-                               smpResults = []
-                               dataSet = np.random.randint(10, size=(number_of_samples, 2))
+                               #metrics = []
+                               #smpResults = []
                                df_WARPATH = pd.DataFrame(data=dataSet, columns=metric_columns)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                                data.drop(["WarPATH_MAE", "WarPATH_PW20", "Status"], axis=1, inplace=True)
-                               data.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Data" + str(alg) + str(boot) + str(randomseed) + ".csv", ";")
+                               data.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Data" + str(df) + str(alg) + str(boot) + str(randomseed) + ".csv", ";")
                                traindata, testdata = train_test_split(data, test_size=test_size,random_state=randomseed)
                                y_traindata = traindata[target_column].values
                                x_traindata = traindata.drop([target_column], axis=1)
@@ -1170,8 +1211,8 @@ def main():
                                MAE_data = mean_absolute_error(y_testdata, ypred2)
                                dfy_testdata = pd.DataFrame(y_testdata)
                                dfypred2 = pd.DataFrame(ypred2)
-                               dfy_testdata.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Dataytest" + str(alg) + " " + str(boot) + ".csv", ";")
-                               dfypred2.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Dataypred" + str(alg) + " " + str(boot) + ".csv", ";")
+                               dfy_testdata.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Dataytest" + str(df) + str(alg) + " " + str(boot) + ".csv", ";")
+                               dfypred2.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Dataypred" + str(df) + str(alg) + " " + str(boot) + ".csv", ";")
                                boot = 0
                                while boot < number_of_samples:
                                    dfsample = data.sample(n=364, frac=None, replace=True)
@@ -1179,7 +1220,7 @@ def main():
                                    ## CHECK dfsample
                                    dfsample = dfsample.reset_index(drop=True)
                                    #data.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Data" + str(alg) + str(boot) + str(randomseed) + ".csv", ";")
-                                   dfsample.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Boot" + str(alg) + str(boot) + str(randomseed) + ".csv", ";")
+                                   dfsample.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Boot" + str(df)+ str(alg) + str(boot) + str(randomseed) + ".csv", ";")
                                    #dfsample.drop(["WarPATH_MAE","WarPATH_PW20","Status"], axis=1, inplace = True)
                                    trainboot, testboot = train_test_split(dfsample, test_size=test_size, random_state=randomseed)
                                    #traindata, testdata = train_test_split(data,test_size=test_size,random_state=randomseed)
@@ -1197,10 +1238,10 @@ def main():
                                    print("imputation ", df, "MAE ",MAE," PW20 ",PW20," sample ", boot, " ML model ", alg, " randomseed ",randomseed)
                                    dfy_testboot = pd.DataFrame(y_testboot)
                                    dfypredboot = pd.DataFrame(ypredboot)
-                                   dfy_testboot.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Bootytest" + str(alg) + " " + str(boot) + ".csv", ";")
-                                   dfypredboot.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Bootypred" + str(alg) + " " + str(boot) + ".csv", ";")
-                                   dfy_testdata.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Dataytest" + str(alg) + " " + str(boot) + ".csv", ";")
-                                   dfypred2.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Dataypred" + str(alg) + " " + str(boot) + ".csv", ";")
+                                   dfy_testboot.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Bootytest" + str(df)+ str(alg) + " " + str(boot) + ".csv", ";")
+                                   dfypredboot.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Bootypred" + str(df)+ str(alg) + " " + str(boot) + ".csv", ";")
+                                   dfy_testdata.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Dataytest" + str(df)+ str(alg) + " " + str(boot) + ".csv", ";")
+                                   dfypred2.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Dataypred" + str(df) + str(alg) + " " + str(boot) + ".csv", ";")
                                    dfsample["WarPATH_MAE"] = MAE
                                    dfsample["WarPATH_PW20"] = PW20
                                    dfMetricfactors = dfsample[["WarPATH_MAE", "WarPATH_PW20"]]
@@ -1224,8 +1265,7 @@ def main():
 
                                for i in range(len(metric_columns)):
                                    current_metric = metric_columns[i]
-                                   df_WARPATH[current_metric] = np.array(
-                                   collect_Metrics(metrics, 'WarPATH', current_metric))
+                                   df_WARPATH[current_metric] = np.array(collect_Metrics(metrics, 'WarPATH', current_metric))
                                    #std = std_deviation(df_WARPATH[current_metric])
                                    std = np.square(std_deviation(df_WARPATH[current_metric]))
                                    var = variance(df_WARPATH[current_metric])
