@@ -142,7 +142,7 @@ def listAverage(list):
 def collect_Metrics(metrics, model, metric):
     container = []
     for i in range(len(metrics)):
-        if (metrics[i]['model'] == model) :
+        if (metrics[i]['model'] == model):
             # print(metrics[i]['model'], metrics[i]['metric'], metrics[i]['value'])
             container.append(metrics[i][metric])
     return container
@@ -208,41 +208,6 @@ def TrainOrTest(patientID, TrainList, TestList):
     elif (patientID in TestList):
         return 'test'
 
-    # newList = []
-    # for patient in patientIDList:
-    #  currpatient = patient
-    #  for fixedpatient in TrainList:
-    #    if (fixedpatient == currpatient):
-    #      newList.append('train')
-    #  for fixedpatient in TestList:
-    #    if (fixedpatient == currpatient):
-    #      newList.append('test')
-    # return newList
-
-
-def format_summary(df_res):
-    df_summary = df_res.groupby(['Estimator']).mean()
-    df_summary.reset_index(inplace=True)
-    for alg in df_res['Estimator'].unique():
-        for metric in ['PW20', 'MAE']:
-            data = df_res[metric][df_res['Estimator'] == alg].values
-            np.sort(data)
-            df = pd.DataFrame(data, columns=[metric])
-            lo1 = np.percentile(data, 2.5)
-            lo, hi = confidence_interval(df_res[metric][df_res['Estimator'] == alg].values)
-            mean = df_res[metric][df_res['Estimator'] == alg].mean()
-            lo2 = mean - confintlimit95(data, mean)
-            hi2 = mean + confintlimit95(data, mean)
-            conf2 = f"{mean:.2f}({lo2:.2f}-{hi2:.2f})"
-            print("new method", alg, metric, lo2, hi2, mean, conf2)
-            for v in [mean, lo, hi]:
-                if not (-10000 < v < 10000):
-                    print('nan applied: ', alg, metric, lo, hi, mean)
-                    mean, lo, hi = np.nan, np.nan, np.nan
-                conf = f"{mean:.2f}({lo:.2f}-{hi:.2f})"
-                print(alg, metric, lo, hi, mean, conf)
-                df_summary[metric][df_summary['Estimator'] == alg] = conf
-    return df_summary
 
 
 def MLAR(trueval, predval):
@@ -300,11 +265,14 @@ def INRThree(targetINR):
     else:
         return 0
 
-
 def tune(objective, df, model, randomseed):
     ntrials = 50
+    suffix = str(df).zfill(3)
     study = optuna.create_study(direction="maximize")
     study.optimize(objective, n_trials=ntrials)
+    optuna_results = study.trials_dataframe()
+    optuna_results['mlmodel'] = model
+    optuna_results.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OptunaAllModelW\model_" + model + "_" + str(randomseed) + "_" + suffix + ".csv", ";")
     plot_optimization_history(study)
     params = study.best_params
     best_score = study.best_value
@@ -342,10 +310,8 @@ def dropColumn(IWPCparam, columnname, dfColumns, dfmod, dfIWPC):
         else:
             dfmod.drop([columnname], axis=1, inplace=True)
 
-
 def indexTo1(df):
     df.index = np.arange(1, len(df) + 1)
-
 
 def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, randomseed):
     resultsdict = {'PW20': 0, 'MAE': 0, 'R2': 0, 'Time': '', 'Alg': ''}
@@ -594,6 +560,72 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                 KNN_params = tune(KNN_Objective, df, modelID, randomseed)
                 end = time.time()
                 model = KNeighborsRegressor(**KNN_params)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                model = KNeighborsRegressor(**KNN_params)
             else:
                 if est.identifier in ("LASSO"):
                     start = time.time()
@@ -803,51 +835,48 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
     if ml_learner != "LR":
         suffix = str(df).zfill(3)
         dfHyper = pd.read_csv(
-            r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OPTUNAHYPERPARAMETERS\model_" + ml_learner + randstring + suffix + ".csv",
-            ";")
+            r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OPTUNAHYPERPARAMETERS\model_" + ml_learner + randstring + suffix + ".csv",";")
         dfHyper.loc[df - 1, "mae"] = MAE
         dfHyper.loc[df - 1, "pw20"] = PW20
         dfHyper.to_csv(
-            r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OPTUNAHYPERPARAMETERS\model_" + ml_learner + randstring + suffix + ".csv",
-            ";")
-        dfHyper = pd.read_csv(
-            r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OPTUNAHYPERPARAMETERS\model_" + ml_learner + randstring + suffix + ".csv",
-            ";")
+            r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OPTUNAHYPERPARAMETERS\model_" + ml_learner + randstring + suffix + ".csv",";")
+        dfHyper = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OPTUNAHYPERPARAMETERS\model_" + ml_learner + randstring + suffix + ".csv",";")
         if "Unnamed: 0" in dfHyper.columns:
             dfHyper.drop(["Unnamed: 0"], axis=1, inplace=True)
         if "Unnamed: 0.1" in dfHyper.columns:
             dfHyper.drop(["Unnamed: 0.1"], axis=1, inplace=True)
         dfHyper.to_csv(
-            r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OPTUNAHYPERPARAMETERS\model_" + ml_learner + randstring + suffix + ".csv",
-            ";")
+            r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OPTUNAHYPERPARAMETERS\model_" + ml_learner + randstring + suffix + ".csv",";")
     R2 = RSquared(ytest, ypred)
     resultsdict['PW20'] = [PW20]
     resultsdict['MAE'] = [MAE]
     resultsdict['R2'] = [R2]
     resultsdict['Time'] = [timeElapsed]
-    resultsdict['Alg'] = model
+    resultsdict['Alg'] = [model]
     return resultsdict
 
 
 def main():
+    metric_columns = ['MAE', 'PW20']
+    listmodels = ['WarPATH']
     mlmodels = []
-    # RF = RandomForestRegressor()
-    # mlmodels.append(Estimator(RF, 'RF'))
+    RF = RandomForestRegressor()
+    mlmodels.append(Estimator(RF, 'RF'))
     # LR = LinearRegression()
     # mlmodels.append(Estimator(LR, 'LR'))
-    KNNR = KNeighborsRegressor()
-    # RR = Ridge()
-    # LAS = Lasso()
-    # ELNR = ElasticNet()
+    #KNNR = KNeighborsRegressor()
+    RR = Ridge()
+    #LAS = Lasso()
+    ELNR = ElasticNet()
     # svr = sklearn.svm.SVR()
     # GBR = GradientBoostingRegressor()
     # MLPR = MLPRegressor()
     # mlmodels.append(Estimator(GBR,'GBR'))
     # mlmodels.append(Estimator(svr,'SVREG'))
-    # mlmodels.append(Estimator(LAS,'LASSO'))
-    # mlmodels.append(Estimator(ELNR,"ELNET"))
-    # mlmodels.append(Estimator(RR, "RIDGE"))
-    mlmodels.append(Estimator(KNNR, "KNNR"))
+    #mlmodels.append(Estimator(LAS,'LASSO'))
+    mlmodels.append(Estimator(ELNR,"ELNET"))
+    mlmodels.append(Estimator(RR, "RIDGE"))
+    #mlmodels.append(Estimator(KNNR, "KNNR"))
     for _, est in enumerate(mlmodels):
         dfConf = pd.DataFrame()
         estimates = []
@@ -1094,8 +1123,7 @@ def main():
                     samples = []
                     # metrics = []
                     # smpResults = []
-                    metric_columns = ['MAE', 'PW20']
-                    listmodels = ['WarPATH']
+
                     if (find(models, 'model', 'WarPATH') == -1):
                         models.append({'model': 'WarPATH', 'MAE': 0, 'PW20': 0})
 
@@ -1217,109 +1245,65 @@ def main():
                             data["WarPATH_MAE"] = ExitSquareBracket(resultsdict['MAE'], True)
                             data["WarPATH_PW20"] = ExitSquareBracket(resultsdict['PW20'], True)
                             ml_model = resultsdict['Alg']
+                            dfOptuna = pd.read_csv(
+                                r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OptunaAllModelW\model_" + alg + "_" + str(
+                                    randomseed) + "_" + suffix + ".csv", ";")
+                            scaler = MinMaxScaler()
+                            dfOptuna['MAE'] = 0
+                            dfOptuna['PW20'] = 0
+                            listminmaxScaler = ['KNNR', 'MLPR', 'LASSO', 'ELNET', 'RIDGE', 'SVREG']
+                            scaling = False
+                            if alg in listminmaxScaler:
+                                scaling = True
+                            for index, row in dfOptuna.iterrows():
+                               if alg == 'KNNR':
+                                 n_neighbors = row['params_n_neighbors']
+                                 metric = row['params_metric']
+                                 weights = row['params_weights']
+                                 model = KNeighborsRegressor(n_neighbors=n_neighbors, metric=metric,weights=weights)
+                               elif alg == "RF":
+                                  maxdepth = row['params_max_depth']
+                                  minsampleaf = row['params_min_samples_leaf']
+                                  minsampsplit = row['params_min_samples_split']
+                                  numberestimators = row['params_n_estimators']
+                                  model = RandomForestRegressor(max_depth = maxdepth, min_samples_leaf = minsampleaf,
+                                                                min_samples_split = minsampsplit, n_estimators = numberestimators)
+
+                               elif alg == "LASSO" or alg == "RIDGE" or alg == "ELNET":
+                                 alpha = row['params_alpha']
+                                 maxiter = row['params_max_iter']
+                                 if alg == "ELNET":
+                                    l1ratio = row['params_l1_ratio']
+                                 if alg == "LASSO":
+                                    model = Lasso(alpha= alpha, max_iter= maxiter)
+                                 elif alg == "RIDGE":
+                                    model = Ridge(alpha = alpha, max_iter = maxiter)
+                                 else:
+                                    model = ElasticNet(alpha=alpha, l1_ratio=l1ratio, max_iter= maxiter)
+                               if scaling == True:
+                                  pipeline = make_pipeline(scaler, model)
+                                  fitted = pipeline.fit(x_train, y_train)
+                               else:
+                                 fitted = model.fit(x_train,y_train)
+                               pred = fitted.predict(x_test)
+                               if squaring:
+                                  predicted = np.square(pred)
+                                  observed = np.square(y_test)
+                               MAEvalue = mean_absolute_error(observed, predicted)
+                               PW20value = PercIn20(observed, predicted)
+                               dfOptuna.at[index,'MAE'] = MAEvalue
+                               dfOptuna.at[index,'PW20'] = PW20value
+                            dfOptuna.to_csv(
+                            r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OptunaAllModelW\model_" + alg + "_" + str(randomseed) + "_" + suffix + ".csv",";")
+
+
+
+
+
                             dfKey = data[["WarPATH_MAE", "WarPATH_PW20"]]
-                            impResults.append({'Imp': df, 'model': 'WarPATH', 'METRICS': dfKey, 'MAE': 0, 'PW20': 0})
-                            for k in range(len(impResults)):
-                                dfKey = impResults[k]['METRICS']
-                                model = impResults[k]['model']
-                                imputation = impResults[k]['Imp']
-                                model_MAE = dfKey["WarPATH_MAE"].astype('float')
-                                model_PW20 = dfKey["WarPATH_PW20"].astype('float')
-                                impResults[k]['MAE'] = model_MAE[k]
-                                impResults[k]['PW20'] = model_PW20[k]
 
-                            for k in range(len(impResults)):
-                                a = impResults[k]['model']
-                                b = impResults[k]['Imp']
-                                c = impResults[k]['MAE'].astype('float')
-                                d = impResults[k]['PW20'].astype('float')
-                            bootresults.append(
-                                # {'Imp': b, 'model': a, 'MAE': c, 'PW20': d})
-                                {'Imp': b, 'model': a, 'MAE': c, 'PW20': d})
-                            resultsdf = pd.DataFrame(bootresults)
-                            resultsdf.to_csv(
-                                r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\IWPCResults_" + str(df) + ".csv", ";")
-                            boot = 0
-                            samples = []
-                            # metrics = []
-                            # smpResults = []
-
-
-                            data.drop(["WarPATH_MAE", "WarPATH_PW20", "Status"], axis=1, inplace=True)
-                            data.to_csv(
-                                r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Data" + str(df) + str(alg) + str(boot) + str(
-                                    randomseed) + ".csv", ";")
-                            traindata, testdata = train_test_split(data, test_size=test_size, random_state=randomseed)
-                            y_traindata = traindata[target_column].values
-                            x_traindata = traindata.drop([target_column], axis=1)
-                            y_testdata = testdata[target_column].values
-                            x_testdata = testdata.drop([target_column], axis=1)
-                            fitted2 = ml_model.fit(x_traindata, y_traindata)
-                            ypred2 = fitted2.predict(x_testdata)
-                            if squaring:
-                                y_testdata = np.square(y_testdata)
-                                ypred2 = np.square(ypred2)
-                            PW20_data = PercIn20(y_testdata, ypred2)
-                            MAE_data = mean_absolute_error(y_testdata, ypred2)
-                            dfy_testdata = pd.DataFrame(y_testdata)
-                            dfypred2 = pd.DataFrame(ypred2)
-                            dfy_testdata.to_csv(
-                                r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Dataytest" + str(df) + str(alg) + " " + str(
-                                    boot) + ".csv", ";")
-                            dfypred2.to_csv(
-                                r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Dataypred" + str(df) + str(alg) + " " + str(
-                                    boot) + ".csv", ";")
-                            boot = 0
-                            while boot < number_of_samples:
-                                dfsample = data.sample(n=364, frac=None, replace=True)
-                                # dfsample = data
-                                ## CHECK dfsample
-                                dfsample = dfsample.reset_index(drop=True)
-                                # data.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Data" + str(alg) + str(boot) + str(randomseed) + ".csv", ";")
-                                dfsample.to_csv(
-                                    r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Boot" + str(df) + str(alg) + str(
-                                        boot) + str(randomseed) + ".csv", ";")
-                                # dfsample.drop(["WarPATH_MAE","WarPATH_PW20","Status"], axis=1, inplace = True)
-                                trainboot, testboot = train_test_split(dfsample, test_size=test_size,
-                                                                       random_state=randomseed)
-                                # traindata, testdata = train_test_split(data,test_size=test_size,random_state=randomseed)
-                                y_trainboot = trainboot[target_column].values
-                                x_trainboot = trainboot.drop([target_column], axis=1)
-                                y_testboot = testboot[target_column].values
-                                x_testboot = testboot.drop([target_column], axis=1)
-                                fitted = ml_model.fit(x_trainboot, y_trainboot)
-                                ypredboot = fitted.predict(x_testboot)
-                                if squaring:
-                                    y_testboot = np.square(y_testboot)
-                                    ypredboot = np.square(ypredboot)
-                                PW20 = PercIn20(y_testboot, ypredboot)
-                                MAE = mean_absolute_error(y_testboot, ypredboot)
-                                print("imputation ", df, "MAE ", MAE, " PW20 ", PW20, " sample ", boot, " ML model ",
-                                      alg, " randomseed ", randomseed)
-                                dfy_testboot = pd.DataFrame(y_testboot)
-                                dfypredboot = pd.DataFrame(ypredboot)
-                                dfy_testboot.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Bootytest" + str(df) + str(
-                                    alg) + " " + str(boot) + ".csv", ";")
-                                dfypredboot.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Bootypred" + str(df) + str(
-                                    alg) + " " + str(boot) + ".csv", ";")
-                                dfy_testdata.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Dataytest" + str(df) + str(
-                                    alg) + " " + str(boot) + ".csv", ";")
-                                dfypred2.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Dataypred" + str(df) + str(
-                                    alg) + " " + str(boot) + ".csv", ";")
-                                dfsample["WarPATH_MAE"] = MAE
-                                dfsample["WarPATH_PW20"] = PW20
-                                dfMetricfactors = dfsample[["WarPATH_MAE", "WarPATH_PW20"]]
-                                boot = boot + 1
-                                samples.append(dfMetricfactors)
-                                for m in range(len(listmodels)):
-                                    model = listmodels[m]
-                                    curr_MAE = float(dfMetricfactors[model + '_MAE'][m])
-                                    curr_PW20 = float(dfMetricfactors[model + '_PW20'][m])
-                                    smpResults.append(
-                                        {'Imp': df, 'Sample': boot, 'model': model, 'MAE': curr_MAE, 'PW20': curr_PW20})
-
-                                if resultsdict['MAE'] > [5]:
-                                    results.append(res_dict)
+                            if resultsdict['MAE'] > [5]:
+                               results.append(res_dict)
 
                         df_res = pd.DataFrame()
                         for res in results:
@@ -1353,12 +1337,12 @@ def main():
 
             dfSummary = dfResults.groupby('Estimator').apply(np.mean)
             dfResults.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfResults" + ".csv", ";")
-            dfSummary.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfSummary_" + str(randomseed) + ".csv",
+            dfSummary.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfSummary_" + alg + "_" + str(randomseed) + ".csv",
                              ";")
 
             print("STOP HERE")
 
-            if df == impNumber:
+            if False and df == impNumber:
                 for i in range(len(metric_columns)):
                     current_metric = metric_columns[i]
                     metriclist = np.array(collect_Metrics(smpResults, 'WarPATH', current_metric))
