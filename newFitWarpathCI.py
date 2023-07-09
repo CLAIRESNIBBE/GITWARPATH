@@ -322,11 +322,27 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
     # 10-fold CV
     kfolds = KFold(n_splits=10, shuffle=True, random_state=RANDOM_SEED)
     model = est.estimator
+    modelID = est.identifier
     gridFit = True
     # print(f'\n{est.identifier}...')
-    modelID = est.identifier
-    if est.identifier != "LR":  # tuning is not required for LR
-        if est.identifier == "XGBR":
+    #if est.identifier != "LR":  # tuning is not required for LR
+    if est.identifier == "LR":
+        start = time.time()
+
+        def LR_Objective(trial):
+            scaler = MinMaxScaler()
+            LR_Model = LinearRegression()
+            pipeline = make_pipeline(scaler, LR_Model)
+            score = cross_val_score(pipeline, xtrain, ytrain, cv=kfolds,
+                                    scoring="neg_mean_absolute_error").mean()
+            return score
+
+        LR_params = tune(LR_Objective, df, modelID, randomseed)
+        end = time.time()
+        model = LinearRegression(**LR_params)
+
+
+    elif est.identifier == "XGBR":
             start = time.time()
 
             def XGBR_Objective(trial):
@@ -354,7 +370,7 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
             end = time.time()
             model = XGBRegressor(**XGBR_params)
 
-        if est.identifier == "RF":
+    elif est.identifier == "RF":
             start = time.time()
 
             def RF_Objective(trial):
@@ -409,8 +425,7 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                 )
                 score = cross_val_score(rf, xtrain, ytrain, cv=kfolds, scoring="neg_mean_absolute_error").mean()
                 return score
-        else:
-            if est.identifier == 'DTR':
+    elif est.identifier == 'DTR':
                 # define parameter space
                 start = time.time()
 
@@ -453,7 +468,7 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                                   'min_samples_split': [2, 3, 4, 5, 6, 8, 10],
                                   'max_leaf_nodes': [10, 15, 20, 25, 30, 35, 40, 45, 50, None]
                                   }
-            elif est.identifier == "GBR":
+    elif est.identifier == "GBR":
                 start = time.time()
 
                 def GBR_Objective(trial):
@@ -480,7 +495,7 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                 end = time.time()
                 model = GradientBoostingRegressor(**GBR_params)
 
-            elif est.identifier == "MLPR":
+    elif est.identifier == "MLPR":
                 # activation = 'identity', alpha = 0.009260944818691528,
                 # beta_1 = 0.8304148442169565, beta_2 = 0.9847593650340831,
                 # epsilon = 4.968151316490382e-06, learning_rate = 'adaptive',
@@ -542,7 +557,7 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                 model = MLPRegressor(**MLPR_params)
 
 
-            elif est.identifier == "KNNR":
+    elif est.identifier == "KNNR":
                 start = time.time()
 
                 def KNN_Objective(trial):
@@ -626,8 +641,8 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
 
 
                 model = KNeighborsRegressor(**KNN_params)
-            else:
-                if est.identifier in ("LASSO"):
+
+    elif est.identifier in ("LASSO"):
                     start = time.time()
 
                     def LASSO_Objective(trial):
@@ -647,7 +662,7 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                     LASSO_params = tune(LASSO_Objective, df, modelID, randomseed)
                     end = time.time()
                     model = Lasso(**LASSO_params)
-                elif est.identifier == "RIDGE":
+    elif est.identifier == "RIDGE":
                     start = time.time()
 
                     def RIDGE_Objective(trial):
@@ -669,7 +684,7 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                     end = time.time()
                     model = Ridge(**RIDGE_params)
 
-                elif est.identifier == "ELNET":
+    elif est.identifier == "ELNET":
                     start = time.time()
 
                     def ELNET_Objective(trial):
@@ -698,7 +713,7 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                     # if est.identifier == "ELNET":
                     #    param_grid = [{'alg__alpha': np.logspace(-4, -2, 9),
                     #                   'alg__l1_ratio': [0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99]}]
-                elif est.identifier == "SVREG":
+    elif est.identifier == "SVREG":
                     start = time.time()
 
                     def SVREG_Objective(trial):
@@ -722,9 +737,9 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                     end = time.time()
                     model = sklearn.svm.SVR(**SVREG_params)
 
-                elif est.identifier == "ABRF":
+    elif est.identifier == "ABRF":
                     param_grid = [{'n_estimators': [10, 50, 100, 500], 'learning_rate': [0.0001, 0.001, 0.01, 0.1]}]
-                elif est.identifier == "GBR":
+    elif est.identifier == "GBR":
                     start = time.time()
 
                     def GBR_Objective(trial):
@@ -743,7 +758,7 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                     end = time.time()
                     model = GradientBoostingRegressor(**GBR_params)
 
-                elif est.identifier == "LGB":
+    elif est.identifier == "LGB":
                     start = time.time()
 
                     def LGB_Objective(trial):
@@ -803,7 +818,7 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                     end = time.time()
                     model = lgb.LGBMRegressor(**LGB_params)
 
-                elif est.identifier == "STACK":
+    elif est.identifier == "STACK":
                     # stack models
                     stack = StackingRegressor(
                         estimators=[
@@ -819,11 +834,7 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                         cv=kfolds)
                     stack.fit(X, y)
 
-    if est.identifier == "LR":
-        start = time.time()
     fitted = model.fit(xtrain, ytrain)
-    if est.identifier == "LR":
-        end = time.time()
     timeElapsed = end - start
     ypred = fitted.predict(xtest)
     if squaring:
@@ -832,7 +843,7 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
     PW20 = PercIn20(ytest, ypred)
     MAE = mean_absolute_error(ytest, ypred)
     randstring = "_" + str(randomseed) + "_"
-    if ml_learner != "LR":
+    if True:
         suffix = str(df).zfill(3)
         dfHyper = pd.read_csv(
             r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OPTUNAHYPERPARAMETERS\model_" + ml_learner + randstring + suffix + ".csv",";")
@@ -860,22 +871,22 @@ def main():
     metric_columns = ['MAE', 'PW20']
     listmodels = ['WarPATH']
     mlmodels = []
-    RF = RandomForestRegressor()
-    mlmodels.append(Estimator(RF, 'RF'))
-    # LR = LinearRegression()
-    # mlmodels.append(Estimator(LR, 'LR'))
+    #RF = RandomForestRegressor()
+    #mlmodels.append(Estimator(RF, 'RF'))
+    LR = LinearRegression()
+    mlmodels.append(Estimator(LR, 'LR'))
     #KNNR = KNeighborsRegressor()
-    RR = Ridge()
+    #RR = Ridge()
     #LAS = Lasso()
-    ELNR = ElasticNet()
+    #ELNR = ElasticNet()
     # svr = sklearn.svm.SVR()
     # GBR = GradientBoostingRegressor()
     # MLPR = MLPRegressor()
     # mlmodels.append(Estimator(GBR,'GBR'))
     # mlmodels.append(Estimator(svr,'SVREG'))
     #mlmodels.append(Estimator(LAS,'LASSO'))
-    mlmodels.append(Estimator(ELNR,"ELNET"))
-    mlmodels.append(Estimator(RR, "RIDGE"))
+    #mlmodels.append(Estimator(ELNR,"ELNET"))
+    #mlmodels.append(Estimator(RR, "RIDGE"))
     #mlmodels.append(Estimator(KNNR, "KNNR"))
     for _, est in enumerate(mlmodels):
         dfConf = pd.DataFrame()
@@ -1268,7 +1279,8 @@ def main():
                                   numberestimators = row['params_n_estimators']
                                   model = RandomForestRegressor(max_depth = maxdepth, min_samples_leaf = minsampleaf,
                                                                 min_samples_split = minsampsplit, n_estimators = numberestimators)
-
+                               elif alg == "LR":
+                                  model = LinearRegression()
                                elif alg == "LASSO" or alg == "RIDGE" or alg == "ELNET":
                                  alpha = row['params_alpha']
                                  maxiter = row['params_max_iter']
