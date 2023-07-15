@@ -208,15 +208,12 @@ def TrainOrTest(patientID, TrainList, TestList):
     elif (patientID in TestList):
         return 'test'
 
-
-
 def MLAR(trueval, predval):
     # mean log of accuracy ratio
     sum = 0
     for i in range(len(trueval)):
         sum += np.log(predval[i] / trueval[i])
     return (np.exp(sum / len(trueval)) - 1) * 100
-
 
 def MALAR(trueval, predval):
     # mean absolute log of accuracy ratio
@@ -235,10 +232,8 @@ def RSquared(trueval, predval):
         lowersum += np.square(trueval[i] - true_mean)
     return topsum / lowersum * 100
 
-
 def BSA(height, weight):
     return 0.007184 * height ** 0.725 * weight ** 0.425
-
 
 def ConvertYesNo(variable):
     if variable == "Yes":
@@ -246,10 +241,8 @@ def ConvertYesNo(variable):
     elif variable == "No":
         return 0
 
-
 def MAEScore(true, predicted):
     return mean_absolute_error(true, predicted)
-
 
 def PercIn20(true, predicted):
     patients_in_20 = 0
@@ -257,7 +250,6 @@ def PercIn20(true, predicted):
         if abs(true[i] - predicted[i]) < 0.2 * true[i]:
             patients_in_20 += 1
     return 100 * patients_in_20 / len(true)
-
 
 def INRThree(targetINR):
     if (targetINR >= 2.5) & (targetINR <= 3.5):
@@ -269,9 +261,17 @@ def tune(objective, df, model, randomseed):
     ntrials = 50
     suffix = str(df).zfill(3)
     study = optuna.create_study(direction="maximize")
+    #study = optuna.create_study(direction="minimize")
     study.optimize(objective, n_trials=ntrials)
     optuna_results = study.trials_dataframe()
+    optuna_results['data'] = 'War-PATH'
     optuna_results['mlmodel'] = model
+    params = study.best_params
+    best_score = study.best_value
+    best_trial = study.best_trial
+    optuna_results['besttrial'] = best_trial
+    optuna_results['bestvalue'] = best_score
+    optuna_results['bestparam'] = params
     optuna_results.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OptunaAllModelW\model_" + model + "_" + str(randomseed) + "_" + suffix + ".csv", ";")
     plot_optimization_history(study)
     params = study.best_params
@@ -302,7 +302,6 @@ def tune(objective, df, model, randomseed):
     print(f"Best score: {best_score} \nOptimized parameters: {params}")
     return params
 
-
 def dropColumn(IWPCparam, columnname, dfColumns, dfmod, dfIWPC):
     if columnname in dfColumns:
         if IWPCparam == "IWPC":
@@ -330,10 +329,10 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
         start = time.time()
 
         def LR_Objective(trial):
-            scaler = MinMaxScaler()
+            #scaler = MinMaxScaler()
             LR_Model = LinearRegression()
-            pipeline = make_pipeline(scaler, LR_Model)
-            score = cross_val_score(pipeline, xtrain, ytrain, cv=kfolds,
+            #pipeline = make_pipeline(scaler, LR_Model)
+            score = cross_val_score(LR_Model, xtrain, ytrain, cv=kfolds,
                                     scoring="neg_mean_absolute_error").mean()
             return score
 
@@ -344,7 +343,6 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
 
     elif est.identifier == "XGBR":
             start = time.time()
-
             def XGBR_Objective(trial):
                 _booster = trial.suggest_categorical('booster', ["gbtree"])
                 _max_depth = trial.suggest_int('max_depth', 1, 4, step=1)
@@ -403,28 +401,10 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
 
                 score = cross_val_score(RF_model, xtrain, ytrain, cv=kfolds, scoring="neg_mean_absolute_error").mean()
                 return score
-
             RF_params = tune(RF_Objective, df, est.identifier, randomseed)
             end = time.time()
             model = RandomForestRegressor(**RF_params)
 
-            if False:
-                _n_estimators = trial.suggest_int("n_estimators", 50, 200, step=50)
-                _max_depth = trial.suggest_int("max_depth", 5, 20, step=5)
-                _min_samp_split = trial.suggest_int("min_samples_split", 2, 10, step=2)
-                _min_samples_leaf = trial.suggest_int("min_samples_leaf", 2, 10, step=2)
-                _max_features = trial.suggest_int("max_features", 10, 50, step=10)
-                rf = RandomForestRegressor(
-                    max_depth=_max_depth,
-                    min_samples_split=_min_samp_split,
-                    min_samples_leaf=_min_samples_leaf,
-                    max_features=_max_features,
-                    n_estimators=_n_estimators,
-                    n_jobs=-1,
-                    random_state=RANDOM_SEED,
-                )
-                score = cross_val_score(rf, xtrain, ytrain, cv=kfolds, scoring="neg_mean_absolute_error").mean()
-                return score
     elif est.identifier == 'DTR':
                 # define parameter space
                 start = time.time()
@@ -456,18 +436,7 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                 end = time.time()
                 model = DecisionTreeRegressor(**DTR_params)
 
-                if False:
-                    kcv = KFold(n_splits=5, shuffle=True, random_state=66)
-                    gridFit = False
-                    param_grid = {'max_depth': [None, 2, 3, 4, 6, 8, 10],
-                                  'min_samples_leaf': [1, 2, 4, 6, 8, 10, 20, 30],
-                                  'max_features': ['auto', 0.95, 0.90, 0.85, 0.80, 0.75, 0.70],
-                                  'min_weight_fraction_leaf': [0.0, 0.0025, 0.005, 0.0075, 0.01, 0.05],
-                                  'splitter': ['random', 'best'],
-                                  'min_impurity_decrease': [0.0, 0.0005, 0.005, 0.05, 0.10, 0.15, 0.2],
-                                  'min_samples_split': [2, 3, 4, 5, 6, 8, 10],
-                                  'max_leaf_nodes': [10, 15, 20, 25, 30, 35, 40, 45, 50, None]
-                                  }
+
     elif est.identifier == "GBR":
                 start = time.time()
 
@@ -571,80 +540,12 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                     score = cross_val_score(pipeline, xtrain, ytrain, cv=kfolds,
                                             scoring="neg_mean_absolute_error").mean()
                     return score
-
                 KNN_params = tune(KNN_Objective, df, modelID, randomseed)
                 end = time.time()
                 model = KNeighborsRegressor(**KNN_params)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                model = KNeighborsRegressor(**KNN_params)
-
     elif est.identifier in ("LASSO"):
                     start = time.time()
-
                     def LASSO_Objective(trial):
                         scaler = MinMaxScaler()
                         # _alpha = trial.suggest_float('alpha',0,0.05,step=0.001)
@@ -705,7 +606,6 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                         score = cross_val_score(pipeline, xtrain, ytrain, cv=kfolds,
                                                 scoring="neg_mean_absolute_error").mean()
                         return score
-
                     ELNET_params = tune(ELNET_Objective, df, modelID, randomseed)
                     end = time.time()
                     model = ElasticNet(**ELNET_params)
@@ -715,7 +615,6 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                     #                   'alg__l1_ratio': [0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99]}]
     elif est.identifier == "SVREG":
                     start = time.time()
-
                     def SVREG_Objective(trial):
                         scaler = StandardScaler()
                         # _gamma = trial.suggest_categorical('gamma', ['auto', 'scale'])
@@ -737,8 +636,6 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                     end = time.time()
                     model = sklearn.svm.SVR(**SVREG_params)
 
-    elif est.identifier == "ABRF":
-                    param_grid = [{'n_estimators': [10, 50, 100, 500], 'learning_rate': [0.0001, 0.001, 0.01, 0.1]}]
     elif est.identifier == "GBR":
                     start = time.time()
 
@@ -866,28 +763,29 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
     resultsdict['Alg'] = [model]
     return resultsdict
 
-
 def main():
     metric_columns = ['MAE', 'PW20']
     listmodels = ['WarPATH']
     mlmodels = []
     #RF = RandomForestRegressor()
     #mlmodels.append(Estimator(RF, 'RF'))
-    LR = LinearRegression()
-    mlmodels.append(Estimator(LR, 'LR'))
+    #LR = LinearRegression()
+    #mlmodels.append(Estimator(LR, 'LR'))
     #KNNR = KNeighborsRegressor()
     #RR = Ridge()
     #LAS = Lasso()
     #ELNR = ElasticNet()
-    # svr = sklearn.svm.SVR()
-    # GBR = GradientBoostingRegressor()
+    #svr = sklearn.svm.SVR()
+    GBR = GradientBoostingRegressor()
     # MLPR = MLPRegressor()
-    # mlmodels.append(Estimator(GBR,'GBR'))
-    # mlmodels.append(Estimator(svr,'SVREG'))
+    mlmodels.append(Estimator(GBR,'GBR'))
+    #mlmodels.append(Estimator(svr,'SVREG'))
     #mlmodels.append(Estimator(LAS,'LASSO'))
     #mlmodels.append(Estimator(ELNR,"ELNET"))
     #mlmodels.append(Estimator(RR, "RIDGE"))
     #mlmodels.append(Estimator(KNNR, "KNNR"))
+    #DTR = DecisionTreeRegressor()
+    #mlmodels.append(Estimator(DTR, 'DTR'))
     for _, est in enumerate(mlmodels):
         dfConf = pd.DataFrame()
         estimates = []
@@ -925,7 +823,6 @@ def main():
             number_of_samples = 1000
             bootresults = []
             std_Dev = []
-
             combinedata = False
             scaler = MinMaxScaler()
             fileName1 = "AllImputations.csv"
@@ -1029,7 +926,6 @@ def main():
                             runImp = runImp + 1
                 # filesImp.append(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\CombinedWarImputations\AllImputations" + ".csv")
             results = []
-
             if os.path.exists(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TRAINSPLIT" + ".csv"):
                 if os.path.exists(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TESTSPLIT" + ".csv"):
                     trainID = pd.read_csv(
@@ -1061,7 +957,6 @@ def main():
                     dfIWPC.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Claire_IWPC" + randstring + suffix + ".csv",
                                   ";")
                     # dfIWPC.drop(["Unnamed: 0"], axis=1, inplace=True)
-
                 # df = fileindex + 1
                 dfnew.reset_index()
                 dfmod = dfnew
@@ -1231,8 +1126,8 @@ def main():
                         # estimates.append(Estimator(MLPR,'MLPR'))
                         # RF = RandomForestRegressor()
                         # estimates.append(Estimator(RF, 'RF'))
-                        # DTR = DecisionTreeRegressor()
-                        # estimates.append(Estimator(DTR,'DTR'))
+                        #DTR = DecisionTreeRegressor()
+                        #estimates.append(Estimator(DTR,'DTR'))
                         # LGB = lgb.LGBMRegressor()
                         # estimates.append(Estimator(LGB,'LGB'))
                         if "Unnamed: 0.1" in x_train.columns:
@@ -1265,20 +1160,55 @@ def main():
                             listminmaxScaler = ['KNNR', 'MLPR', 'LASSO', 'ELNET', 'RIDGE', 'SVREG']
                             scaling = False
                             if alg in listminmaxScaler:
-                                scaling = True
+                              scaling = True
                             for index, row in dfOptuna.iterrows():
                                if alg == 'KNNR':
                                  n_neighbors = row['params_n_neighbors']
                                  metric = row['params_metric']
                                  weights = row['params_weights']
                                  model = KNeighborsRegressor(n_neighbors=n_neighbors, metric=metric,weights=weights)
-                               elif alg == "RF":
-                                  maxdepth = row['params_max_depth']
-                                  minsampleaf = row['params_min_samples_leaf']
-                                  minsampsplit = row['params_min_samples_split']
-                                  numberestimators = row['params_n_estimators']
-                                  model = RandomForestRegressor(max_depth = maxdepth, min_samples_leaf = minsampleaf,
-                                                                min_samples_split = minsampsplit, n_estimators = numberestimators)
+                               elif alg == 'SVREG':
+                                 C = row['params_C']
+                                 epsilon = row['params_epsilon']
+                                 gamma = row['params_gamma']
+                                 kernel = row['params_kernel']
+                                 model = sklearn.svm.SVR(gamma=gamma, C=C, epsilon=epsilon, kernel=kernel)
+                               elif alg == "RF" or alg == "GBR" :
+                                 maxdepth = row['params_max_depth']
+                                 minsampleaf = row['params_min_samples_leaf']
+                                 minsampsplit = row['params_min_samples_split']
+                                 numberestimators = row['params_n_estimators']
+                                 if alg == "RF":
+                                     maxdepth = row['params_max_depth']
+                                     minsampleaf = row['params_min_samples_leaf']
+                                     minsampsplit = row['params_min_samples_split']
+                                     numberestimators = row['params_n_estimators']
+                                     minimpurity = row['params_min_impurity_decrease']
+                                     model = RandomForestRegressor(max_depth = maxdepth, min_samples_leaf = minsampleaf,
+                                             min_samples_split = minsampsplit, n_estimators = numberestimators,
+                                             min_impurity_decrease=minimpurity)
+                                 elif alg == "GBR":
+                                    model = GradientBoostingRegressor(max_depth=maxdepth, min_samples_leaf=minsampleaf,
+                                                                      min_samples_split=minsampsplit, n_estimators=numberestimators)
+                               elif alg == "DTR":
+                                   maxdepth = row['params_max_depth']
+                                   minsampleaf = row['params_min_samples_leaf']
+                                   minsampsplit = row['params_min_samples_split']
+                                   minimpurity = row['params_min_impurity_decrease']
+                                   splitter = row['params_splitter']
+                                   #maxleafnodes = row['params_max_leaf_nodes'].fillna(0)
+                                   #maxleafnodes = int(maxleafnodes)
+                                   minweightfractionleaf = row['params_min_weight_fraction_leaf']
+                                   #model = DecisionTreeRegressor(max_depth=maxdepth, min_samples_leaf=minsampleaf,
+                                   #                              min_samples_split=minsampsplit,
+                                   #                              max_leaf_nodes=maxleafnodes,
+                                   #                              min_weight_fraction_leaf=minweightfractionleaf,
+                                   #                              min_impurity_decrease=minimpurity, splitter=splitter)
+                                   model = DecisionTreeRegressor(max_depth=maxdepth, min_samples_leaf=minsampleaf,
+                                                                 min_samples_split=minsampsplit,
+                                                                 min_weight_fraction_leaf=minweightfractionleaf,
+                                                                 min_impurity_decrease=minimpurity, splitter=splitter)
+
                                elif alg == "LR":
                                   model = LinearRegression()
                                elif alg == "LASSO" or alg == "RIDGE" or alg == "ELNET":
@@ -1286,7 +1216,7 @@ def main():
                                  maxiter = row['params_max_iter']
                                  if alg == "ELNET":
                                     l1ratio = row['params_l1_ratio']
-                                 if alg == "LASSO":
+                                 if alg ==  "LASSO":
                                     model = Lasso(alpha= alpha, max_iter= maxiter)
                                  elif alg == "RIDGE":
                                     model = Ridge(alpha = alpha, max_iter = maxiter)
@@ -1307,13 +1237,7 @@ def main():
                                dfOptuna.at[index,'PW20'] = PW20value
                             dfOptuna.to_csv(
                             r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OptunaAllModelW\model_" + alg + "_" + str(randomseed) + "_" + suffix + ".csv",";")
-
-
-
-
-
                             dfKey = data[["WarPATH_MAE", "WarPATH_PW20"]]
-
                             if resultsdict['MAE'] > [5]:
                                results.append(res_dict)
 
@@ -1351,7 +1275,6 @@ def main():
             dfResults.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfResults" + ".csv", ";")
             dfSummary.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfSummary_" + alg + "_" + str(randomseed) + ".csv",
                              ";")
-
             print("STOP HERE")
 
             if False and df == impNumber:
