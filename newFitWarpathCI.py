@@ -265,6 +265,7 @@ def tune(objective, df, model, randomseed):
     study.optimize(objective, n_trials=ntrials)
     optuna_results = study.trials_dataframe()
     optuna_results['data'] = 'War-PATH'
+    optuna_results['direction'] = 'max'
     optuna_results['mlmodel'] = model
     params = study.best_params
     best_score = study.best_value
@@ -776,9 +777,10 @@ def main():
     #LAS = Lasso()
     #ELNR = ElasticNet()
     #svr = sklearn.svm.SVR()
-    GBR = GradientBoostingRegressor()
-    # MLPR = MLPRegressor()
-    mlmodels.append(Estimator(GBR,'GBR'))
+    #GBR = GradientBoostingRegressor()
+    #MLPR = MLPRegressor()
+    #mlmodels.append(Estimator(MLPR, 'MLPR'))
+    #mlmodels.append(Estimator(GBR,'GBR'))
     #mlmodels.append(Estimator(svr,'SVREG'))
     #mlmodels.append(Estimator(LAS,'LASSO'))
     #mlmodels.append(Estimator(ELNR,"ELNET"))
@@ -786,6 +788,9 @@ def main():
     #mlmodels.append(Estimator(KNNR, "KNNR"))
     #DTR = DecisionTreeRegressor()
     #mlmodels.append(Estimator(DTR, 'DTR'))
+    XGBR = XGBRegressor()
+    mlmodels.append(Estimator(XGBR,'XGBR'))
+
     for _, est in enumerate(mlmodels):
         dfConf = pd.DataFrame()
         estimates = []
@@ -1190,6 +1195,20 @@ def main():
                                  elif alg == "GBR":
                                     model = GradientBoostingRegressor(max_depth=maxdepth, min_samples_leaf=minsampleaf,
                                                                       min_samples_split=minsampsplit, n_estimators=numberestimators)
+                               elif alg == "XGBR":
+                                   parmboost = row['params_booster']
+                                   parmsamplevel= row['params_colsample_bylevel']
+                                   parmsampnode = row['params_colsample_bynode']
+                                   parmsamptree = row['params_colsample_bytree']
+                                   parmlearnrate = row['params_learning_rate']
+                                   parmmaxdepth = row['params_max_depth']
+                                   parmminchildweight = row['params_min_child_weight']
+                                   parmnestimators = row['params_n_estimators']
+                                   parmsubsample = row['params_subsample']
+                                   model = XGBRegressor(booster = parmboost, colsample_bylevel= parmsamplevel,
+                                   colsample_bynode=parmsampnode,colsample_bytree=parmsamptree,learning_rate= parmlearnrate,
+                                   max_depth=parmmaxdepth,min_child_weight=parmminchildweight, n_estimators=parmnestimators,
+                                   subsample = parmsubsample)
                                elif alg == "DTR":
                                    maxdepth = row['params_max_depth']
                                    minsampleaf = row['params_min_samples_leaf']
