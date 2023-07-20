@@ -103,6 +103,34 @@ from tpot import TPOTRegressor
 from numpy import loadtxt
 from copy import copy
 
+def tupleTransform(stringmod):
+    stringlist = list(stringmod)
+    onetuple = False
+    list1 = []
+    if (" ") in stringlist:
+      tupletemp = ("a","b")
+      stringlist.remove(" ")
+    else:
+      onetuple = True
+      tupletemp = ("a",)
+    tuplelist = list(tupletemp)
+    poplist = []
+    index1 = stringlist.index(",")
+    if index1 > 0:
+       val = stringlist[index1-1]
+       poplist.append(int(val))
+       if onetuple == False:
+          val2 = stringlist[index1+1]
+          poplist.append(int(val2))
+          tuplelist[0] = poplist[0]
+          tuplelist[1] = poplist[1]
+       else:
+           tuplelist[0]=poplist[0]
+       tuplenew = tuple(tuplelist)
+       return tuplenew
+    else:
+        return stringmod
+
 
 def find(lst, key, value):
     for i, dic in enumerate(lst):
@@ -778,8 +806,8 @@ def main():
     #ELNR = ElasticNet()
     #svr = sklearn.svm.SVR()
     #GBR = GradientBoostingRegressor()
-    #MLPR = MLPRegressor()
-    #mlmodels.append(Estimator(MLPR, 'MLPR'))
+    MLPR = MLPRegressor()
+    mlmodels.append(Estimator(MLPR, 'MLPR'))
     #mlmodels.append(Estimator(GBR,'GBR'))
     #mlmodels.append(Estimator(svr,'SVREG'))
     #mlmodels.append(Estimator(LAS,'LASSO'))
@@ -788,8 +816,9 @@ def main():
     #mlmodels.append(Estimator(KNNR, "KNNR"))
     #DTR = DecisionTreeRegressor()
     #mlmodels.append(Estimator(DTR, 'DTR'))
-    XGBR = XGBRegressor()
-    mlmodels.append(Estimator(XGBR,'XGBR'))
+    #XGBR = XGBRegressor()
+    #mlmodels.append(Estimator(XGBR,'XGBR'))
+
 
     for _, est in enumerate(mlmodels):
         dfConf = pd.DataFrame()
@@ -1172,6 +1201,26 @@ def main():
                                  metric = row['params_metric']
                                  weights = row['params_weights']
                                  model = KNeighborsRegressor(n_neighbors=n_neighbors, metric=metric,weights=weights)
+                               elif alg == "MLPR":
+                                 pactivation = row['params_activation']
+                                 palpha = row['params_alpha']
+                                 pbeta1 = row['params_beta_1']
+                                 pbeta2 = row['params_beta_2']
+                                 pepsilon = row['params_epsilon']
+                                 phiddenlayers = tupleTransform(row['params_hidden_layer_sizes'])
+                                 plearningrateinit = row['params_learning_rate_init']
+                                 pmaxfun = row['params_max_fun']
+                                 pmaxiter = row['params_max_iter']
+                                 pmomentum = row['params_momentum']
+                                 ppowert = row['params_power_t']
+                                 psolver = row['params_solver']
+                                 ptol = row['params_tol']
+                                 pvalidfraction = row['params_validation_fraction']
+                                 model = MLPRegressor(activation=pactivation, solver=psolver, alpha=palpha, beta_1=pbeta1, beta_2 = pbeta2,
+                                                      epsilon=pepsilon, hidden_layer_sizes=phiddenlayers, learning_rate_init=plearningrateinit,
+                                                      max_fun=pmaxfun, max_iter=pmaxiter, momentum=pmomentum, power_t=ppowert, tol=ptol,
+                                                      validation_fraction=pvalidfraction)
+
                                elif alg == 'SVREG':
                                  C = row['params_C']
                                  epsilon = row['params_epsilon']
