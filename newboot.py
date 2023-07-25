@@ -1215,7 +1215,7 @@ def main():
                                    boot = boot + 1
                                    samples.append(dfMetricfactors)
                                    for m in range(len(listmodels)):
-                                       model = listmodels[m]
+             []                          model = listmodels[m]
                                        curr_MAE = float(dfMetricfactors[model + '_MAE'][m])
                                        curr_PW20 = float(dfMetricfactors[model + '_PW20'][m])
                                        smpResults.append({'Imp': df, 'Sample': boot, 'model': model, 'MAE': curr_MAE,'PW20': curr_PW20})
@@ -1246,9 +1246,34 @@ def main():
                            df_res = pd.DataFrame()
                            for res in results:
                                df_res = df_res.append(pd.DataFrame.from_dict(res))
-                           print(f"\n\n{df_res.groupby(['Estimator']).agg(np.mean)}\n")
 
-                #dfResults = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfResults" + ".csv", ";")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
                 dfResults = pd.DataFrame(results)
                 dfResults["PW20"] = dfResults.apply(lambda x: ExitSquareBracket(x["PW20"],False), axis=1).astype(float)

@@ -292,7 +292,7 @@ def tune(objective, df, model, randomseed):
     #study = optuna.create_study(direction="minimize")
     study.optimize(objective, n_trials=ntrials)
     optuna_results = study.trials_dataframe()
-    optuna_results['data'] = 'War-PATH'
+    optuna_results['data'] = 'War-IWPC'
     optuna_results['direction'] = 'max'
     optuna_results['mlmodel'] = model
     params = study.best_params
@@ -807,28 +807,27 @@ def main():
     #ELNR = ElasticNet()
     #svr= sklearn.svm.SVR()
     #GBR = GradientBoostingRegressor()
-    MLPR = MLPRegressor()
-    mlmodels.append(Estimator(MLPR, 'MLPR'))
+    #MLPR = MLPRegressor()
+    #mlmodels.append(Estimator(MLPR, 'MLPR'))
+    #DTR = DecisionTreeRegressor()
     #mlmodels.append(Estimator(GBR,'GBR'))
     #mlmodels.append(Estimator(svr,'SVREG'))
     #mlmodels.append(Estimator(LAS,'LASSO'))
     #mlmodels.append(Estimator(ELNR,"ELNET"))
     #mlmodels.append(Estimator(RR, "RIDGE"))
     #mlmodels.append(Estimator(KNNR, "KNNR"))
-    ##mlmodels.append(Estimator(DTR, 'DTR'))
-    #XGBR = XGBRegressor()
-    #mlmodels.append(Estimator(XGBR,'XGBR'))
-
-
+    #mlmodels.append(Estimator(DTR, 'DTR'))
+    XGBR = XGBRegressor()
+    mlmodels.append(Estimator(XGBR,'XGBR'))
     for _, est in enumerate(mlmodels):
         dfConf = pd.DataFrame()
         estimates = []
         print("Processing ML model ", est.identifier)
         estimates.append(Estimator(est.estimator, est.identifier))
         randomStates = []
-        randomStates.append(0)
-        randomStates.append(33)
-        randomStates.append(42)
+        #randomStates.append(0)
+        #randomStates.append(33)
+        #randomStates.append(42)
         randomStates.append(66)
         randomStates.append(99)
         randomStates.append(102)
@@ -857,7 +856,7 @@ def main():
             number_of_samples = 1000
             bootresults = []
             std_Dev = []
-            combinedata = False
+            combinedata = True
             scaler = MinMaxScaler()
             fileName1 = "AllImputations.csv"
             fileName1 = fileName1.upper()
@@ -1308,7 +1307,8 @@ def main():
                                dfOptuna.at[index,'MAE'] = MAEvalue
                                dfOptuna.at[index,'PW20'] = PW20value
                             dfOptuna.to_csv(
-                            r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OptunaAllModelW\model_" + alg + "_" + str(randomseed) + "_" + suffix + ".csv",";")
+
+                            r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OptunaAllmodelWIWPC\model_" + alg + "_" + str(randomseed) + "_" + suffix + ".csv",";")
                             if resultsdict['MAE'] > [5]:
                                results.append(res_dict)
 
@@ -1343,9 +1343,8 @@ def main():
                         dfResults.at[i, 'Time'] = np.nan
 
             dfSummary = dfResults.groupby('Estimator').apply(np.mean)
-            dfResults.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfResults" + ".csv", ";")
-            dfSummary.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfSummary_" + alg + "_" + str(randomseed) + ".csv",
-                             ";")
+            dfResults.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATHIWPC_dfResults_" + alg + "_" + str(randomseed) + ".csv",";")
+            dfSummary.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATHIWPC_dfSummary_" + alg + "_" + str(randomseed) + ".csv",";")
             print("STOP HERE")
 
             if False and df == impNumber:
