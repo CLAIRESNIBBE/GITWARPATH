@@ -131,13 +131,11 @@ def tupleTransform(stringmod):
     else:
         return stringmod
 
-
 def find(lst, key, value):
     for i, dic in enumerate(lst):
         if dic[key] == value:
             return i
     return -1
-
 
 def ExitSquareBracket(variable, floatbool):
     stringvar = str(variable)
@@ -151,7 +149,6 @@ def ExitSquareBracket(variable, floatbool):
             return float(stringvar)
         else:
             return stringvar
-
 
 def listAverage(list):
     if len(list) > 0:
@@ -223,10 +220,8 @@ def std_deviation(metric):
 def SList(series):
     return np.array(series.values.tolist())
 
-
 def confintlimit95(metric, mean):
     return 1.96 * np.sqrt(variance(metric, mean) / len(metric))
-
 
 def TrainOrTest(patientID, TrainList, TestList):
     TrainDF = pd.DataFrame(TrainList.sort())
@@ -235,7 +230,6 @@ def TrainOrTest(patientID, TrainList, TestList):
         return 'train'
     elif (patientID in TestList):
         return 'test'
-
 def MLAR(trueval, predval):
     # mean log of accuracy ratio
     sum = 0
@@ -292,7 +286,7 @@ def tune(objective, df, model, randomseed):
     #study = optuna.create_study(direction="minimize")
     study.optimize(objective, n_trials=ntrials)
     optuna_results = study.trials_dataframe()
-    optuna_results['data'] = 'War-PATH'
+    optuna_results['data'] = 'War-IWPC'
     optuna_results['direction'] = 'max'
     optuna_results['mlmodel'] = model
     params = study.best_params
@@ -368,7 +362,6 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
         LR_params, dfOptuna = tune(LR_Objective, df, modelID, randomseed)
         end = time.time()
         model = LinearRegression(**LR_params)
-
 
     elif est.identifier == "XGBR":
             start = time.time()
@@ -486,7 +479,7 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                                                           min_samples_leaf=_min_samples_leaf,
                                                           min_samples_split=_min_samples_split)
                     score = cross_val_score(GBR_model, xtrain, ytrain, cv=kfolds,
-                                            scoring="neg_mean_absolute_error").mean()
+                                            scoring="c").mean()
                     return score
 
                 GBR_params, dfOptuna = tune(GBR_Objective, df, modelID, randomseed)
@@ -797,26 +790,26 @@ def main():
     metric_columns = ['MAE', 'PW20']
     listmodels = ['WarPATH']
     mlmodels = []
-    RF = RandomForestRegressor()
-    mlmodels.append(Estimator(RF, 'RF'))
-    LR = LinearRegression()
-    mlmodels.append(Estimator(LR, 'LR'))
-    #KNNR = KNeighborsRegressor()
-    #RR = Ridge()
-    #LAS = Lasso()
-    #ELNR = ElasticNet()
-    #svr= sklearn.svm.SVR()
-    GBR = GradientBoostingRegressor()
-    DTR = DecisionTreeRegressor()
-    #MLPR = MLPRegressor()
-    #mlmodels.append(Estimator(MLPR, 'MLPR'))
-    mlmodels.append(Estimator(GBR,'GBR'))
-    #mlmodels.append(Estimator(svr,'SVREG'))
-    #mlmodels.append(Estimator(LAS,'LASSO'))
-    #mlmodels.append(Estimator(ELNR,"ELNET"))
-    #mlmodels.append(Estimator(RR, "RIDGE"))
-    #mlmodels.append(Estimator(KNNR, "KNNR"))
-    mlmodels.append(Estimator(DTR, 'DTR'))
+    #RF = RandomForestRegressor()
+    #mlmodels.append(Estimator(RF, 'RF'))
+    #LR = LinearRegression()
+    #mlmodels.append(Estimator(LR, 'LR'))
+    KNNR = KNeighborsRegressor()
+    RR = Ridge()
+    LAS = Lasso()
+    ELNR = ElasticNet()
+    svr= sklearn.svm.SVR()
+    #GBR = GradientBoostingRegressor()
+    MLPR = MLPRegressor()
+    mlmodels.append(Estimator(MLPR, 'MLPR'))
+    #DTR = DecisionTreeRegressor()
+    #mlmodels.append(Estimator(GBR,'GBR'))
+    mlmodels.append(Estimator(svr,'SVREG'))
+    mlmodels.append(Estimator(LAS,'LASSO'))
+    mlmodels.append(Estimator(ELNR,"ELNET"))
+    mlmodels.append(Estimator(RR, "RIDGE"))
+    mlmodels.append(Estimator(KNNR, "KNNR"))
+    #mlmodels.append(Estimator(DTR, 'DTR'))
     #XGBR = XGBRegressor()
     #mlmodels.append(Estimator(XGBR,'XGBR'))
     for _, est in enumerate(mlmodels):
@@ -853,11 +846,39 @@ def main():
                              {'model': 'Gage', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MALAR': 0, 'MLAR': 0},
                              {'model': 'Fixed', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MALAR': 0, 'MLAR': 0})
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
             number_of_samples = 1000
             bootresults = []
             std_Dev = []
-            combinedata = False
-            scaler = MinMaxScaler()
+            combinedata = True
             fileName1 = "AllImputations.csv"
             fileName1 = fileName1.upper()
             fileName2 = 'IMPWARPATHSUPER.CSV'
@@ -1197,12 +1218,13 @@ def main():
                             liststdScaler = ['SVREG']
                             minmaxscaling = False
                             stdscaling = False
-                            if alg in listminmaxScaler:
-                              scaler = MinMaxScaler()
-                              minmaxscaling = True
-                            if alg in liststdScaler:
-                              scaler = StandardScaler()
-                              stdscaling = True
+                            if False:
+                                if alg in listminmaxScaler:
+                                    minmaxscaling = True
+                                if alg in liststdScaler:
+                                    stdscaling = True
+
+
                             for index, row in dfOptuna.iterrows():
                                if alg == 'KNNR':
                                  n_neighbors = row['params_n_neighbors']
@@ -1306,11 +1328,11 @@ def main():
                                   minmaxscaling = False
                                elif stdscaling == True:
                                   scaler = StandardScaler()
-                                  pipeline = make_pipeline(scaler,model)
+                                  pipeline = make_pipeline(scaler, model)
                                   fitted = pipeline.fit(x_train, y_train)
                                   stdscaling = False
                                else:
-                                 fitted = model.fit(x_train,y_train)
+                                  fitted = model.fit(x_train, y_train)
                                pred = fitted.predict(x_test)
                                if squaring:
                                   predicted = np.square(pred)
@@ -1320,7 +1342,8 @@ def main():
                                dfOptuna.at[index,'MAE'] = MAEvalue
                                dfOptuna.at[index,'PW20'] = PW20value
                             dfOptuna.to_csv(
-                            r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OptunaAllModelW\model_" + alg + "_" + str(randomseed) + "_" + suffix + ".csv",";")
+
+                            r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OptunaAllmodelWIWPCNoScale\model_" + alg + "_" + str(randomseed) + "_" + suffix + ".csv",";")
                             if resultsdict['MAE'] > [5]:
                                results.append(res_dict)
 
@@ -1355,9 +1378,8 @@ def main():
                         dfResults.at[i, 'Time'] = np.nan
 
             dfSummary = dfResults.groupby('Estimator').apply(np.mean)
-            dfResults.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfResults" + ".csv", ";")
-            dfSummary.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfSummary_" + alg + "_" + str(randomseed) + ".csv",
-                             ";")
+            dfResults.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATHIWPCNoScale_dfResults_" + alg + "_" + str(randomseed) + ".csv",";")
+            dfSummary.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATHIWPCNoScale_dfSummary_" + alg + "_" + str(randomseed) + ".csv",";")
             print("STOP HERE")
 
             if False and df == impNumber:

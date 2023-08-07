@@ -797,31 +797,33 @@ def main():
     metric_columns = ['MAE', 'PW20']
     listmodels = ['WarPATH']
     mlmodels = []
-    RF = RandomForestRegressor()
-    mlmodels.append(Estimator(RF, 'RF'))
-    LR = LinearRegression()
-    mlmodels.append(Estimator(LR, 'LR'))
-    #KNNR = KNeighborsRegressor()
-    #RR = Ridge()
-    #LAS = Lasso()
-    #ELNR = ElasticNet()
-    #svr= sklearn.svm.SVR()
-    GBR = GradientBoostingRegressor()
-    DTR = DecisionTreeRegressor()
-    #MLPR = MLPRegressor()
-    #mlmodels.append(Estimator(MLPR, 'MLPR'))
-    mlmodels.append(Estimator(GBR,'GBR'))
-    #mlmodels.append(Estimator(svr,'SVREG'))
-    #mlmodels.append(Estimator(LAS,'LASSO'))
-    #mlmodels.append(Estimator(ELNR,"ELNET"))
-    #mlmodels.append(Estimator(RR, "RIDGE"))
-    #mlmodels.append(Estimator(KNNR, "KNNR"))
-    mlmodels.append(Estimator(DTR, 'DTR'))
+    #RF = RandomForestRegressor()
+    #mlmodels.append(Estimator(RF, 'RF'))
+    #LR = LinearRegression()
+    #mlmodels.append(Estimator(LR, 'LR'))
+    KNNR = KNeighborsRegressor()
+    RR = Ridge()
+    LAS = Lasso()
+    ELNR = ElasticNet()
+    svr= sklearn.svm.SVR()
+    #GBR = GradientBoostingRegressor()
+    MLPR = MLPRegressor()
+    mlmodels.append(Estimator(MLPR, 'MLPR'))
+    #mlmodels.append(Estimator(GBR,'GBR'))
+    mlmodels.append(Estimator(svr,'SVREG'))
+    mlmodels.append(Estimator(LAS,'LASSO'))
+    mlmodels.append(Estimator(ELNR,"ELNET"))
+    mlmodels.append(Estimator(RR, "RIDGE"))
+    mlmodels.append(Estimator(KNNR, "KNNR"))
+    ##mlmodels.append(Estimator(DTR, 'DTR'))
     #XGBR = XGBRegressor()
     #mlmodels.append(Estimator(XGBR,'XGBR'))
+
+
     for _, est in enumerate(mlmodels):
         dfConf = pd.DataFrame()
         estimates = []
+        print("Processing ML model ", est.identifier)
         print("Processing ML model ", est.identifier)
         estimates.append(Estimator(est.estimator, est.identifier))
         randomStates = []
@@ -1197,12 +1199,13 @@ def main():
                             liststdScaler = ['SVREG']
                             minmaxscaling = False
                             stdscaling = False
-                            if alg in listminmaxScaler:
-                              scaler = MinMaxScaler()
-                              minmaxscaling = True
-                            if alg in liststdScaler:
-                              scaler = StandardScaler()
-                              stdscaling = True
+                            if False:
+                                if alg in listminmaxScaler:
+                                    scaler = MinMaxScaler()
+                                    minmaxscaling = True
+                                if alg in liststdScaler:
+                                    scaler = StandardScaler()
+                                    stdscaling = True
                             for index, row in dfOptuna.iterrows():
                                if alg == 'KNNR':
                                  n_neighbors = row['params_n_neighbors']
@@ -1320,7 +1323,7 @@ def main():
                                dfOptuna.at[index,'MAE'] = MAEvalue
                                dfOptuna.at[index,'PW20'] = PW20value
                             dfOptuna.to_csv(
-                            r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OptunaAllModelW\model_" + alg + "_" + str(randomseed) + "_" + suffix + ".csv",";")
+                            r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OptunaAllModelWNoScale\model_" + alg + "_" + str(randomseed) + "_" + suffix + ".csv",";")
                             if resultsdict['MAE'] > [5]:
                                results.append(res_dict)
 
@@ -1355,8 +1358,8 @@ def main():
                         dfResults.at[i, 'Time'] = np.nan
 
             dfSummary = dfResults.groupby('Estimator').apply(np.mean)
-            dfResults.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfResults" + ".csv", ";")
-            dfSummary.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfSummary_" + alg + "_" + str(randomseed) + ".csv",
+            dfResults.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATHNoScale_dfResults" + ".csv", ";")
+            dfSummary.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATHNoScale_dfSummary_" + alg + "_" + str(randomseed) + ".csv",
                              ";")
             print("STOP HERE")
 

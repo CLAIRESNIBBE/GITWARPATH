@@ -797,10 +797,11 @@ def main():
     metric_columns = ['MAE', 'PW20']
     listmodels = ['WarPATH']
     mlmodels = []
-    #RF = RandomForestRegressor()
-    #mlmodels.append(Estimator(RF, 'RF'))
-    #LR = LinearRegression()
-    #mlmodels.append(Estimator(LR, 'LR'))
+    RF = RandomForestRegressor()
+    mlmodels.append(Estimator(RF, 'RF'))
+    LR = LinearRegression()
+    mlmodels.append(Estimator(LR, 'LR'))
+
     #KNNR = KNeighborsRegressor()
     #RR = Ridge()
     #LAS = Lasso()
@@ -809,14 +810,14 @@ def main():
     #GBR = GradientBoostingRegressor()
     #MLPR = MLPRegressor()
     #mlmodels.append(Estimator(MLPR, 'MLPR'))
-    #DTR = DecisionTreeRegressor()
+    DTR = DecisionTreeRegressor()
     #mlmodels.append(Estimator(GBR,'GBR'))
     #mlmodels.append(Estimator(svr,'SVREG'))
     #mlmodels.append(Estimator(LAS,'LASSO'))
     #mlmodels.append(Estimator(ELNR,"ELNET"))
     #mlmodels.append(Estimator(RR, "RIDGE"))
     #mlmodels.append(Estimator(KNNR, "KNNR"))
-    #mlmodels.append(Estimator(DTR, 'DTR'))
+    mlmodels.append(Estimator(DTR, 'DTR'))
     XGBR = XGBRegressor()
     mlmodels.append(Estimator(XGBR,'XGBR'))
     for _, est in enumerate(mlmodels):
@@ -825,9 +826,9 @@ def main():
         print("Processing ML model ", est.identifier)
         estimates.append(Estimator(est.estimator, est.identifier))
         randomStates = []
-        #randomStates.append(0)
-        #randomStates.append(33)
-        #randomStates.append(42)
+        randomStates.append(0)
+        randomStates.append(33)
+        randomStates.append(42)
         randomStates.append(66)
         randomStates.append(99)
         randomStates.append(102)
@@ -1193,10 +1194,16 @@ def main():
                             scaler = MinMaxScaler()
                             dfOptuna['MAE'] = 0
                             dfOptuna['PW20'] = 0
-                            listminmaxScaler = ['KNNR', 'MLPR', 'LASSO', 'ELNET', 'RIDGE', 'SVREG']
-                            scaling = False
+                            listminmaxScaler = ['KNNR', 'MLPR', 'LASSO', 'ELNET', 'RIDGE']
+                            liststdScaler = ['SVREG']
+                            minmaxscaling = False
+                            stdscaling = False
                             if alg in listminmaxScaler:
-                              scaling = True
+                                minmaxscaling = True
+                            if alg in liststdScaler:
+                                stdscaling = True
+
+
                             for index, row in dfOptuna.iterrows():
                                if alg == 'KNNR':
                                  n_neighbors = row['params_n_neighbors']
@@ -1293,11 +1300,18 @@ def main():
                                     model = Ridge(alpha = alpha, max_iter = maxiter)
                                  else:
                                     model = ElasticNet(alpha=alpha, l1_ratio=l1ratio, max_iter= maxiter)
-                               if scaling == True:
+                               if minmaxscaling == True:
+                                  scaler = MinMaxScaler()
                                   pipeline = make_pipeline(scaler, model)
                                   fitted = pipeline.fit(x_train, y_train)
+                                  minmaxscaling = False
+                               elif stdscaling == True:
+                                  scaler = StandardScaler()
+                                  pipeline = make_pipeline(scaler, model)
+                                  fitted = pipeline.fit(x_train, y_train)
+                                  stdscaling = False
                                else:
-                                 fitted = model.fit(x_train,y_train)
+                                  fitted = model.fit(x_train, y_train)
                                pred = fitted.predict(x_test)
                                if squaring:
                                   predicted = np.square(pred)
