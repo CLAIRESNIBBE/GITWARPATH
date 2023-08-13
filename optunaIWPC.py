@@ -267,6 +267,54 @@ def tune(objective,df,model,randomseed):
     print(f"Best score: {best_score} \nOptimized parameters: {params}")
     return params
 
+def tune(objective, df, model, randomseed):
+    ntrials = 50
+    suffix = str(df).zfill(3)
+    study = optuna.create_study(direction="maximize")
+    #study = optuna.create_study(direction="minimize")
+    study.optimize(objective, n_trials=ntrials)
+    optuna_results = study.trials_dataframe()
+    optuna_results['data'] = 'War-PATH'
+    optuna_results['direction'] = 'max'
+    optuna_results['mlmodel'] = model
+    params = study.best_params
+    best_score = study.best_value
+    best_trial = study.best_trial
+    optuna_results['besttrial'] = best_trial
+    optuna_results['bestvalue'] = best_score
+    optuna_results['bestparam'] = params
+    #optuna_results.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OptunaAllModelW\model_" + model + "_" + str(randomseed) + "_" + suffix + ".csv", ";")
+    plot_optimization_history(study)
+    params = study.best_params
+    best_score = study.best_value
+    paramdict = {k: [v] for k, v in params.items()}
+    dfHyperCurrent = pd.DataFrame(paramdict)
+    dfHyperCurrent['model'] = model
+    dfHyperCurrent['imputation'] = df
+    dfHyperCurrent['score'] = best_score
+    dfHyperCurrent['trials'] = ntrials
+    suffix = str(df).zfill(3)
+    if df == 1:
+        dfHyper = pd.DataFrame()
+    else:
+        dfpre = df - 1
+        suffixpre = str(dfpre).zfill(3)
+        dfHyper = pd.read_csv(
+            r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OPTUNAHYPERPARAMETERS\model_" + model + "_" + str(
+                randomseed) + "_" + suffixpre + ".csv", ";")
+        if "Unnamed: 0" in dfHyper.columns:
+            dfHyper.drop(["Unnamed: 0"], axis=1, inplace=True)
+        if "Unnamed: 0.1" in dfHyper.columns:
+            dfHyper.drop(["Unnamed: 0.1"], axis=1, inplace=True)
+    frames = (dfHyper, dfHyperCurrent)
+    dfHyper = pd.concat(frames)
+    dfHyper.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OPTUNAHYPERPARAMETERS\model_" + model + "_" + str(
+        randomseed) + "_" + suffix + ".csv", ";")
+    print(f"Best score: {best_score} \nOptimized parameters: {params}")
+    return params, optuna_results
+
+
+
 def dropColumn(IWPCparam, columnname, dfColumns, dfmod, dfIWPC, IWPCDF):
     if columnname in dfColumns:
         if IWPCparam == "IWPC":
@@ -656,33 +704,89 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
     resultsdict['MAE'] = [MAE]
     resultsdict['R2'] = [R2]
     resultsdict['Time'] = [timeElapsed]
-    return resultsdict
+    return resultsdict, dfOptuna
 
 def main():
-                # dfHyper = pd.DataFrame()
-                combinedata = True
-                onlyIWPC = True
-                scaler = MinMaxScaler()
-                fileName1 = "AllImputations.csv"
-                fileName1 = fileName1.upper()
-                fileName2 = 'IMPWARPATHSUPER.CSV'
-                filescheck = []
-                filescheck.append(fileName1)
-                filescheck.append(fileName2)
-                dftemplate = pd.DataFrame()
-                dfWarPath = pd.DataFrame()
-                impNumber = 50  # was 3
-                maxImp = 50
-                runImp = 0
-                randomseed = 0
-                flagHIV = False
-                #99_42 143 33 113 102 0 66
-                pd.set_option("display.max_rows", None, "display.max_columns", None)
-                pd.set_option('expand_frame_repr', False)
-                pd.set_option("display.max_rows", False)
-                df = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\MiceRWarPATHData.csv", ";")
-                filesIWPC = []
-                if True:
+    metric_columns = ['MAE', 'PW20']
+    listmodels = ['WarPATH']
+    mlmodels = []
+    RF = RandomForestRegressor()
+    mlmodels.append(Estimator(RF, 'RF'))
+    LR = LinearRegression()
+    mlmodels.append(Estimator(LR, 'LR'))
+    KNNR = KNeighborsRegressor()
+    RR = Ridge()
+    LAS = Lasso()
+    ELNR = ElasticNet()
+    svr= sklearn.svm.SVR()
+    GBR = GradientBoostingRegressor()
+    DTR = DecisionTreeRegressor()
+    MLPR = MLPRegressor()
+    mlmodels.append(Estimator(MLPR, 'MLPR'))
+    mlmodels.append(Estimator(GBR, 'GBR'))
+    mlmodels.append(Estimator(svr,'SVREG'))
+    mlmodels.append(Estimator(LAS,'LASSO'))
+    mlmodels.append(Estimator(ELNR,"ELNET"))
+    mlmodels.append(Estimator(RR, "RIDGE"))
+    mlmodels.append(Estimator(KNNR, "KNNR"))
+    mlmodels.append(Estimator(DTR, 'DTR'))
+    # XGBR = XGBRegressor()
+    # mlmodels.append(Estimator(XGBR,'XGBR'))
+    for _, est in enumerate(mlmodels):
+        dfConf = pd.DataFrame()
+        estimates = []
+        print("Processing ML model ", est.identifier)
+        estimates.append(Estimator(est.estimator, est.identifier))
+        randomStates = []
+        randomStates.append(0)
+        randomStates.append(33)
+        randomStates.append(42)
+        randomStates.append(66)
+        randomStates.append(99)
+        randomStates.append(102)
+        randomStates.append(113)
+        randomStates.append(143)
+        for state in range(len(randomStates)):
+            randomseed = randomStates[state]
+            smpResults = []
+            metrics = []
+            timeBegin = time.time()
+            print("Processing random state", randomseed)
+
+            std_Dev_Summ = ({'model': 'IWPC', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MALAR': 0, 'MLAR': 0},
+                            {'model': 'WarPATH', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MALAR': 0, 'MLAR': 0},
+                            {'model': 'Gage', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MALAR': 0, 'MLAR': 0},
+                            {'model': 'Fixed', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MALAR': 0, 'MLAR': 0})
+
+            variance_Summ = ({'model': 'IWPC', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MALAR': 0, 'MLAR': 0},
+                             {'model': 'WarPATH', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MALAR': 0, 'MLAR': 0},
+                             {'model': 'Gage', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MALAR': 0, 'MLAR': 0},
+                             {'model': 'Fixed', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MALAR': 0, 'MLAR': 0})
+
+            number_of_samples = 1000
+            combinedata = True
+            onlyIWPC = True
+            scaler = MinMaxScaler()
+            fileName1 = "AllImputations.csv"
+            fileName1 = fileName1.upper()
+            fileName2 = 'IMPWARPATHSUPER.CSV'
+            filescheck = []
+            filescheck.append(fileName1)
+            filescheck.append(fileName2)
+            dftemplate = pd.DataFrame()
+            dfWarPath = pd.DataFrame()
+            impNumber = 50  # was 3
+            maxImp = 50
+            runImp = 0
+            randomseed = 0
+            flagHIV = False
+            #99_42 143 33 113 102 0 66
+            pd.set_option("display.max_rows", None, "display.max_columns", None)
+            pd.set_option('expand_frame_repr', False)
+            pd.set_option("display.max_rows", False)
+            df = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\MiceRWarPATHData.csv", ";")
+            filesIWPC = []
+            if True:
                     runningImp = 0
                     for root, dirs, files in os.walk(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\MICESTATSMODEL"):
                         for file in files:
@@ -709,20 +813,7 @@ def main():
                                 r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\CombinedWarImputations\TESTSPLIT" + ".csv"):
                             testID = pd.read_csv(
                                 r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\CombinedWarImputations\TESTSPLIT" + ".csv")
-                    if False:
-                        if os.path.exists(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TRAINSPLIT" + ".csv"):
-                            if os.path.exists(
-                                    r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TESTSPLIT" + ".csv"):
-                                trainID = pd.read_csv(
-                                    r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TRAINSPLIT" + ".csv",
-                                    ";")
-                                testID = pd.read_csv(
-                                    r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TESTSPLIT" + ".csv",
-                                    ";")
-                                trainDF = pd.DataFrame(trainID)
-                                trainSize = len(trainDF)
 
-                else:
                     # fixedtraintest = False
                     if True:
                         for root, dirs, files in os.walk(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations"):
@@ -747,61 +838,7 @@ def main():
                                         ";")
                                     # fixedtraintest = True
                 metric_columns = ['MAE', 'PW20', 'R2', 'Time']
-                if False:
-                    # for imp in range(impNumber):
-                    patients_train = []
-                    patients_train = trainID[".id"].to_list()
-
-                    dftrain = df[df['.id'].isin(patients_train)]
-                    dftrain.to_csv(
-                        r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Training\train" + suffix + ".csv", ";")
-                    for imp in range(impNumber):
-                        counter = imp + 1
-                        dftrainimp = dftrain.loc[df[".imp"] == counter]
-                        suffix = str(counter).zfill(3)
-                        dftrainimp.to_csv(
-                            r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Training\train_" + suffix + ".csv",
-                            ";")
-                    patients_test = []
-                    patients_test = testID[".id"].to_list()
-                    dftest = df[df['.id'].isin(patients_test)]
-                    dftest.to_csv(
-                        r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Testing\test" + suffix + ".csv", ";")
-                    for imp in range(impNumber):
-                        counter = imp + 1
-                        dftestimp = dftest.loc[df[".imp"] == counter]
-                        suffix = str(counter).zfill(3)
-                        dftestimp.to_csv(
-                            r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Testing\test_" + suffix + ".csv",
-                            ";")
-                    counter = 0
-                    for root, dirs, files in os.walk(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations"):
-                        if root == 'C:\\Users\\Claire\\GIT_REPO_1\\CSCthesisPY\\WarImputations':
-                            for file in files:
-                                if runImp < maxImp and file.endswith('.csv') and (
-                                        "train_" not in file and "test_" not in file and "SPLIT" not in file and "TRAIN" not in file and "TEST" not in file) and "ImpWarPATH" in file:
-                                    filedf = pd.read_csv(root + '\\' + file, ";")
-                                    if False:
-                                        if "Status" not in filedf.columns:
-                                            filedf["Status"] = ""
-                                            counter = counter + 1
-                                        for row in filedf.itertuples():
-                                            checkID = row[4]
-                                            rowindex = filedf.loc[filedf[".id"] == checkID].index.tolist()[
-                                                0]  # OR row[0]
-                                            if checkID in patients_train:
-                                                filedf.loc[rowindex, 'Status'] = 'train'
-                                            elif checkID in patients_test:
-                                                filedf.loc[rowindex, 'Status'] = 'test'
-                                    counter = counter + 1
-                                    suffix = str(counter).zfill(3)
-                                    filedf.to_csv(
-                                        r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Split\ImpWarPATHSPLIT_" + suffix + ".csv",
-                                        ";")
-                                    filesImp.append(
-                                        r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Split\ImpWarPATHSPLIT_" + suffix + ".csv")
-                                    runImp = runImp + 1
-                else:
+                if True:
                     counter = 0
                     for root, dirs, files in os.walk(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations"):
                         if root == 'C:\\Users\\Claire\\GIT_REPO_1\\CSCthesisPY\\WarImputations':

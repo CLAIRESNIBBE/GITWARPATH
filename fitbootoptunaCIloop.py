@@ -923,7 +923,7 @@ def main():
                         sampleSize = int(round(trainSize))
                         dfIWPC,testset=   train_test_split(IWPCDF, test_size=0.1, train_size=sampleSize, random_state=randomseed)
                         dfIWPC["Status"] = "train"
-                        dropColumn("IWPC", "Unnamed: 0", dfIWPC.columns, dfmod, dfIWPC)
+                        dropColumn("IWPC", "Unnamed: 0", dfIWPC.columns, dfmod, F)
                         dfIWPC.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Claire_IWPC" + randstring + suffix + ".csv", ";")
                         #dfIWPC.drop(["Unnamed: 0"], axis=1, inplace=True)
 

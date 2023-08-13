@@ -9,7 +9,6 @@ from pandas.api.types import is_string_dtype
 from pandas.api.types import is_numeric_dtype
 from pathlib import Path
 import numpy as np
-from random import sample
 from tabulate import tabulate
 from itertools import combinations, permutations, product
 from os.path import isfile, join
@@ -58,6 +57,8 @@ from scipy.stats import norm, iqr, scoreatpercentile
 from mlxtend.regressor import StackingCVRegressor
 import warnings
 import statistics
+
+
 def fxn():
     warnings.warn("deprecated", DeprecationWarning)
 
@@ -101,42 +102,6 @@ from tpot import TPOTRegressor
 from numpy import loadtxt
 from copy import copy
 
-def tupleTransform(stringmod):
-    stringlist = list(stringmod)
-    onetuple = False
-    list1 = []
-    if (" ") in stringlist:
-      tupletemp = ("a","b")
-      stringlist.remove(" ")
-    else:
-      onetuple = True
-      tupletemp = ("a",)
-    tuplelist = list(tupletemp)
-    poplist = []
-    index1 = stringlist.index(",")
-    if index1 > 0:
-       val = stringlist[index1-1]
-       poplist.append(int(val))
-       if onetuple == False:
-          val2 = stringlist[index1+1]
-          poplist.append(int(val2))
-          tuplelist[0] = poplist[0]
-          tuplelist[1] = poplist[1]
-       else:
-           tuplelist[0]=poplist[0]
-       tuplenew = tuple(tuplelist)
-       return tuplenew
-    else:
-        return stringmod
-
-
-def find(lst, key, value):
-    for i, dic in enumerate(lst):
-        if dic[key] == value:
-            return i
-    return -1
-
-
 def ExitSquareBracket(variable, floatbool):
     stringvar = str(variable)
     if stringvar.find('[') >= 0 and stringvar.find(']') >= 0:
@@ -150,72 +115,37 @@ def ExitSquareBracket(variable, floatbool):
         else:
             return stringvar
 
-
-def listAverage(list):
-    if len(list) > 0:
-        return sum(list) / len(list)
-    else:
-        return 0
-
-
-# def collect_Metrics(metrics, model, metric):
-#    container = []
-#    for i in range(len(metrics)):
-#        if metrics[metric][metrics['Estimator'].any() == model]:
-#            container.append(metrics[metric][metrics['Estimator'] == model].values)
-#    return container
-
 def collect_Metrics(metrics, model, metric):
     container = []
     for i in range(len(metrics)):
-        if (metrics[i]['model'] == model):
-            # print(metrics[i]['model'], metrics[i]['metric'], metrics[i]['value'])
-            container.append(metrics[i][metric])
+        if metrics[metric][metrics['Estimator'].any() == model]:
+            container.append(metrics[metric][metrics['Estimator'] == model].values)
     return container
 
 
-def collect_Results(metrics, model, metric):
+def collect_Results(model, metric):
     container = []
-    for i in range(len(metrics)):
-        if (metrics[i]['model'] == model):
-            container.append(metrics[i][metric])
+    if Estimator == model:
+        container.append(metric)
     return container
 
 
-# def collect_Results(model, metric):
-#    container = []
-#    if Estimator == model:
-#        container.append(metric)
-#    return container
-
-# def variance(metric,mean):
-#    #meanvalue = np.nanmean(metric)
-#    meanvalue = mean
-#    sumsquares = 0
-#    for i in range(len(metric)):
-#        core = abs(metric[i] - meanvalue)
-#        sumsquares += np.square(core)
-#    if len(metric) == 1:
-#        variance = 0
-#    else:
-#        variance = sumsquares / ((len(metric) - 1))
-#    return variance
-
-def variance(metric):
-    meanvalue = np.mean(metric)
+def variance(metric, mean):
+    # meanvalue = np.nanmean(metric)
+    meanvalue = mean
     sumsquares = 0
     for i in range(len(metric)):
         core = abs(metric[i] - meanvalue)
         sumsquares += np.square(core)
-    variance = sumsquares / ((len(metric) - 1))
+    if len(metric) == 1:
+        variance = 0
+    else:
+        variance = sumsquares / ((len(metric) - 1))
     return variance
 
 
-# def std_deviation(metric,mean):
-#   return np.sqrt(variance(metric,mean))
-
-def std_deviation(metric):
-    return np.sqrt(variance(metric))
+def std_deviation(metric, mean):
+    return np.sqrt(variance(metric, mean))
 
 
 def SList(series):
@@ -234,12 +164,39 @@ def TrainOrTest(patientID, TrainList, TestList):
     elif (patientID in TestList):
         return 'test'
 
+
+def format_summary(df_res):
+    df_summary = df_res.groupby(['Estimator']).mean()
+    df_summary.reset_index(inplace=True)
+    for alg in df_res['Estimator'].unique():
+        for metric in ['PW20', 'MAE']:
+            data = df_res[metric][df_res['Estimator'] == alg].values
+            np.sort(data)
+            df = pd.DataFrame(data, columns=[metric])
+            lo1 = np.percentile(data, 2.5)
+            lo, hi = confidence_interval(df_res[metric][df_res['Estimator'] == alg].values)
+            mean = df_res[metric][df_res['Estimator'] == alg].mean()
+            lo2 = mean - confintlimit95(data, mean)
+            hi2 = mean + confintlimit95(data, mean)
+            conf2 = f"{mean:.2f}({lo2:.2f}-{hi2:.2f})"
+            print("new method", alg, metric, lo2, hi2, mean, conf2)
+            for v in [mean, lo, hi]:
+                if not (-10000 < v < 10000):
+                    print('nan applied: ', alg, metric, lo, hi, mean)
+                    mean, lo, hi = np.nan, np.nan, np.nan
+                conf = f"{mean:.2f}({lo:.2f}-{hi:.2f})"
+                print(alg, metric, lo, hi, mean, conf)
+                df_summary[metric][df_summary['Estimator'] == alg] = conf
+    return df_summary
+
+
 def MLAR(trueval, predval):
     # mean log of accuracy ratio
     sum = 0
     for i in range(len(trueval)):
         sum += np.log(predval[i] / trueval[i])
     return (np.exp(sum / len(trueval)) - 1) * 100
+
 
 def MALAR(trueval, predval):
     # mean absolute log of accuracy ratio
@@ -258,8 +215,10 @@ def RSquared(trueval, predval):
         lowersum += np.square(trueval[i] - true_mean)
     return topsum / lowersum * 100
 
+
 def BSA(height, weight):
     return 0.007184 * height ** 0.725 * weight ** 0.425
+
 
 def ConvertYesNo(variable):
     if variable == "Yes":
@@ -267,8 +226,10 @@ def ConvertYesNo(variable):
     elif variable == "No":
         return 0
 
+
 def MAEScore(true, predicted):
     return mean_absolute_error(true, predicted)
+
 
 def PercIn20(true, predicted):
     patients_in_20 = 0
@@ -276,6 +237,7 @@ def PercIn20(true, predicted):
         if abs(true[i] - predicted[i]) < 0.2 * true[i]:
             patients_in_20 += 1
     return 100 * patients_in_20 / len(true)
+
 
 def INRThree(targetINR):
     if (targetINR >= 2.5) & (targetINR <= 3.5):
@@ -287,10 +249,70 @@ def tune(objective, df, model, randomseed):
     ntrials = 50
     suffix = str(df).zfill(3)
     study = optuna.create_study(direction="maximize")
+    # study = optuna.create_study(direction="minimize")
+    study.optimize(objective, n_trials=ntrials)
+    optuna_results = study.trials_dataframe()
+    optuna_results['data'] = 'IWPC'
+    optuna_results['direction'] = 'max'
+    optuna_results['mlmodel'] = model
+    params = study.best_params
+    best_score = study.best_value
+    best_trial = study.best_trial
+    optuna_results['besttrial'] = best_trial
+    optuna_results['bestvalue'] = best_score
+    optuna_results['bestparam'] = params
+    # optuna_results.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OptunaAllModelW\model_" + model + "_" + str(randomseed) + "_" + suffix + ".csv", ";")
+    plot_optimization_history(study)
+    params = study.best_params
+    best_score = study.best_value
+    paramdict = {k: [v] for k, v in params.items()}
+    dfHyperCurrent = pd.DataFrame(paramdict)
+    dfHyperCurrent['model'] = model
+    dfHyperCurrent['imputation'] = df
+    dfHyperCurrent['score'] = best_score
+    dfHyperCurrent['trials'] = ntrials
+    suffix = str(df).zfill(3)
+    if df == 1:
+        dfHyper = pd.DataFrame()
+    else:
+        dfpre = df - 1
+        suffixpre = str(dfpre).zfill(3)
+        dfHyper = pd.read_csv(
+            r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OPTUNAHYPERPARAMETERS\model_" + model + "_" + str(
+                randomseed) + "_" + suffixpre + ".csv", ";")
+        if "Unnamed: 0" in dfHyper.columns:
+            dfHyper.drop(["Unnamed: 0"], axis=1, inplace=True)
+        if "Unnamed: 0.1" in dfHyper.columns:
+            dfHyper.drop(["Unnamed: 0.1"], axis=1, inplace=True)
+    frames = (dfHyper, dfHyperCurrent)
+    dfHyper = pd.concat(frames)
+    dfHyper.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OPTUNAHYPERPARAMETERS\model_" + model + "_" + str(
+        randomseed) + "_" + suffix + ".csv", ";")
+    print(f"Best score: {best_score} \nOptimized parameters: {params}")
+    return params, optuna_results
+
+
+def dropColumn(IWPCparam, columnname, dfColumns, dfmod, dfIWPC, IWPCDF):
+    if columnname in dfColumns:
+        if IWPCparam == "IWPC":
+            dfIWPC.drop([columnname], axis=1, inplace=True)
+        elif IWPCparam == "IWPCDF":
+            IWPCDF.drop([columnname], axis=1, inplace=True)
+        else:
+            dfmod.drop([columnname], axis=1, inplace=True)
+
+
+def indexTo1(df):
+    df.index = np.arange(1, len(df) + 1)
+
+def tune(objective, df, model, randomseed):
+    ntrials = 50
+    suffix = str(df).zfill(3)
+    study = optuna.create_study(direction="maximize")
     #study = optuna.create_study(direction="minimize")
     study.optimize(objective, n_trials=ntrials)
     optuna_results = study.trials_dataframe()
-    optuna_results['data'] = 'War-PATH'
+    optuna_results['data'] = 'IWPC'
     optuna_results['direction'] = 'max'
     optuna_results['mlmodel'] = model
     params = study.best_params
@@ -329,12 +351,15 @@ def tune(objective, df, model, randomseed):
     print(f"Best score: {best_score} \nOptimized parameters: {params}")
     return params, optuna_results
 
-def dropColumn(IWPCparam, columnname, dfColumns, dfmod, dfIWPC):
+def dropColumn(IWPCparam, columnname, dfColumns, dfmod, dfIWPC, IWPCDF):
     if columnname in dfColumns:
         if IWPCparam == "IWPC":
-            dfIWPC.drop([columnname], axis=1, inplace=True)
+           dfIWPC.drop([columnname],axis=1,inplace=True)
+        elif IWPCparam == "IWPCDF":
+           IWPCDF.drop([columnname],axis=1,inplace=True)
         else:
-            dfmod.drop([columnname], axis=1, inplace=True)
+           dfmod.drop([columnname], axis=1, inplace=True)
+
 
 def indexTo1(df):
     df.index = np.arange(1, len(df) + 1)
@@ -447,7 +472,7 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
                     _min_weight_fraction_leaf = trial.suggest_categorical("min_weight_fraction_leaf", [0.0])
                     _splitter = trial.suggest_categorical('splitter', ["random"])
 
-                    DTR_model = DecisionTreeRegressor(min_samples_leaf=_min_samples_leaf, max_depth=_max_depth,
+                    DTR_model = DecisionTreeR-egressor(min_samples_leaf=_min_samples_leaf, max_depth=_max_depth,
                                                       max_features=_max_features,
                                                       max_leaf_nodes=_max_leaf_nodes,
                                                       min_impurity_decrease=_min_impurity_decrease,
@@ -791,6 +816,7 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
 
     return resultsdict, dfOptuna
 
+
 def main():
     metric_columns = ['MAE', 'PW20']
     listmodels = ['WarPATH']
@@ -803,15 +829,15 @@ def main():
     #RR = Ridge()
     #LAS = Lasso()
     #ELNR = ElasticNet()
-    #svr= sklearn.svm.SVR()
+    #svr = sklearn.svm.SVR()
     #GBR = GradientBoostingRegressor()
     #DTR = DecisionTreeRegressor()
     #MLPR = MLPRegressor()
     #mlmodels.append(Estimator(MLPR, 'MLPR'))
-    #mlmodels.append(Estimator(GBR,'GBR'))
-    #mlmodels.append(Estimator(svr,'SVREG'))
-    #mlmodels.append(Estimator(LAS,'LASSO'))
-    #mlmodels.append(Estimator(ELNR,"ELNET"))
+    #mlmodels.append(Estimator(GBR, 'GBR'))
+    #mlmodels.append(Estimator(svr, 'SVREG'))
+    #mlmodels.append(Estimator(LAS, 'LASSO'))
+    #mlmodels.append(Estimator(ELNR, "ELNET"))
     #mlmodels.append(Estimator(RR, "RIDGE"))
     #mlmodels.append(Estimator(KNNR, "KNNR"))
     #mlmodels.append(Estimator(DTR, 'DTR'))
@@ -824,7 +850,7 @@ def main():
         estimates.append(Estimator(est.estimator, est.identifier))
         randomStates = []
         #randomStates.append(0)
-        #randomStates.append(33)
+        randomStates.append(33)
         randomStates.append(42)
         randomStates.append(66)
         randomStates.append(99)
@@ -834,13 +860,10 @@ def main():
         for state in range(len(randomStates)):
             randomseed = randomStates[state]
             smpResults = []
-            metrics = []
+            metrics = []                                                                       
             timeBegin = time.time()
             print("Processing random state", randomseed)
-            # filewritena       me = input("Enter file name: \n")
-            # ileoutput = open(filewritename, 'w')
-            # std_Dev_Summ = ({'model': 'WarPATH', 'MAE': 0, 'PW20': 0})
-            # variance_Summ = ({'model': 'WarPATH', 'MAE': 0, 'PW20': 0})
+
             std_Dev_Summ = ({'model': 'IWPC', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MALAR': 0, 'MLAR': 0},
                             {'model': 'WarPATH', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MALAR': 0, 'MLAR': 0},
                             {'model': 'Gage', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MALAR': 0, 'MLAR': 0},
@@ -852,9 +875,8 @@ def main():
                              {'model': 'Fixed', 'MAE': 0, 'PW20': 0, 'R2': 0, 'MALAR': 0, 'MLAR': 0})
 
             number_of_samples = 1000
-            bootresults = []
-            std_Dev = []
-            combinedata = False
+            combinedata = True
+            onlyIWPC = True
             scaler = MinMaxScaler()
             fileName1 = "AllImputations.csv"
             fileName1 = fileName1.upper()
@@ -864,12 +886,11 @@ def main():
             filescheck.append(fileName2)
             dftemplate = pd.DataFrame()
             dfWarPath = pd.DataFrame()
-            impNumber = 50  # was 50 as was maximp
+            impNumber = 50  # was 3
             maxImp = 50
             runImp = 0
-            # randomseed = 0
             flagHIV = False
-            # 99_42 143 33 113 102 0 66`6
+            # 99_42 143 33 113 102 0 66
             pd.set_option("display.max_rows", None, "display.max_columns", None)
             pd.set_option('expand_frame_repr', False)
             pd.set_option("display.max_rows", False)
@@ -902,20 +923,7 @@ def main():
                             r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\CombinedWarImputations\TESTSPLIT" + ".csv"):
                         testID = pd.read_csv(
                             r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\CombinedWarImputations\TESTSPLIT" + ".csv")
-                if False:
-                    if os.path.exists(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TRAINSPLIT" + ".csv"):
-                        if os.path.exists(
-                                r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TESTSPLIT" + ".csv"):
-                            trainID = pd.read_csv(
-                                r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TRAINSPLIT" + ".csv",
-                                ";")
-                            testID = pd.read_csv(
-                                r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TESTSPLIT" + ".csv",
-                                ";")
-                            trainDF = pd.DataFrame(trainID)
-                            trainSize = len(trainDF)
 
-            else:
                 # fixedtraintest = False
                 if True:
                     for root, dirs, files in os.walk(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations"):
@@ -940,23 +948,25 @@ def main():
                                     ";")
                                 # fixedtraintest = True
             metric_columns = ['MAE', 'PW20', 'R2', 'Time']
-            counter = 0
-            for root, dirs, files in os.walk(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations"):
-                if root == 'C:\\Users\\Claire\\GIT_REPO_1\\CSCthesisPY\\WarImputations':
-                    for file in files:
-                        if runImp < maxImp and file.endswith('.csv') and (
-                                "train_" not in file and "test_" not in file and "SPLIT" not in file and "TRAIN" not in file and "TEST" not in file) and "ImpWarPATH" in file:
-                            filedf = pd.read_csv(root + '\\' + file, ";")
-                            counter = counter + 1
-                            suffix = str(counter).zfill(3)
-                            filedf.to_csv(
-                                r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Split\ImpWarPATHSPLIT_" + suffix + ".csv",
-                                ";")
-                            filesImp.append(
-                                r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Split\ImpWarPATHSPLIT_" + suffix + ".csv")
-                            runImp = runImp + 1
-                # filesImp.append(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\CombinedWarImputations\AllImputations" + ".csv")
+            if True:
+                counter = 0
+                for root, dirs, files in os.walk(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations"):
+                    if root == 'C:\\Users\\Claire\\GIT_REPO_1\\CSCthesisPY\\WarImputations':
+                        for file in files:
+                            if runImp < maxImp and file.endswith('.csv') and (
+                                    "train_" not in file and "test_" not in file and "SPLIT" not in file and "TRAIN" not in file and "TEST" not in file) and "ImpWarPATH" in file:
+                                filedf = pd.read_csv(root + '\\' + file, ";")
+                                counter = counter + 1
+                                suffix = str(counter).zfill(3)
+                                filedf.to_csv(
+                                    r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Split\ImpWarPATHSPLIT_" + suffix + ".csv",
+                                    ";")
+                                filesImp.append(
+                                    r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\Split\ImpWarPATHSPLIT_" + suffix + ".csv")
+                                runImp = runImp + 1
+                    # filesImp.append(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\CombinedWarImputations\AllImputations" + ".csv")
             results = []
+
             if os.path.exists(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TRAINSPLIT" + ".csv"):
                 if os.path.exists(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WarImputations\TESTSPLIT" + ".csv"):
                     trainID = pd.read_csv(
@@ -971,7 +981,6 @@ def main():
                 # file.reset_index()
                 dfnew = pd.read_csv(file, ";")
                 dfmod = dfnew
-                dfIWPC = pd.DataFrame()
                 fileindex = filesImp.index(file)
                 df = fileindex + 1
                 suffix = str(df).zfill(3)
@@ -980,15 +989,27 @@ def main():
                     IWPC_csv = rootIWPC + filesIWPC[fileindex]
                     IWPCDF = pd.read_csv(IWPC_csv, ';')
                     IWPCDF.reset_index()
-                    sampleSize = int(round(trainSize))
-                    dfIWPC, testset = train_test_split(IWPCDF, test_size=0.1, train_size=sampleSize,
-                                                       random_state=randomseed)
-                    dfIWPC["Status"] = "train"
-                    dropColumn("IWPC", "Unnamed: 0", dfIWPC.columns, dfmod, dfIWPC)
-                    dfIWPC.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Claire_IWPC" + randstring + suffix + ".csv",
-                                  ";")
-                    # dfIWPC.drop(["Unnamed: 0"], axis=1, inplace=True)
-                # df = fileindex + 1
+                    if onlyIWPC == True:
+                        IWPCDF['AgeYears'] = np.where((IWPCDF['AgeYears'] <= 18), 18, IWPCDF['AgeYears'])
+                        IWPCDF["Target_INR"] = IWPCDF.apply(lambda x: INRThree(x["Target_INR"]), axis=1)
+                        IWPCDF["Target_INR"] = IWPCDF['Target_INR'].astype("float")
+                        IWPCDF['Dose_mg_week'] = IWPCDF['Dose_mg_week'].apply(np.sqrt)
+                        dropColumn("IWPCDF", "AgeDecades", IWPCDF.columns, dfmod, IWPCDF, IWPCDF)
+                        dropColumn("IWPCDF", "INR_Three", IWPCDF.columns, dfmod, IWPCDF, IWPCDF)
+                        # IWPCDF["HIVPositive"] = 0
+                        # IWPCDF["HIVUnknown"] = 0
+                        dfIWPConly, dfIWPC_test = train_test_split(IWPCDF, test_size=0.2, random_state=randomseed)
+                        dfIWPConly.to_csv(
+                            r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Claire_IWPC" + randstring + suffix + ".csv",
+                            ";")
+                    else:
+                        sampleSize = int(round(trainSize))
+                        dfIWPC, testset = train_test_split(IWPCDF, test_size=0.1, train_size=sampleSize,
+                                                           random_state=randomseed)
+                        dfIWPC["Status"] = "train"
+                        dropColumn("IWPC", "Unnamed: 0", dfIWPC.columns, dfmod, dfIWPC, IWPCDF)
+                        dfIWPC.to_csv(
+                            r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Claire_IWPC" + randstring + suffix + ".csv", ";")
                 dfnew.reset_index()
                 dfmod = dfnew
                 dfmod.drop(['Gender', 'Country_recruitment'], axis=1, inplace=True)
@@ -1000,8 +1021,9 @@ def main():
                 dfmod["Target_INR"] = dfmod.apply(lambda x: INRThree(x["Target_INR"]), axis=1)
                 dfmod["Target_INR"] = dfmod['Target_INR'].astype("float")
                 if combinedata == True:
-                    dfIWPC["Target_INR"] = dfIWPC.apply(lambda x: INRThree(x["Target_INR"]), axis=1)
-                    dfIWPC["Target_INR"] = dfIWPC['Target_INR'].astype("float")
+                    if onlyIWPC == False:
+                        dfIWPC["Target_INR"] = dfIWPC.apply(lambda x: INRThree(x["Target_INR"]), axis=1)
+                        dfIWPC["Target_INR"] = dfIWPC['Target_INR'].astype("float")
                 dfmod["Inducer"] = dfmod.apply(lambda x: ConvertYesNo(x["Inducer_status"]), axis=1)
                 dfmod["Amiodarone"] = dfmod.apply(lambda x: ConvertYesNo(x["Amiodarone_status"]), axis=1)
                 dfmod["Smoker"] = dfmod.apply(lambda x: ConvertYesNo(x["Smoking_status"]), axis=1)
@@ -1011,29 +1033,19 @@ def main():
                 dfmod["AgeYears"] = dfmod["Age_years"]
                 dfmod['AgeYears'] = np.where((dfmod['AgeYears'] <= 18), 18, dfmod['AgeYears'])
                 if flagHIV == True:
-                    dfmod["HIVPositive"] = np.where(dfmod["HIV_status"] == "Positive", 1, 0)
-                    dfmod["HIVUnknown"] = np.where(dfmod["HIV_status"] == "Unknown", 1, 0)
+                    dfIWPC["HIVPositive"] = np.where(dfmod["HIV_status"] == "Positive", 1, 0)
+                    dfIWPC["HIVUnknown"] = np.where(dfmod["HIV_status"] == "Unknown", 1, 0)
                 dfmod["Status"] = ""
-                if combinedata == True:
-                    dfIWPC['AgeYears'] = np.where((dfIWPC['AgeYears'] <= 18), 18, dfIWPC['AgeYears'])
-                    dropColumn("IWPC", "AgeDecades", dfIWPC.columns, dfmod, dfIWPC)
-                    dropColumn("IWPC", "INR_Three", dfIWPC.columns, dfmod, dfIWPC)
-                    if flagHIV == True:
-                        dfIWPC["HIVPositive"] = 0
-                        dfIWPC["HIVUnknown"] = 0
-                dropColumn("WARPATH", 'HIV_status', dfmod.columns, dfmod, dfIWPC)
-                dropColumn("WARPATH", "Unnamed: 0", dfmod.columns, dfmod, dfIWPC)
-                dropColumn("WARPATH", "Unnamed: 0.1", dfmod.columns, dfmod, dfIWPC)
-                dropColumn("WARPATH", "Unnamed: 0.2", dfmod.columns, dfmod, dfIWPC)
-                dropColumn("WARPATH", "Age_years", dfmod.columns, dfmod, dfIWPC)
-                dropColumn("WARPATH", ".imp", dfmod.columns, dfmod, dfIWPC)
-                dropColumn("WARPATH", ".id", dfmod.columns, dfmod, dfIWPC)
-                dropColumn("WARPATH", "Unnamed: 0.1.1", dfmod.columns, dfmod, dfIWPC)
+                if onlyIWPC == False:
+                    dropColumn("WARPATH", 'HIV_status', dfmod.columns, dfmod, dfIWPC, IWPCDF)
+                    dropColumn("WARPATH", "Unnamed: 0", dfmod.columns, dfmod, dfIWPC, IWPCDF)
+                    dropColumn("WARPATH", "Unnamed: 0.1", dfmod.columns, dfmod, dfIWPC, IWPCDF)
+                    dropColumn("WARPATH", "Unnamed: 0.2", dfmod.columns, dfmod, dfIWPC, IWPCDF)
+                    dropColumn("WARPATH", "Age_years", dfmod.columns, dfmod, dfIWPC, IWPCDF)
+                    dropColumn("WARPATH", ".imp", dfmod.columns, dfmod, dfIWPC, IWPCDF)
+                    dropColumn("WARPATH", ".id", dfmod.columns, dfmod, dfIWPC, IWPCDF)
+                    dropColumn("WARPATH", "Unnamed: 0.1.1", dfmod.columns, dfmod, dfIWPC, IWPCDF)
 
-                # suffix = str(df).zfill(3)
-                if combineImputations == True:
-                    filename = "dfWarfarin001allPatients"
-                    dfmod.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\PreProcessed\\" + filename + ".csv", ";")
                 if False:
                     dfmod = dfmod.sample(frac=1)
                     dfIWPC = dfIWPC.sample(frac=1)
@@ -1047,26 +1059,15 @@ def main():
                     filename = "dfWarfarin" + suffix
                     dfmod.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\PreProcessed\\" + filename + ".csv", ";")
                 if True:
-                    # print("On imputation ", df, " and random seed ", randomseed)
-                    dfIWPC.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Claire_IWPC_Formatted" + ".csv", ";")
+                    print("On imputation ", df)
+                    if onlyIWPC == False:
+                        dfIWPC.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Claire_IWPC_Formatted" + ".csv", ";")
                     data = dfmod
                     data.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Claire_Warpath" + ".csv", ";")
                     # data.index = data.index + 1
-                    # print(data.shape)
+                    print(data.shape)
                     data['Dose_mg_week'] = data['Dose_mg_week'].apply(np.sqrt)
-                    impResults = []
-                    models = []
-                    boot = 0
-                    samples = []
-                    # metrics = []
-                    # smpResults = []
-
-                    if (find(models, 'model', 'WarPATH') == -1):
-                        models.append({'model': 'WarPATH', 'MAE': 0, 'PW20': 0})
-
-                    if combinedata == True:
-                        dfIWPC['Dose_mg_week'] = dfIWPC['Dose_mg_week'].apply(np.sqrt)
-                    # estimates = []
+                    IWPCDF['Dose_mg_week'] = IWPCDF['Dose_mg_week'].apply(np.sqrt)
                     target_column = 'Dose_mg_week'
                     status_column = "Status"
                     test_size = 0.2
@@ -1075,33 +1076,34 @@ def main():
                     traindf = pd.DataFrame(train)
                     traindf.reset_index()
                     traindf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Claire_train" + ".csv", ";")
-                    # dfIWPC.reset_index()
                     testdf = pd.DataFrame(test)
                     if combinedata == True:
-                        dfIWPC.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Claire_IWPC_precombine" + ".csv", ";")
-                        frames = [traindf, dfIWPC]
-                        traindf = pd.concat(frames)
-                        # traindf = pd.concat(frames, ignore_index=True, sort=True)
+                        if onlyIWPC == False:
+                            dfIWPC.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Claire_IWPC_precombine" + ".csv",
+                                          ";")
+                            frames = [traindf, dfIWPC]
+                            traindf = pd.concat(frames)
+                        if onlyIWPC == True:
+                            traindf = pd.DataFrame()
+                            frames = [traindf, dfIWPConly]
+                            traindf = pd.concat(frames)
+                            testdf = pd.DataFrame()
+                            frames = [testdf, dfIWPC_test]
+                            testdf = pd.concat(frames)
                         traindf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Claire_trainplusIWPC" + ".csv", ";")
-                        # combfilename = "comb" + suffix
-                        # combfilename.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\combinedata\\" + combfilename + ".csv",";")
                     traindf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Train" + suffix + ".csv", ";")
                     testdf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\Test" + suffix + ".csv", ";")
                     testdf['Status'] = 'test'
                     traindf['Status'] = 'train'
                     frames = (traindf, testdf)
                     combdf = pd.concat(frames)
-                    # combdf.index = combdf.index + 1
                     combdf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\TrainPlusTest" + suffix + ".csv", ";")
-                    combID = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\TrainPlusTest" + suffix + ".csv",
-                                         ";")
-                    # combID.index = combID.index+1
+                    combID = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\TrainPlusTest" + suffix + ".csv", ";")
                     combID.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\TrainTestStatus" + suffix + ".csv", ";")
                     combID['NewStatus'] = combID['Status']
-                    # combID['NewStatus'] = 'train'
-                    # combID['NewStatus'] = combID.apply(lambda x:TrainOrTest(x["Unnamed: 0"],trainID[".id"].tolist(), testID[".id"].tolist()), axis=1)
                     combID.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\TrainTestStatus" + suffix + ".csv", ";")
                     squaring = True
+
                     combIDcopy = combID
                     train = combID[combID.NewStatus == "train"]
                     test = combID[combID.NewStatus == "test"]
@@ -1110,21 +1112,17 @@ def main():
                     train = train.drop(['NewStatus'], axis=1)
                     test = test.drop(['NewStatus'], axis=1)
                     x_cols = list(train.columns)
-                    # _cols_notarg = x_cols.remove(target_column)
                     targ_col = list(target_column)
-                    # train = scaler.fit_transform(train)
-                    # test = scaler.transform(test)
-                    # train = pd.DataFrame(train, columns = x_cols)
-                    # test = pd.DataFrame(test, columns = x_cols)
                     targetindex = x_cols.index(target_column)
                     y_train = train[target_column].values
                     x_train = train.drop([target_column], axis=1)
                     y_test = test[target_column].values
                     x_test = test.drop([target_column], axis=1)
 
-                # estimates = []
-                # LR = LinearRegression()
-                # estimates.append(Estimator(LR, 'LR'))
+                #estimates = []
+                #LR = LinearRegression()
+                #estimates.append(Estimator(LR, 'LR'))
+
                 MLPR_Scaling = False
                 if MLPR_Scaling == True:
                     sc_X = StandardScaler()
@@ -1143,11 +1141,11 @@ def main():
                         # estimates.append(Estimator(GBR,'GBR'))
                         # XGBR = XGBRegressor()
                         # estimates.append(Estimator(XGBR,'XGBR'))
-                        # RR =  Ridge()
-                        # LAS= Lasso()
                         # ELNET = ElasticNet()
+                        # LAS = Lasso()
                         # estimates.append(Estimator(LAS,'LASSO'))
                         # estimates.append(Estimator(ELNET,'ELNET'))
+                        # RR = Ridge()
                         # estimates.append(Estimator(RR,'RIDGE'))
                         # KNNR = KNeighborsRegressor()
                         # estimates.append(Estimator(KNNR, 'KNN'))
@@ -1155,20 +1153,23 @@ def main():
                         # estimates.append(Estimator(svr,'SVREG'))
                         # MLPR = MLPRegressor()
                         # estimates.append(Estimator(MLPR,'MLPR'))
-                        # RF = RandomForestRegressor()
-                        # estimates.append(Estimator(RF, 'RF'))
-                        #DTR = DecisionTreeRegressor()
-                        #estimates.append(Estimator(DTR,'DTR'))
-                        # LGB = lgb.LGBMRegressor()
-                        # estimates.append(Estimator(LGB,'LGB'))
+                        #RF = RandomForestRegressor()
+                        #estimates.append(Estimator(RF, 'RF'))
+                        # DTR = DecisionTreeRegressor()
+                        # estimates.append(Estimator(DTR,'DTR'))
+                        if "Unnamed: 0" in x_train.columns:
+                            x_train.drop(["Unnamed: 0"], axis=1, inplace=True)
+                        if "Unnamed: 0" in x_test.columns:
+                            x_test.drop(["Unnamed: 0"], axis=1, inplace=True)
                         if "Unnamed: 0.1" in x_train.columns:
                             x_train.drop(["Unnamed: 0.1"], axis=1, inplace=True)
                         if "Unnamed: 0.1" in x_test.columns:
                             x_test.drop(["Unnamed: 0.1"], axis=1, inplace=True)
-                        dfoptuna=pd.DataFrame()
+                        dfoptuna = pd.DataFrame()
                         for _, est in enumerate(estimates):
-                            resultsdict, dfOptuna = traineval(est, x_train, y_train, x_test, y_test, squaring=squaring, df=df,
-                                                    randomseed=randomseed)
+                            resultsdict, dfOptuna = traineval(est, x_train, y_train, x_test, y_test, squaring=squaring,
+                                                              df=df,
+                                                              randomseed=randomseed)
                             alg = est.identifier
                             x_train.to_csv(
                                 r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\training\\" + alg.replace(" ", "") + str(
@@ -1192,146 +1193,152 @@ def main():
                             minmaxscaling = False
                             stdscaling = False
                             if alg in listminmaxScaler:
-                              scaler = MinMaxScaler()
-                              minmaxscaling = True
+                                scaler = MinMaxScaler()
+                                minmaxscaling = True
                             if alg in liststdScaler:
-                              scaler = StandardScaler()
-                              stdscaling = True
+                                scaler = StandardScaler()
+                                stdscaling = True
                             for index, row in dfOptuna.iterrows():
-                               if alg == 'KNNR':
-                                 n_neighbors = row['params_n_neighbors']
-                                 metric = row['params_metric']
-                                 weights = row['params_weights']
-                                 model = KNeighborsRegressor(n_neighbors=n_neighbors, metric=metric,weights=weights)
-                               elif alg == "MLPR":
-                                 pactivation = row['params_activation']
-                                 palpha = row['params_alpha']
-                                 pbeta1 = row['params_beta_1']
-                                 pbeta2 = row['params_beta_2']
-                                 pepsilon = row['params_epsilon']
-                                 #phiddenlayers = tupleTransform(row['params_hidden_layer_sizes'])
-                                 phiddenlayers = row['params_hidden_layer_sizes']
-                                 plearningrateinit = row['params_learning_rate_init']
-                                 pmaxfun = row['params_max_fun']
-                                 pmaxiter = row['params_max_iter']
-                                 pmomentum = row['params_momentum']
-                                 ppowert = row['params_power_t']
-                                 psolver = row['params_solver']
-                                 ptol = row['params_tol']
-                                 pvalidfraction = row['params_validation_fraction']
-                                 model = MLPRegressor(activation=pactivation, solver=psolver, alpha=palpha, beta_1=pbeta1, beta_2 = pbeta2,
-                                                      epsilon=pepsilon, hidden_layer_sizes=phiddenlayers, learning_rate_init=plearningrateinit,
-                                                      max_fun=pmaxfun, max_iter=pmaxiter, momentum=pmomentum, power_t=ppowert, tol=ptol,
-                                                      validation_fraction=pvalidfraction)
+                                if alg == 'KNNR':
+                                    n_neighbors = row['params_n_neighbors']
+                                    metric = row['params_metric']
+                                    weights = row['params_weights']
+                                    model = KNeighborsRegressor(n_neighbors=n_neighbors, metric=metric, weights=weights)
+                                elif alg == "MLPR":
+                                    pactivation = row['params_activation']
+                                    palpha = row['params_alpha']
+                                    pbeta1 = row['params_beta_1']
+                                    pbeta2 = row['params_beta_2']
+                                    pepsilon = row['params_epsilon']
+                                    # phiddenlayers = tupleTransform(row['params_hidden_layer_sizes'])
+                                    phiddenlayers = row['params_hidden_layer_sizes']
+                                    plearningrateinit = row['params_learning_rate_init']
+                                    pmaxfun = row['params_max_fun']
+                                    pmaxiter = row['params_max_iter']
+                                    pmomentum = row['params_momentum']
+                                    ppowert = row['params_power_t']
+                                    psolver = row['params_solver']
+                                    ptol = row['params_tol']
+                                    pvalidfraction = row['params_validation_fraction']
+                                    model = MLPRegressor(activation=pactivation, solver=psolver, alpha=palpha,
+                                                         beta_1=pbeta1, beta_2=pbeta2,
+                                                         epsilon=pepsilon, hidden_layer_sizes=phiddenlayers,
+                                                         learning_rate_init=plearningrateinit,
+                                                         max_fun=pmaxfun, max_iter=pmaxiter, momentum=pmomentum,
+                                                         power_t=ppowert, tol=ptol,
+                                                         validation_fraction=pvalidfraction)
 
-                               elif alg == 'SVREG':
-                                 C = row['params_C']
-                                 epsilon = row['params_epsilon']
-                                 gamma = row['params_gamma']
-                                 kernel = row['params_kernel']
-                                 model = sklearn.svm.SVR(gamma=gamma, C=C, epsilon=epsilon, kernel=kernel)
-                               elif alg == "RF" or alg == "GBR" :
-                                 maxdepth = row['params_max_depth']
-                                 minsampleaf = row['params_min_samples_leaf']
-                                 minsampsplit = row['params_min_samples_split']
-                                 numberestimators = row['params_n_estimators']
-                                 if alg == "RF":
-                                     maxdepth = row['params_max_depth']
-                                     minsampleaf = row['params_min_samples_leaf']
-                                     minsampsplit = row['params_min_samples_split']
-                                     numberestimators = row['params_n_estimators']
-                                     minimpurity = row['params_min_impurity_decrease']
-                                     model = RandomForestRegressor(max_depth = maxdepth, min_samples_leaf = minsampleaf,
-                                             min_samples_split = minsampsplit, n_estimators = numberestimators,
-                                             min_impurity_decrease=minimpurity)
-                                 elif alg == "GBR":
-                                    model = GradientBoostingRegressor(max_depth=maxdepth, min_samples_leaf=minsampleaf,
-                                                                      min_samples_split=minsampsplit, n_estimators=numberestimators)
-                               elif alg == "XGBR":
-                                   parmboost = row['params_booster']
-                                   parmsamplevel= row['params_colsample_bylevel']
-                                   parmsampnode = row['params_colsample_bynode']
-                                   parmsamptree = row['params_colsample_bytree']
-                                   parmlearnrate = row['params_learning_rate']
-                                   parmmaxdepth = row['params_max_depth']
-                                   parmminchildweight = row['params_min_child_weight']
-                                   parmnestimators = row['params_n_estimators']
-                                   parmsubsample = row['params_subsample']
-                                   model = XGBRegressor(booster = parmboost, colsample_bylevel= parmsamplevel,
-                                   colsample_bynode=parmsampnode,colsample_bytree=parmsamptree,learning_rate= parmlearnrate,
-                                   max_depth=parmmaxdepth,min_child_weight=parmminchildweight, n_estimators=parmnestimators,
-                                   subsample = parmsubsample)
-                               elif alg == "DTR":
-                                   maxdepth = row['params_max_depth']
-                                   minsampleaf = row['params_min_samples_leaf']
-                                   minsampsplit = row['params_min_samples_split']
-                                   minimpurity = row['params_min_impurity_decrease']
-                                   splitter = row['params_splitter']
-                                   #maxleafnodes = row['params_max_leaf_nodes'].fillna(0)
-                                   #maxleafnodes = int(maxleafnodes)
-                                   minweightfractionleaf = row['params_min_weight_fraction_leaf']
-                                   #model = DecisionTreeRegressor(max_depth=maxdepth, min_samples_leaf=minsampleaf,
-                                   #                              min_samples_split=minsampsplit,
-                                   #                              max_leaf_nodes=maxleafnodes,
-                                   #                              min_weight_fraction_leaf=minweightfractionleaf,
-                                   #                              min_impurity_decrease=minimpurity, splitter=splitter)
-                                   model=DecisionTreeRegressor(max_depth=maxdepth, min_samples_leaf=minsampleaf,
-                                                                 min_samples_split=minsampsplit,splitter=splitter,
-                                                                 min_weight_fraction_leaf=minweightfractionleaf,
-                                                                 min_impurity_decrease=minimpurity)
+                                elif alg == 'SVREG':
+                                    C = row['params_C']
+                                    epsilon = row['params_epsilon']
+                                    gamma = row['params_gamma']
+                                    kernel = row['params_kernel']
+                                    model = sklearn.svm.SVR(gamma=gamma, C=C, epsilon=epsilon, kernel=kernel)
+                                elif alg == "RF" or alg == "GBR":
+                                    maxdepth = row['params_max_depth']
+                                    minsampleaf = row['params_min_samples_leaf']
+                                    minsampsplit = row['params_min_samples_split']
+                                    numberestimators = row['params_n_estimators']
+                                    if alg == "RF":
+                                        maxdepth = row['params_max_depth']
+                                        minsampleaf = row['params_min_samples_leaf']
+                                        minsampsplit = row['params_min_samples_split']
+                                        numberestimators = row['params_n_estimators']
+                                        minimpurity = row['params_min_impurity_decrease']
+                                        model = RandomForestRegressor(max_depth=maxdepth, min_samples_leaf=minsampleaf,
+                                                                      min_samples_split=minsampsplit,
+                                                                      n_estimators=numberestimators,
+                                                                      min_impurity_decrease=minimpurity)
+                                    elif alg == "GBR":
+                                        model = GradientBoostingRegressor(max_depth=maxdepth,
+                                                                          min_samples_leaf=minsampleaf,
+                                                                          min_samples_split=minsampsplit,
+                                                                          n_estimators=numberestimators)
+                                elif alg == "XGBR":
+                                    parmboost = row['params_booster']
+                                    parmsamplevel = row['params_colsample_bylevel']
+                                    parmsampnode = row['params_colsample_bynode']
+                                    parmsamptree = row['params_colsample_bytree']
+                                    parmlearnrate = row['params_learning_rate']
+                                    parmmaxdepth = row['params_max_depth']
+                                    parmminchildweight = row['params_min_child_weight']
+                                    parmnestimators = row['params_n_estimators']
+                                    parmsubsample = row['params_subsample']
+                                    model = XGBRegressor(booster=parmboost, colsample_bylevel=parmsamplevel,
+                                                         colsample_bynode=parmsampnode, colsample_bytree=parmsamptree,
+                                                         learning_rate=parmlearnrate,
+                                                         max_depth=parmmaxdepth, min_child_weight=parmminchildweight,
+                                                         n_estimators=parmnestimators,
+                                                         subsample=parmsubsample)
+                                elif alg == "DTR":
+                                    maxdepth = row['params_max_depth']
+                                    minsampleaf = row['params_min_samples_leaf']
+                                    minsampsplit = row['params_min_samples_split']
+                                    minimpurity = row['params_min_impurity_decrease']
+                                    splitter = row['params_splitter']
+                                    # maxleafnodes = row['params_max_leaf_nodes'].fillna(0)
+                                    # maxleafnodes = int(maxleafnodes)
+                                    minweightfractionleaf = row['params_min_weight_fraction_leaf']
+                                    # model = DecisionTreeRegressor(max_depth=maxdepth, min_samples_leaf=minsampleaf,
+                                    #                              min_samples_split=minsampsplit,
+                                    #                              max_leaf_nodes=maxleafnodes,
+                                    #                              min_weight_fraction_leaf=minweightfractionleaf,
+                                    #                              min_impurity_decrease=minimpurity, splitter=splitter)
+                                    model = DecisionTreeRegressor(max_depth=maxdepth, min_samples_leaf=minsampleaf,
+                                                                  min_samples_split=minsampsplit, splitter=splitter,
+                                                                  min_weight_fraction_leaf=minweightfractionleaf,
+                                                                  min_impurity_decrease=minimpurity)
 
-                               elif alg == "LR":
-                                  model = LinearRegression()
-                               elif alg == "LASSO" or alg == "RIDGE" or alg == "ELNET":
-                                 alpha = row['params_alpha']
-                                 maxiter = row['params_max_iter']
-                                 if alg == "ELNET":
-                                    l1ratio = row['params_l1_ratio']
-                                 if alg ==  "LASSO":
-                                    model = Lasso(alpha= alpha, max_iter= maxiter)
-                                 elif alg == "RIDGE":
-                                    model = Ridge(alpha = alpha, max_iter = maxiter)
-                                 else:
-                                    model = ElasticNet(alpha=alpha, l1_ratio=l1ratio, max_iter= maxiter)
-                               if minmaxscaling == True:
-                                  scaler = MinMaxScaler()
-                                  pipeline = make_pipeline(scaler, model)
-                                  fitted = pipeline.fit(x_train, y_train)
-                                  minmaxscaling = False
-                               elif stdscaling == True:
-                                  scaler = StandardScaler()
-                                  pipeline = make_pipeline(scaler,model)
-                                  fitted = pipeline.fit(x_train, y_train)
-                                  stdscaling = False
-                               else:
-                                 fitted = model.fit(x_train,y_train)
-                               pred = fitted.predict(x_test)
-                               if squaring:
-                                  predicted = np.square(pred)
-                                  observed = np.square(y_test)
-                               MAEvalue = mean_absolute_error(observed, predicted)
-                               PW20value = PercIn20(observed, predicted)
-                               dfOptuna.at[index,'MAE'] = MAEvalue
-                               dfOptuna.at[index,'PW20'] = PW20value
+                                elif alg == "LR":
+                                    model = LinearRegression()
+                                elif alg == "LASSO" or alg == "RIDGE" or alg == "ELNET":
+                                    alpha = row['params_alpha']
+                                    maxiter = row['params_max_iter']
+                                    if alg == "ELNET":
+                                        l1ratio = row['params_l1_ratio']
+                                    if alg == "LASSO":
+                                        model = Lasso(alpha=alpha, max_iter=maxiter)
+                                    elif alg == "RIDGE":
+                                        model = Ridge(alpha=alpha, max_iter=maxiter)
+                                    else:
+                                        model = ElasticNet(alpha=alpha, l1_ratio=l1ratio, max_iter=maxiter)
+                                if minmaxscaling == True:
+                                    scaler = MinMaxScaler()
+                                    pipeline = make_pipeline(scaler, model)
+                                    fitted = pipeline.fit(x_train, y_train)
+                                    minmaxscaling = False
+                                elif stdscaling == True:
+                                    scaler = StandardScaler()
+                                    pipeline = make_pipeline(scaler, model)
+                                    fitted = pipeline.fit(x_train, y_train)
+                                    stdscaling = False
+                                else:
+                                    fitted = model.fit(x_train, y_train)
+                                pred = fitted.predict(x_test)
+                                if squaring:
+                                    predicted = np.square(pred)
+                                    observed = np.square(y_test)
+                                MAEvalue = mean_absolute_error(observed, predicted)
+                                PW20value = PercIn20(observed, predicted)
+                                dfOptuna.at[index, 'MAE'] = MAEvalue
+                                dfOptuna.at[index, 'PW20'] = PW20value
                             dfOptuna.to_csv(
-                            r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OptunaAllModelW\model_" + alg + "_" + str(randomseed) + "_" + suffix + ".csv",";")
+                                r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OptunaAllModelIWPC\model_" + alg + "_" + str(
+                                    randomseed) + "_" + suffix + ".csv", ";")
                             if resultsdict['MAE'] > [5]:
-                               results.append(res_dict)
+                                results.append(res_dict)
 
                         df_res = pd.DataFrame()
                         for res in results:
                             df_res = df_res.append(pd.DataFrame.from_dict(res))
                         print(f"\n\n{df_res.groupby(['Estimator']).agg(np.mean)}\n")
 
-            # dfResults = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfResults" + ".csv", ";")
-
             dfResults = pd.DataFrame(results)
-            dfResults["PW20"] = dfResults.apply(lambda x: ExitSquareBracket(x["PW20"], False), axis=1).astype(float)
+            dfResults["PW20"] = dfResults.apply(lambda x: ExitSquareBracket(x["PW20"],False), axis=1).astype(float)
             dfResults["MAE"] = dfResults.apply(lambda x: ExitSquareBracket(x["MAE"], False), axis=1).astype(float)
             dfResults["R2"] = dfResults.apply(lambda x: ExitSquareBracket(x["R2"], False), axis=1).astype(float)
             dfResults["Time"] = dfResults.apply(lambda x: ExitSquareBracket(x["Time"], False), axis=1).astype(float)
             dfResults["Estimator"] = dfResults.apply(lambda x: ExitSquareBracket(x["Estimator"], False), axis=1)
-
             dfResults.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfResultsPRE" + ".csv", ";")
             if "Unnamed: 0" in dfResults.columns:
                 dfResults.drop(["Unnamed: 0"], axis=1, inplace=True)
@@ -1349,77 +1356,39 @@ def main():
                         dfResults.at[i, 'Time'] = np.nan
 
             dfSummary = dfResults.groupby('Estimator').apply(np.mean)
-            dfResults.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfResults" + ".csv", ";")
-            dfSummary.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfSummary_" + alg + "_" + str(randomseed) + ".csv",
-                             ";")
-            print("STOP HERE")
-
-            if False and df == impNumber:
-                for i in range(len(metric_columns)):
+            stddev = []
+            confinterval = []
+            for i in range(len(metric_columns)):
+                for _, est in enumerate(estimates):
+                    current_estimator = est.identifier
                     current_metric = metric_columns[i]
-                    metriclist = np.array(collect_Metrics(smpResults, 'WarPATH', current_metric))
-                    std = np.square(std_deviation(metriclist))
-                    var = variance(metriclist)
-                    # std = np.sqrt(var)
-                    std_Dev.append({'model': 'WarPATH', 'metric': current_metric, 'SD': std, 'VAR': var})
+                    current_mean = dfSummary.loc[current_estimator][current_metric]
+                    # metric_values = dfResults.apply(lambda x:collect_Results(x['Estimator'],current_metric,axis=1))
+                    metric_values = np.where(dfResults['Estimator'] == current_estimator, dfResults[current_metric],
+                                             9999)
+                    metriclist = np.array(metric_values)
+                    # metriclist = [j for j in metriclist if j != np.nan]
+                    metriclistcopy = []
+                    for j in metriclist:
+                        if j != 9999:
+                            if math.isnan(j) == False:
+                                metriclistcopy.append(j)
+                    metriclist = metriclistcopy
+                    current_stddev = confintlimit95(metriclist, current_mean)
+                    confinterval.append(
+                        {'estimator': current_estimator, 'metric': current_metric, 'mean': current_mean,
+                         '95% CI lower bound': current_mean - current_stddev,
+                         '95% CI upper bound': current_mean + current_stddev})
+                # stddev.append({'metric':current_metric,'standarddev':current_stdde  v,'mean':current_mean})
+            dfResults.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\IWPC_dfResults" + ".csv", ";")
 
-                for k in range(len(std_Dev)):
-                    model = std_Dev[k]['model']
-                    metric = std_Dev[k]['metric']
-                    Wfactor = std_Dev[k]['SD']
-                    Bfactor = std_Dev[k]['VAR']
-                    modelpos = find(std_Dev_Summ, 'model', model)
-                    std_Dev_Summ[modelpos][metric] += Wfactor
-                    modelpos2 = find(variance_Summ, 'model', model)
-                    variance_Summ[modelpos2][metric] += Bfactor
+            dfSummary.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\IWPC_dfSummary_" + str(randomseed) + ".csv",";")
 
-                for k in range(len(models)):
-                    fieldname = models[k]['model']
-                    for m in range(len(smpResults)):
-                        if smpResults[m]['model'] == fieldname:
-                            models[k]['MAE'] += smpResults[m]['MAE']
-                            models[k]['PW20'] += smpResults[m]['PW20']
-                Bfactor = (impNumber + 1) / impNumber
-
-                for k in range(len(models)):
-                    fieldname = models[k]['model']
-                    mae_list = collect_Results(smpResults, fieldname, 'MAE')
-                    mae_value = listAverage(mae_list)
-                    mae_variance = variance(mae_list) * Bfactor
-                    stdpos = find(std_Dev_Summ, 'model', fieldname)
-                    varpos = find(variance_Summ, 'model', fieldname)
-                    mae_var = variance_Summ[varpos]['MAE'] * 2
-                    mae_std_dev = std_Dev_Summ[stdpos]['MAE'] / impNumber
-                    mae_CI_minus = round(mae_value - 1.96 * np.sqrt(mae_std_dev + mae_variance), 4)
-                    mae_CI_plus = round(mae_value + 1.96 * np.sqrt(mae_std_dev + mae_variance), 4)
-                    pw20_list = collect_Results(smpResults, fieldname, 'PW20')
-                    pw20_value = listAverage(pw20_list)
-                    pw20_variance = variance(pw20_list) * Bfactor
-                    pw20_std_dev = std_Dev_Summ[stdpos]['PW20'] / impNumber
-                    pw20_var = variance_Summ[varpos]['MAE'] * 2
-                    pw20_CI_minus = round(pw20_value - 1.96 * np.sqrt(pw20_std_dev + pw20_variance), 4)
-                    pw20_CI_plus = round(pw20_value + 1.96 * np.sqrt(pw20_std_dev + pw20_variance), 4)
-                    dfPrev = dfConf
-                    timeConclude = time.time()
-                    timePeriod = timeConclude - timeBegin
-                    dfCurr = pd.DataFrame()
-                    dfCurr['HEADER'] = ['WARPATH', alg, randomseed]
-                    dfCurr["MAE"] = [round(mae_value, 6), mae_CI_minus, mae_CI_plus]
-                    dfCurr["MAE_Rubin"] = [0, round(mae_std_dev, 6), round(mae_variance, 6)]
-                    dfCurr["PW2O"] = [round(pw20_value, 6), pw20_CI_minus, pw20_CI_plus]
-                    dfCurr["PW20_Rubin"] = [0, round(pw20_std_dev, 6), round(pw20_variance, 6)]
-                    dfCurr["TIME"] = timePeriod
-                    dfCurr["ML_MODEL"] = ['', ml_model, '']
-                    frames = (dfPrev, dfCurr)
-                    dfConf = pd.concat(frames)
-                    name = "WARPATH" + alg.replace(" ", "")
-                    dfConf.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\CI\\" + name + ".csv", ";")
-                    print(fieldname, 'MAE:', round(mae_value, 6), "StdDev:", round(mae_std_dev, 6), "B: ",
-                          round(mae_variance, 4), "  CI: [", mae_CI_minus, mae_CI_plus, "]", )
-                    print(fieldname, 'PW20:', round(pw20_value, 6), "StdDev:", round(pw20_std_dev, 6), "B: ",
-                          round(pw20_variance, 4), " CI: [", pw20_CI_minus, pw20_CI_plus, "]")
-                    print('RANDOM STATE,   ', randomseed)
-                    print(dfSummary)
+            dfConfidence = pd.DataFrame(confinterval,
+                                        columns=['estimator', 'metric', 'mean', '95% CI lower bound',
+                                                 '95% CI upper bound'])
+            dfConfidence.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_dfConfidence" + ".csv", ";")
+            print("STOP HERE")
 
 
 if __name__ == "__main__":

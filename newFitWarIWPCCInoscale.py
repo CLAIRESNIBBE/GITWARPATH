@@ -230,6 +230,7 @@ def TrainOrTest(patientID, TrainList, TestList):
         return 'train'
     elif (patientID in TestList):
         return 'test'
+
 def MLAR(trueval, predval):
     # mean log of accuracy ratio
     sum = 0
