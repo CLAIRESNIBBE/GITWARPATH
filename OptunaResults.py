@@ -118,15 +118,14 @@ def ExitSquareBracket(variable, floatbool):
 def collect_Metrics(metrics, model, metric):
     container = []
     for i in range(len(metrics)):
-        if metrics[metric][metrics['Estimator'].any() == model]:
-            container.append(metrics[metric][metrics['Estimator'] == model].values)
+        if metrics[i]['model'] == model:
+          container.append(metrics[i]['metric'])
     return container
 
-def collect_Metrics(metrics, model, seed, metric):
+def collect_Metric(metrics, model, seed, metric):
     container = []
     for i in range(len(metrics)):
         if (metrics[i]['model'] == model) and (metrics[i]['seed'] == seed):
-            # print(metrics[i]['model'], metrics[i]['metric'], metrics[i]['value'])
             container.append(metrics[i][metric])
     return container
 
@@ -826,10 +825,14 @@ def traineval(est: Estimator, xtrain, ytrain, xtest, ytest, squaring, df, random
 
 
 def main():
+
+    firstRun = True
+    modelstats = dict()
+    modelsumm = dict()
+    smpResults = []
     metric_columns = ['MAE', 'PW20']
     listmodels = ['WarPATH']
     mlmodels = []
-    smpResults = []
     RF = RandomForestRegressor()
     mlmodels.append(Estimator(RF, 'RF'))
     LR = LinearRegression()
@@ -852,8 +855,9 @@ def main():
     mlmodels.append(Estimator(DTR, 'DTR'))
     XGBR = XGBRegressor()
     mlmodels.append(Estimator(XGBR,'XGBR'))
+    alg = Estimator.identifier
+    modelsumm = {'model': alg}
     for _, est in enumerate(mlmodels):
-        dfConf = pd.DataFrame()
         estimates = []
         print("Processing ML model ", est.identifier)
         alg = est.identifier
@@ -869,23 +873,67 @@ def main():
         randomStates.append(143)
         for state in range(len(randomStates)):
             randomseed = randomStates[state]
+            modelstats = {'model':alg, 'seed': randomseed, 'MAE' : [], 'PW20' : []}
+            modelsumm = {'model':alg}
             metrics = []
             timeBegin = time.time()
             print("Processing random state", randomseed)
-            count = 0
             imps = 50
-            while count < imps:
-                count = count + 1
-                suffix = str(count).zfill(3)
-                dfImp =  pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OptunaAllModelW\model_" + alg + "_" + str(
-                           randomseed) + "_" + suffix + ".csv", ";")
-                for index, row in dfImp.iterrows():
-                    mae_value = row['MAE']
-                    PW20_value = row['PW20']
-                    smpResults.append({'Imp': count, 'State': randomseed, 'model': alg, 'MAE': mae_value, 'PW20': PW20_value})
-                count = count+1
+            for j in range(imps):
+              suffix = str(j+1).zfill(3)
+              dfImp =  pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OptunaAllModelWIWPC\model_" + alg + "_" + str(
+                       randomseed) + "_" + suffix + ".csv", ";")
+              for index, row in dfImp.iterrows():
+                mae_value = row['MAE']
+                PW20_value = row['PW20']
+                smpResults.append({'Imp': (j+1), 'seed': randomseed, 'model': alg, 'MAE': mae_value, 'PW20': PW20_value})
 
+            MAE_list = collect_Metric(smpResults, alg, randomseed,'MAE')
+            PW20_list = collect_Metric(smpResults,alg,randomseed,'PW20')
+            number_of_samples = 100
+            dataSet = np.random.randint(10, size=(number_of_samples, 2))
+            df_WARPATH = pd.DataFrame(data=dataSet, columns=metric_columns)
 
+            modelstats.update({'MAE': MAE_list, 'PW20': PW20_list})
+
+            if state == 0:
+              dfmodel = pd.DataFrame(modelstats)
+            else:
+              dfmodelnew = pd.DataFrame(modelstats)
+              frames = (dfmodel, dfmodelnew)
+              dfmodel = pd.concat(frames)
+            dfmodel.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATHIWPC_models_" + alg + ".csv", ";")
+            if state+1 == len(randomStates):
+               mean_MAE = dfmodel['MAE'].mean()
+               mean_PW20 = dfmodel["PW20"].mean()
+               std_MAE = dfmodel['MAE'].std()
+               std_PW20 = dfmodel['PW20'].std()
+               var_MAE = dfmodel['MAE'].var()
+               var_PW20 = dfmodel['PW20'].var()
+               std_MAE2 = std_deviation(np.array(dfmodel['MAE']), mean_MAE)
+               var_MAE2 = variance(np.array(dfmodel['MAE']), mean_MAE)
+               std_PW202 = np.square(std_deviation(np.array(dfmodel['PW20']), mean_PW20))
+               var_PW202 = variance(np.array(dfmodel['PW20']), mean_PW20)
+               print('std_MAE', std_MAE)
+               print('std_MAE2', std_MAE2)
+               print('var_MAE', var_MAE)
+               print('var_MAE2', var_MAE2)
+
+               if firstRun == True:
+                 dfsumm = pd.DataFrame()
+                 dfsummadd = pd.DataFrame([{'model':alg,'MAE': mean_MAE,'Stdev_MAE':std_MAE,'Var_MAE':var_MAE,
+                                            'PW20': mean_PW20,'Stdev_PW20': std_PW20,'Var_PW20': var_PW20}])
+                 frames = (dfsumm, dfsummadd)
+                 dfsumm=pd.concat(frames)
+                 firstRun = False
+               else:
+                 dfsummadd = pd.DataFrame([{'model':alg,'MAE': mean_MAE,'Stdev_MAE':std_MAE,'Var_MAE':var_MAE,
+                                            'PW20': mean_PW20,'Stdev_PW20': std_PW20,'Var_PW20': var_PW20}])
+                 frames = (dfsumm, dfsummadd)
+                 dfsumm = pd.concat(frames)
+
+    print(dfsumm)
+    dfsumm.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATHIWPC_ALLmodels_"  + ".csv", ";")
 if __name__ == "__main__":
     main()
 

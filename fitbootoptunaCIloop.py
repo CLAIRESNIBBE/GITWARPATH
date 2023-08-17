@@ -1173,7 +1173,7 @@ def main():
                                            model = smpResults[j]['model']
                                            metric_value = smpResults[j][metric]
                                            if model == modelinlist:
-                                               metrics.append({'model': model, 'metric': metric, 'value': metric_value})
+                                               metrics.append({'model': model, 'metric'  : metric, 'value': metric_value})
 
                                for i in range(len(metric_columns)):
                                    current_metric = metric_columns[i]
