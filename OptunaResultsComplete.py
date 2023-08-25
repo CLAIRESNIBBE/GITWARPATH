@@ -881,9 +881,10 @@ def main():
             metrics = []
             print("Processing random state", randomseed)
             imps = 50
+            Bfactor = (imps+1)/imps
             for j in range(imps):
               suffix = str(j+1).zfill(3)
-              dfImp =  pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OptunaAllModelWIWPC\model_" + alg + "_" + str(
+              dfImp =  pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OptunaAllModelW\model_" + alg + "_" + str(
                        randomseed) + "_" + suffix + ".csv", ";")
               dfImpInter = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OptunaWarpath\model_" + alg + "_" + str(
                   randomseed) + "_050" + ".csv", ";")
@@ -954,7 +955,9 @@ def main():
                  dfsummadd = pd.DataFrame([{'model':alg,'MAE': mean_MAE,'Stdev_MAE':std_MAE,'Var_MAE':var_MAE,
                                             'PW20': mean_PW20,'Stdev_PW20': std_PW20,'Var_PW20': var_PW20}])
                  dfsumminteradd = pd.DataFrame([{'model':alg,'MAE': mean_MAE_inter,'Stdev_MAE': std_MAE_inter,'Var_MAE':var_MAE_inter,
-                                            'PW20': mean_PW20_inter,'Stdev_PW20': std_PW20_inter,'Var_PW20': var_PW20_inter}])
+                                            'PW20': mean_PW20_inter,'Stdev_PW20': std_PW20_inter,'Var_PW20': var_PW20_inter,
+                                                 'CI_MAE_Lower': 0, 'CI_MAE_Upper': 0, 'CI_PW20_Lower': 0,'CI_PW20_Upper': 0}])
+
                  frames = (dfsumm, dfsummadd)
                  framesinter = (dfsumminter, dfsumminteradd)
                  dfsumm=pd.concat(frames)
@@ -963,20 +966,46 @@ def main():
                else:
                  dfsummadd = pd.DataFrame([{'model':alg,'MAE': mean_MAE,'Stdev_MAE':std_MAE,'Var_MAE':var_MAE,
                                             'PW20': mean_PW20,'Stdev_PW20': std_PW20,'Var_PW20': var_PW20}])
+
                  dfsumminteradd = pd.DataFrame(
                      [{'model': alg, 'MAE': mean_MAE_inter, 'Stdev_MAE': std_MAE_inter, 'Var_MAE': var_MAE_inter,
-                       'PW20': mean_PW20_inter, 'Stdev_PW20': std_PW20_inter, 'Var_PW20': var_PW20_inter}])
+                       'PW20': mean_PW20_inter, 'Stdev_PW20': std_PW20_inter, 'Var_PW20': var_PW20_inter,
+                       'CI_MAE_Lower':0, 'CI_MAE_Upper':0, 'CI_PW20_Lower':0, 'CI_PW20_Upper':0}])
                  framesinter = (dfsumminter, dfsumminteradd)
                  frames = (dfsumm, dfsummadd)
                  framesinter = (dfsumminter, dfsumminteradd)
                  dfsumm = pd.concat(frames)
                  dfsumminter = pd.concat(framesinter)
 
+    dfsumminter.reset_index(level=0, inplace=True)
+    dfsumminter.drop(columns=dfsumminter.columns[0], axis = 1, inplace = True)
+    dfsumminter.reindex()
+    for index, row in dfsumminter.iterrows():
+        modelinter = row['model']
+        theta_inter_MAE = row['MAE']
+        MAE_inter_var = row['Var_MAE']
+        theta_inter_PW20 = row['PW20']
+        PW20_inter_var = row['Var_PW20']
+        for index2, row2 in dfsumm.iterrows():
+            modelintra = row2['model']
+            if modelintra == modelinter:
+               MAE_intra_var = row2['Var_MAE']
+               PW20_intra_var = row2['Var_PW20']
+               totalvar_MAE = MAE_intra_var + (MAE_inter_var*Bfactor)
+               SEPooled_MAE = np.sqrt(totalvar_MAE)
+               totalvar_PW20 = PW20_intra_var + PW20_inter_var*Bfactor
+               SEPooled_PW20 = np.sqrt(totalvar_PW20)
+               CI_lower_MAE, CI_upper_MAE   = theta_inter_MAE-1.96*SEPooled_MAE,theta_inter_MAE+1.96*SEPooled_MAE
+               CI_lower_PW20, CI_upper_PW20 = theta_inter_MAE-1.96*SEPooled_PW20,theta_inter_PW20+1.96*SEPooled_PW20
+               dfsumminter.at[index, 'CI_MAE_Lower']   = CI_lower_MAE
+               dfsumminter.at[index, 'CI_MAE_Upper']  =  CI_upper_MAE
+               dfsumminter.at[index, 'CI_PW20_Lower'] = CI_lower_PW20
+               dfsumminter.at[index, 'CI_PW20_Upper'] = CI_upper_PW20
 
     print(dfsumm)
-    dfsumm.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATHIWPC_ALLmodels_"  + ".csv", ";")
+    dfsumm.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_ALLmodels_"  + ".csv", ";")
     print(dfsumminter)
-    dfsumminter.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATHIWPC_ALLmodelsInter_" + ".csv", ";")
+    dfsumminter.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_ALLmodelsInter_" + ".csv", ";")
 
 if __name__ == "__main__":
     main()
