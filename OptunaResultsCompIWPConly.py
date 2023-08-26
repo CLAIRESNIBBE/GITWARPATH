@@ -884,9 +884,9 @@ def main():
             Bfactor = (imps+1)/imps
             for j in range(imps):
               suffix = str(j+1).zfill(3)
-              dfImp =  pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OptunaAllModelW\model_" + alg + "_" + str(
+              dfImp =  pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OptunaAllModelIWPC\model_" + alg + "_" + str(
                        randomseed) + "_" + suffix + ".csv", ";")
-              dfImpInter = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OptunaWarpath\model_" + alg + "_" + str(
+              dfImpInter = pd.read_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\OptunaIWPConly\model_" + alg + "_" + str(
                   randomseed) + "_050" + ".csv", ";")
 
               for index, row in dfImp.iterrows():
@@ -1003,9 +1003,9 @@ def main():
                dfsumminter.at[index, 'CI_PW20_Upper'] = CI_upper_PW20
 
     print(dfsumm)
-    dfsumm.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_ALLmodelsW_"  + ".csv", ";")aa
+    dfsumm.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_ALLmodelsIWPC_"  + ".csv", ";")
     print(dfsumminter)
-    dfsumminter.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_ALLmodelsInterW_" + ".csv", ";")
+    dfsumminter.to_csv(r"C:\Users\Claire\GIT_REPO_1\CSCthesisPY\WARPATH_ALLmodelsInterIWPC_" + ".csv", ";")
 
 if __name__ == "__main__":
     main()
